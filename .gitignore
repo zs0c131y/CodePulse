@@ -1,7 +1,0 @@
-node_modules/
-dist/
-.vite/
-*.log
-*.png
-*.local
-node_modules/.tmp/
