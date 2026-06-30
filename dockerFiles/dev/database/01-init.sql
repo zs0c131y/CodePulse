@@ -1,0 +1,7 @@
+CREATE DATABASE IF NOT EXISTS codepulse;
+
+CREATE USER IF NOT EXISTS 'codepulse'@'%' IDENTIFIED BY '';
+
+GRANT ALL PRIVILEGES ON codepulse.* TO 'codepulse'@'%';
+
+FLUSH PRIVILEGES;
