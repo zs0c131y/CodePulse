@@ -54,7 +54,7 @@ CodePulse/
 │   │   └── BACKEND.md         # API routes and analytical engines specifications
 │   ├── ai/                    # AI explainability-specific docs
 │   │   └── AI_ENGINE.md       # Context builder and prompt patterns
-│   └── ROOT_CONTEXT.md        # This entry point document
+│   └── index.md               # This entry point document
 ├── docker-compose.yaml        # Local development multi-container setup (MySQL + Workbench)
 └── package.json               # Frontend dependencies and run scripts
 ```
