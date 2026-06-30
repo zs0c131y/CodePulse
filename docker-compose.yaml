@@ -1,0 +1,49 @@
+services:
+  my-sql:
+    build:
+      context: .
+      dockerfile: dockerFiles/dev/database/sql.Dockerfile
+
+    container_name: codepulse-mysql
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+    restart: always
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  mysql-workbench:
+    build:
+      context: .
+      dockerfile: dockerFiles/dev/workbench/workbench.Dockerfile
+
+    container_name: codepulse-workbench
+
+    restart: unless-stopped
+
+    depends_on:
+      - my-sql
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: Asia/Kolkata
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+
+    volumes:
+      - ./config/mysql-workbench:/config
+
+volumes:
+  mysql_data:
