@@ -22,8 +22,7 @@ wiring for CodePulse.
 ```text
 frontend/
 ├── public/
-│   ├── favicon.svg
-│   └── icons.svg
+│   └── favicon.svg
 ├── src/
 │   ├── assets/
 │   │   └── hero.png
@@ -73,7 +72,7 @@ The landing page is composed in [frontend/src/App.jsx](../../frontend/src/App.js
 
 * Signup posts to `POST /api/auth/signup`.
 * Sign-in posts to `POST /api/auth/signin`.
-* Vite proxies `/api` requests to the backend API on `localhost:4000`.
+* Vite proxies `/api` requests to the backend API on `localhost:3000`.
 * Successful sign-in stores the public user object in local storage.
 
 ---

@@ -47,12 +47,11 @@ CodePulse/
 │   ├── index.html             # Vite HTML shell
 │   └── vite.config.js         # Frontend build and dev proxy config
 ├── backend/                   # Express API backend
-│   ├── data/                  # Local JSON development data
 │   ├── schema/                # Draft database schema scripts
 │   │   └── db_schema.js       # MongoDB collection setup draft
 │   └── src/                   # Backend source code
-│       ├── index.js           # API route definitions
-│       └── userStore.js       # Local JSON user persistence
+│       ├── db.js              # MongoDB connection and indexes
+│       └── index.js           # API route definitions
 ├── docs/                      # Technical documentation
 │   ├── ai/
 │   ├── backend/

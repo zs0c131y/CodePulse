@@ -6,22 +6,22 @@ export default function FinalCTA() {
       <div className="relative max-w-6xl mx-auto px-6">
         <div className="relative rounded-3xl overflow-hidden">
           {/* Gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-900/80 via-[#0a0a20] to-cyan-900/40" />
+          <div className="absolute inset-0 bg-linear-to-br from-violet-900/80 via-[#0a0a20] to-cyan-900/40" />
           <div className="absolute inset-0 dot-bg opacity-20" />
 
           {/* Glow orbs */}
-          <div className="absolute top-0 left-1/4 w-[300px] h-[300px] bg-violet-600/20 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute bottom-0 right-1/4 w-[250px] h-[250px] bg-cyan-500/15 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute top-0 left-1/4 w-75 h-75 bg-violet-600/20 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 w-62.5 h-62.5 bg-cyan-500/15 rounded-full blur-[80px] pointer-events-none" />
 
           {/* Border */}
           <div className="absolute inset-0 rounded-3xl border border-white/10 pointer-events-none" />
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 to-transparent pointer-events-none" />
+          <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-violet-400/40 to-transparent pointer-events-none" />
 
           {/* Content */}
           <div className="relative px-8 py-20 text-center space-y-8">
             {/* Icon */}
             <div className="flex justify-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-2xl shadow-violet-600/30 animate-glow-pulse">
+              <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-violet-600 to-cyan-500 flex items-center justify-center shadow-2xl shadow-violet-600/30 animate-glow-pulse">
                 <Activity size={28} strokeWidth={2} className="text-white" />
               </div>
             </div>
@@ -42,7 +42,7 @@ export default function FinalCTA() {
             <div className="flex flex-wrap gap-4 justify-center">
               <a
                 href="#signup"
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-violet-600 to-cyan-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-600/30 text-base"
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-linear-to-r from-violet-600 to-cyan-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-600/30 text-base"
               >
                 Get Early Access — It's Free
                 <ArrowRight size={18} />

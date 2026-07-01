@@ -1,23 +1,19 @@
 # CodePulse — Data Model Documentation
 
-This document describes the current CodePulse data model and development data
-store. SQL is not part of the active project setup.
+This document describes the current CodePulse MongoDB data model.
 
 ---
 
 ## Runtime Data Store
 
-The current backend stores development users in a local JSON file:
+The backend connects to MongoDB through [backend/src/db.js](../../backend/src/db.js).
+The connection string is read from `MONGO_URI`, with this local fallback:
 
 ```text
-backend/data/users.json
+mongodb://127.0.0.1:27017/codepulse
 ```
 
-This file is created on first signup and is ignored by Git. The local JSON store
-keeps the signup flow functional without requiring Docker, SQL, or an external
-database process.
-
-The draft long-term collection schema lives in:
+The MongoDB collection schema lives in:
 
 * [backend/schema/db_schema.js](../../backend/schema/db_schema.js)
 * [docs/database/MONGODB_SCHEMA.md](MONGODB_SCHEMA.md)

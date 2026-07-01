@@ -48,7 +48,7 @@ export default function HowItWorks() {
     <section id="how-it-works" className="py-28 relative overflow-hidden">
       <div className="absolute inset-0 dot-bg opacity-30 pointer-events-none" />
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-900/8 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-150 h-100 bg-cyan-900/8 rounded-full blur-[120px]" />
       </div>
 
       <div className="relative max-w-6xl mx-auto px-6 space-y-20">
@@ -77,7 +77,7 @@ export default function HowItWorks() {
             className="absolute top-8 hidden lg:block pointer-events-none"
             style={{ left: 'calc(12.5% + 8px)', right: 'calc(12.5% + 8px)', height: '1px' }}
           >
-            <div className="w-full h-full bg-gradient-to-r from-violet-500/40 via-cyan-500/30 via-emerald-500/30 to-amber-500/40" />
+            <div className="w-full h-full bg-linear-to-r from-violet-500/40 via-emerald-500/30 to-amber-500/40" />
             {/* Dots at step positions (25%, 50%, 75%) */}
             {[25, 50, 75].map(pct => (
               <div
@@ -92,7 +92,7 @@ export default function HowItWorks() {
             <div key={step} className="flex flex-col items-center text-center gap-5 group">
               {/* Icon box — z-10 so it sits above the connecting line */}
               <div
-                className={`relative z-10 w-16 h-16 rounded-2xl ${bg} border ${border} flex items-center justify-center flex-shrink-0 shadow-lg ${glow} group-hover:scale-105 transition-transform duration-300`}
+                className={`relative z-10 w-16 h-16 rounded-2xl ${bg} border ${border} flex items-center justify-center shrink-0 shadow-lg ${glow} group-hover:scale-105 transition-transform duration-300`}
               >
                 <Icon size={22} className={color} strokeWidth={1.5} />
                 {/* Step number — inside the box, bottom-right corner */}
@@ -102,7 +102,7 @@ export default function HowItWorks() {
               </div>
 
               {/* Text */}
-              <div className="space-y-2 max-w-[200px]">
+              <div className="space-y-2 max-w-50">
                 <h3 className="text-white font-semibold text-base leading-snug">{title}</h3>
                 <p className="text-slate-400 text-sm leading-relaxed">{body}</p>
               </div>
@@ -114,7 +114,7 @@ export default function HowItWorks() {
         <div className="text-center">
           <a
             href="#"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-violet-600 to-cyan-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-600/20"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-linear-to-r from-violet-600 to-cyan-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-600/20"
           >
             Start for free — no setup required
           </a>

@@ -137,7 +137,7 @@ export default function AuthPage({ mode = 'signin' }) {
     ? 'bg-[#030309] text-slate-100'
     : 'bg-[#f7fafc] text-slate-950'
   const panelClass = isDark
-    ? 'border-white/10 bg-white/[0.055] shadow-black/30'
+    ? 'border-white/10 bg-white/5.5 shadow-black/30'
     : 'border-slate-200 bg-white/85 shadow-slate-200/80'
   const inputClass = isDark
     ? 'border-white/10 bg-slate-950/45 text-white focus:border-cyan-400/70 focus:bg-slate-950/70 focus:ring-4 focus:ring-cyan-400/10'
@@ -145,7 +145,7 @@ export default function AuthPage({ mode = 'signin' }) {
   const mutedText = isDark ? 'text-slate-400' : 'text-slate-600'
   const softText = isDark ? 'text-slate-500' : 'text-slate-500'
   const chipClass = isDark
-    ? 'border-white/10 bg-white/[0.045] text-slate-300'
+    ? 'border-white/10 bg-white/4.5 text-slate-300'
     : 'border-slate-200 bg-slate-50 text-slate-600'
   const passwordRules = [
     { label: '8+ characters', valid: password.length >= 8 },
@@ -215,17 +215,17 @@ export default function AuthPage({ mode = 'signin' }) {
       <div className="absolute inset-0 pointer-events-none">
         <div
           className={`absolute inset-0 ${
-            isDark ? 'grid-bg opacity-70' : 'bg-[linear-gradient(rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-[size:56px_56px]'
+            isDark ? 'grid-bg opacity-70' : 'bg-[linear-gradient(rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-size-[56px_56px]'
           }`}
         />
-        <div className={`absolute inset-x-0 top-0 h-56 ${isDark ? 'bg-gradient-to-b from-violet-950/60 to-transparent' : 'bg-gradient-to-b from-cyan-100 to-transparent'}`} />
+        <div className={`absolute inset-x-0 top-0 h-56 ${isDark ? 'bg-linear-to-b from-violet-950/60 to-transparent' : 'bg-linear-to-b from-cyan-100 to-transparent'}`} />
         <div className={`absolute inset-y-0 right-0 w-1/2 ${isDark ? 'bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.16),transparent_50%)]' : 'bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.14),transparent_48%)]'}`} />
       </div>
 
       <header className="relative z-10">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <a href="#" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/20">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/20">
               <Activity size={17} strokeWidth={2.5} className="text-white" />
             </span>
             <span className="text-lg font-bold tracking-tight">
@@ -248,7 +248,7 @@ export default function AuthPage({ mode = 'signin' }) {
               onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-all ${
                 isDark
-                  ? 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'
+                  ? 'border-white/10 bg-white/5 text-slate-300 hover:text-white'
                   : 'border-slate-200 bg-white text-slate-700 hover:text-slate-950'
               }`}
               aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
@@ -261,11 +261,11 @@ export default function AuthPage({ mode = 'signin' }) {
 
       <main className="relative z-10 mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl grid-cols-1 items-center gap-10 px-6 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
         <section className="relative order-2 lg:order-1">
-          <div className="absolute -left-8 top-8 hidden h-40 w-40 rotate-12 rounded-[2rem] border border-cyan-400/20 lg:block" />
-          <div className="absolute -bottom-8 right-8 hidden h-32 w-32 -rotate-12 rounded-[2rem] border border-violet-400/20 lg:block" />
+          <div className="absolute -left-8 top-8 hidden h-40 w-40 rotate-12 rounded-4xl border border-cyan-400/20 lg:block" />
+          <div className="absolute -bottom-8 right-8 hidden h-32 w-32 -rotate-12 rounded-4xl border border-violet-400/20 lg:block" />
 
-          <div className={`relative overflow-hidden rounded-[2rem] border p-5 shadow-2xl backdrop-blur-2xl ${panelClass}`}>
-            <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent" />
+          <div className={`relative overflow-hidden rounded-4xl border p-5 shadow-2xl backdrop-blur-2xl ${panelClass}`}>
+            <div className="absolute left-0 right-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-400/70 to-transparent" />
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-current/10 pb-5">
               <div>
                 <p className={`text-xs uppercase tracking-[0.22em] ${softText}`}>Live workspace</p>
@@ -296,7 +296,7 @@ export default function AuthPage({ mode = 'signin' }) {
               </div>
               <div className="space-y-3">
                 <div className="h-3 overflow-hidden rounded-full bg-current/10">
-                  <div className="h-full w-[86%] rounded-full bg-gradient-to-r from-violet-500 via-cyan-400 to-emerald-400" />
+                  <div className="h-full w-[86%] rounded-full bg-linear-to-r from-violet-500 via-cyan-400 to-emerald-400" />
                 </div>
                 <div className="grid grid-cols-8 gap-1">
                   {Array.from({ length: 24 }).map((_, index) => (
@@ -331,7 +331,7 @@ export default function AuthPage({ mode = 'signin' }) {
         </section>
 
         <section className="order-1 lg:order-2">
-          <div className={`rounded-[2rem] border p-6 shadow-2xl backdrop-blur-2xl sm:p-8 ${panelClass}`}>
+          <div className={`rounded-4xl border p-6 shadow-2xl backdrop-blur-2xl sm:p-8 ${panelClass}`}>
             <div className="mb-8">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-3.5 py-1.5 text-sm font-semibold text-violet-400">
                 <Sparkles size={14} />
@@ -345,19 +345,19 @@ export default function AuthPage({ mode = 'signin' }) {
               <button
                 type="button"
                 className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
-                  isDark ? 'border-white/10 bg-white/[0.04] hover:bg-white/[0.075]' : 'border-slate-200 bg-white hover:bg-slate-50'
+                  isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
                 }`}
               >
-                <GitHubMark className="h-[18px] w-[18px]" />
+                <GitHubMark className="h-4.5 w-4.5" />
                 GitHub
               </button>
               <button
                 type="button"
                 className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
-                  isDark ? 'border-white/10 bg-white/[0.04] hover:bg-white/[0.075]' : 'border-slate-200 bg-white hover:bg-slate-50'
+                  isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
                 }`}
               >
-                <GitLabMark className="h-[18px] w-[18px] text-[#fc6d26]" />
+                <GitLabMark className="h-4.5 w-4.5 text-[#fc6d26]" />
                 GitLab
               </button>
             </div>
@@ -457,7 +457,7 @@ export default function AuthPage({ mode = 'signin' }) {
                         rememberMe
                           ? 'border-emerald-400/30 bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-400/20'
                           : isDark
-                            ? 'border-white/15 bg-white/[0.04] group-hover:border-white/25'
+                            ? 'border-white/15 bg-white/4 group-hover:border-white/25'
                             : 'border-slate-300 bg-white group-hover:border-slate-400'
                       }`}
                     >
@@ -488,7 +488,7 @@ export default function AuthPage({ mode = 'signin' }) {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
+                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
               >
                 {isSubmitting ? 'Working...' : copy.cta}
                 <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />

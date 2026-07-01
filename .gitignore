@@ -25,7 +25,3 @@ dist-ssr
 
 
 .env
-
-# Local backend data
-backend/data/*.json
-!backend/data/.gitkeep

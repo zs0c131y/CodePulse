@@ -55,10 +55,10 @@ export default function Features() {
   return (
     <section id="features" className="py-28 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-violet-600/5 rounded-full blur-[120px]" />
-        <div className="absolute top-1/3 right-1/4 w-[300px] h-[300px] bg-cyan-500/5 rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-200 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-200 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
+        <div className="absolute top-1/2 left-1/4 w-100 h-100 bg-violet-600/5 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 right-1/4 w-75 h-75 bg-cyan-500/5 rounded-full blur-[100px]" />
       </div>
 
       <div className="relative max-w-6xl mx-auto px-6 space-y-16">
@@ -84,10 +84,10 @@ export default function Features() {
               className="glass rounded-2xl p-6 space-y-4 group hover:border-white/12 transition-all duration-300 relative overflow-hidden"
             >
               {/* Hover glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-600/0 to-transparent opacity-0 group-hover:opacity-5 transition-opacity duration-500 rounded-2xl pointer-events-none" />
+              <div className="absolute inset-0 bg-linear-to-br from-violet-600/0 to-transparent opacity-0 group-hover:opacity-5 transition-opacity duration-500 rounded-2xl pointer-events-none" />
 
               <div className="flex items-start justify-between">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
+                <div className={`w-10 h-10 rounded-xl bg-linear-to-br ${gradient} flex items-center justify-center shadow-lg`}>
                   <Icon size={18} className="text-white" strokeWidth={2} />
                 </div>
                 <span className={`text-[10px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full border ${glow}`}>

@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs'
 import express from 'express'
-import { countUsers, createUser, findUserByEmail } from './userStore.js'
+import { ensureIndexes, getUsersCollection, pingDatabase } from './db.js'
 
 const app = express()
-const port = Number(process.env.API_PORT || process.env.PORT || 4000)
+const port = Number(process.env.API_PORT || process.env.PORT || 3000)
 
 app.use(express.json({ limit: '1mb' }))
 
@@ -22,17 +22,22 @@ function validatePassword(password) {
 
 function toPublicUser(row) {
   return {
-    id: row.id,
+    id: row._id.toString(),
     name: row.name,
     email: row.email,
-    created_at: row.created_at,
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
   }
 }
 
 app.get('/api/health', async (_request, response, next) => {
   try {
-    const users = await countUsers()
-    response.json({ status: 'ok', store: 'local-json', users })
+    await pingDatabase()
+    const users = await getUsersCollection()
+    response.json({
+      status: 'ok',
+      store: 'mongodb',
+      users: await users.estimatedDocumentCount(),
+    })
   } catch (error) {
     next(error)
   }
@@ -53,14 +58,26 @@ app.post('/api/auth/signup', async (request, response, next) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 12)
-    const user = await createUser({ name, email, passwordHash })
+    const users = await getUsersCollection()
+    const createdAt = new Date()
+    const result = await users.insertOne({
+      name,
+      email,
+      password_hash: passwordHash,
+      created_at: createdAt,
+    })
 
     response.status(201).json({
       message: 'Account created.',
-      user: toPublicUser(user),
+      user: toPublicUser({
+        _id: result.insertedId,
+        name,
+        email,
+        created_at: createdAt,
+      }),
     })
   } catch (error) {
-    if (error.code === 'DUPLICATE_EMAIL') {
+    if (error.code === 11000) {
       response.status(409).json({ message: 'An account already exists for this email.' })
       return
     }
@@ -79,7 +96,8 @@ app.post('/api/auth/signin', async (request, response, next) => {
       return
     }
 
-    const user = await findUserByEmail(email)
+    const users = await getUsersCollection()
+    const user = await users.findOne({ email })
 
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       response.status(401).json({ message: 'Invalid email or password.' })
@@ -106,4 +124,8 @@ app.use((error, _request, response, _next) => {
 
 app.listen(port, () => {
   console.log(`CodePulse API listening on http://localhost:${port}`)
+})
+
+ensureIndexes().catch(error => {
+  console.error('MongoDB index setup failed:', error.message)
 })

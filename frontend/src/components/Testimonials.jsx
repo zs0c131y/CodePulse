@@ -36,7 +36,7 @@ export default function Testimonials() {
   return (
     <section className="py-28 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-violet-900/8 rounded-full blur-[150px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-175 h-125 bg-violet-900/8 rounded-full blur-[150px]" />
       </div>
 
       <div className="relative max-w-6xl mx-auto px-6 space-y-16">
@@ -74,8 +74,8 @@ export default function Testimonials() {
               </div>
 
               {/* Author */}
-              <div className="flex items-center gap-3 pt-2 border-t border-white/[0.06]">
-                <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
+              <div className="flex items-center gap-3 pt-2 border-t border-white/6">
+                <div className={`w-9 h-9 rounded-full bg-linear-to-br ${gradient} flex items-center justify-center shrink-0`}>
                   <span className="text-white text-xs font-bold">{avatar}</span>
                 </div>
                 <div>

@@ -32,7 +32,7 @@ export default function Problems() {
     <section className="py-28 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-rose-900/5 rounded-full blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-100 bg-rose-900/5 rounded-full blur-[100px]" />
       </div>
 
       <div className="relative max-w-6xl mx-auto px-6 space-y-16">

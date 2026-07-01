@@ -33,7 +33,7 @@ npm run dev:backend
 ```
 
 The frontend runs through Vite and proxies `/api` calls to the backend API on
-`http://localhost:4000`.
+`http://localhost:3000`.
 
 ## Documentation
 

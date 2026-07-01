@@ -9,17 +9,15 @@ service boundaries for CodePulse.
 
 ```text
 backend/
-├── data/
-│   └── .gitkeep              # Local JSON data directory placeholder
 ├── schema/
 │   └── db_schema.js          # Draft MongoDB collection setup
 └── src/
-    ├── index.js              # Express app and API routes
-    └── userStore.js          # Local JSON user persistence
+    ├── db.js                 # MongoDB connection and index setup
+    └── index.js              # Express app and API routes
 ```
 
-The backend currently uses Express and a local JSON file store for development.
-It does not require SQL, Docker, or an external database service.
+The backend uses Express and MongoDB. Runtime configuration is read from
+`MONGO_URI`, with `mongodb://127.0.0.1:27017/codepulse` as the local fallback.
 
 ---
 
@@ -27,10 +25,8 @@ It does not require SQL, Docker, or an external database service.
 
 * Run the frontend with `npm run dev`.
 * Run the backend API with `npm run dev:backend`.
-* The API listens on `http://localhost:4000`.
+* The API listens on `http://localhost:3000`.
 * The Vite dev server proxies `/api` requests to the backend.
-* Local user records are written to `backend/data/users.json`, which is ignored
-  by Git.
 
 ---
 
@@ -41,11 +37,12 @@ Implemented in [backend/src/index.js](../../backend/src/index.js).
 ### `GET /api/health`
 
 Returns API health and local user-store metadata.
+Returns API health and MongoDB user-count metadata.
 
 ```json
 {
   "status": "ok",
-  "store": "local-json",
+  "store": "mongodb",
   "users": 0
 }
 ```

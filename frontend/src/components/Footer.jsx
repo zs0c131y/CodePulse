@@ -9,9 +9,9 @@ const links = {
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/[0.06] relative overflow-hidden">
+    <footer className="border-t border-white/6 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-violet-900/5 rounded-full blur-[80px]" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-150 h-50 bg-violet-900/5 rounded-full blur-[80px]" />
       </div>
 
       <div className="relative max-w-6xl mx-auto px-6 py-16">
@@ -19,14 +19,14 @@ export default function Footer() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <a href="#" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-violet-600/20">
+              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-violet-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-violet-600/20">
                 <Activity size={15} strokeWidth={2.5} className="text-white" />
               </div>
               <span className="text-white font-bold text-lg tracking-tight">
                 Code<span className="gradient-text">Pulse</span>
               </span>
             </a>
-            <p className="text-slate-500 text-sm leading-relaxed max-w-[180px]">
+            <p className="text-slate-500 text-sm leading-relaxed max-w-45">
               Engineering intelligence for healthy, maintainable codebases.
             </p>
             <div className="flex gap-3">
@@ -68,7 +68,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-16 pt-6 border-t border-white/[0.05] flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mt-16 pt-6 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-600 text-sm">
             © {new Date().getFullYear()} CodePulse, Inc. All rights reserved.
           </p>
