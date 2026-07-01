@@ -66,9 +66,13 @@ export default function AuthPage({ mode = 'signin' }) {
   const isSignup = mode === 'signup'
   const [theme, setTheme] = useState(getInitialTheme)
   const [showPassword, setShowPassword] = useState(false)
+  const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [email, setEmail] = useState(() => (isSignup ? '' : getRememberedEmail()))
   const [rememberMe, setRememberMe] = useState(() => !isSignup && Boolean(getRememberedEmail()))
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [authMessage, setAuthMessage] = useState('')
+  const [authError, setAuthError] = useState('')
 
   useEffect(() => {
     window.localStorage.setItem('codepulse-auth-theme', theme)
@@ -86,6 +90,21 @@ export default function AuthPage({ mode = 'signin' }) {
       window.localStorage.removeItem('codepulse-remembered-email')
     }
   }, [email, isSignup, rememberMe])
+
+  useEffect(() => {
+    setAuthError('')
+    setAuthMessage('')
+    setPassword('')
+    setShowPassword(false)
+
+    if (isSignup) {
+      setRememberMe(false)
+      return
+    }
+
+    setFullName('')
+    setEmail(current => current || getRememberedEmail())
+  }, [isSignup])
 
   const copy = useMemo(
     () =>
@@ -133,6 +152,63 @@ export default function AuthPage({ mode = 'signin' }) {
     { label: 'One number', valid: /\d/.test(password) },
     { label: 'One uppercase', valid: /[A-Z]/.test(password) },
   ]
+  const canSubmit = Boolean(
+    !isSubmitting &&
+      email.trim() &&
+      password &&
+      (!isSignup || (fullName.trim() && passwordRules.every(rule => rule.valid))),
+  )
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setAuthError('')
+    setAuthMessage('')
+
+    if (!canSubmit) {
+      setAuthError(
+        isSignup
+          ? 'Enter your name, work email, and a password that meets every rule.'
+          : 'Enter your email and password.',
+      )
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
+      const endpoint = `${apiBaseUrl}/api/auth/${isSignup ? 'signup' : 'signin'}`
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          isSignup
+            ? { name: fullName.trim(), email: email.trim(), password }
+            : { email: email.trim(), password },
+        ),
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Authentication request failed.')
+      }
+
+      if (!isSignup && data.user) {
+        window.localStorage.setItem('codepulse-user', JSON.stringify(data.user))
+      }
+
+      setAuthMessage(
+        isSignup
+          ? 'Account created. You can sign in with your new credentials.'
+          : 'Signed in successfully.',
+      )
+      setPassword('')
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Authentication request failed.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className={`min-h-screen overflow-hidden transition-colors duration-500 ${pageClass}`}>
@@ -292,13 +368,20 @@ export default function AuthPage({ mode = 'signin' }) {
               <div className="h-px flex-1 bg-current/10" />
             </div>
 
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmit}>
               {isSignup && (
                 <label className="block">
                   <span className="mb-2 block text-sm font-semibold">Full name</span>
                   <span className="relative block">
                     <User size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
-                    <input className={`${fieldBase} ${inputClass}`} type="text" placeholder="Ada Lovelace" autoComplete="name" />
+                    <input
+                      className={`${fieldBase} ${inputClass}`}
+                      type="text"
+                      placeholder="Ada Lovelace"
+                      autoComplete="name"
+                      value={fullName}
+                      onChange={event => setFullName(event.target.value)}
+                    />
                   </span>
                 </label>
               )}
@@ -388,11 +471,26 @@ export default function AuthPage({ mode = 'signin' }) {
                 </div>
               )}
 
+              {(authError || authMessage) && (
+                <div
+                  className={`rounded-xl border px-4 py-3 text-sm ${
+                    authError
+                      ? 'border-rose-400/25 bg-rose-400/10 text-rose-400'
+                      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-500'
+                  }`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {authError || authMessage}
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99]"
+                disabled={!canSubmit}
+                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
               >
-                {copy.cta}
+                {isSubmitting ? 'Working...' : copy.cta}
                 <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
               </button>
             </form>

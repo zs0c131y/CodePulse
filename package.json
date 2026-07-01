@@ -4,12 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vite --config frontend/vite.config.js",
+    "dev:backend": "node backend/src/index.js",
+    "build": "vite build --config frontend/vite.config.js",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview --config frontend/vite.config.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "express": "^5.2.1",
     "lucide-react": "^1.22.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
