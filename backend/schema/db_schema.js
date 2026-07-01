@@ -13,7 +13,7 @@ db.createCollection("users", {
     validator: {
         $jsonSchema: {
             bsonType: "object",
-            required: ["name", "email", "password_hash"],
+            required: ["name", "email", "password_hash", "email_verified"],
             properties: {
                 name: {
                     bsonType: "string"
@@ -24,7 +24,13 @@ db.createCollection("users", {
                 password_hash: {
                     bsonType: "string"
                 },
+                email_verified: {
+                    bsonType: "bool"
+                },
                 created_at: {
+                    bsonType: "date"
+                },
+                updated_at: {
                     bsonType: "date"
                 }
             }
@@ -33,6 +39,156 @@ db.createCollection("users", {
 });
 
 db.users.createIndex({ email: 1 }, { unique: true });
+
+// =========================================
+// AUTH SESSIONS
+// =========================================
+
+db.createCollection("auth_sessions", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["user_id", "token_hash", "created_at", "expires_at"],
+            properties: {
+                user_id: {
+                    bsonType: "objectId"
+                },
+                token_hash: {
+                    bsonType: "string"
+                },
+                user_agent: {
+                    bsonType: "string"
+                },
+                ip: {
+                    bsonType: "string"
+                },
+                created_at: {
+                    bsonType: "date"
+                },
+                expires_at: {
+                    bsonType: "date"
+                },
+                revoked_at: {
+                    bsonType: ["date", "null"]
+                }
+            }
+        }
+    }
+});
+
+db.auth_sessions.createIndex({ token_hash: 1 }, { unique: true });
+db.auth_sessions.createIndex({ user_id: 1 });
+db.auth_sessions.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+
+// =========================================
+// AUTH ATTEMPTS
+// =========================================
+
+db.createCollection("auth_attempts", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["key", "email", "ip", "failures", "updated_at"],
+            properties: {
+                key: {
+                    bsonType: "string"
+                },
+                email: {
+                    bsonType: "string"
+                },
+                ip: {
+                    bsonType: "string"
+                },
+                failures: {
+                    bsonType: "int"
+                },
+                locked_until: {
+                    bsonType: "date"
+                },
+                created_at: {
+                    bsonType: "date"
+                },
+                updated_at: {
+                    bsonType: "date"
+                }
+            }
+        }
+    }
+});
+
+db.auth_attempts.createIndex({ key: 1 }, { unique: true });
+db.auth_attempts.createIndex({ updated_at: 1 }, { expireAfterSeconds: 3600 });
+
+// =========================================
+// EMAIL VERIFICATION TOKENS
+// =========================================
+
+db.createCollection("email_verification_tokens", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["user_id", "email", "token_hash", "created_at", "expires_at"],
+            properties: {
+                user_id: {
+                    bsonType: "objectId"
+                },
+                email: {
+                    bsonType: "string"
+                },
+                token_hash: {
+                    bsonType: "string"
+                },
+                created_at: {
+                    bsonType: "date"
+                },
+                expires_at: {
+                    bsonType: "date"
+                }
+            }
+        }
+    }
+});
+
+db.email_verification_tokens.createIndex({ token_hash: 1 }, { unique: true });
+db.email_verification_tokens.createIndex({ user_id: 1 });
+db.email_verification_tokens.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+
+// =========================================
+// PASSWORD RESET TOKENS
+// =========================================
+
+db.createCollection("password_reset_tokens", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["user_id", "email", "token_hash", "created_at", "expires_at"],
+            properties: {
+                user_id: {
+                    bsonType: "objectId"
+                },
+                email: {
+                    bsonType: "string"
+                },
+                token_hash: {
+                    bsonType: "string"
+                },
+                created_at: {
+                    bsonType: "date"
+                },
+                expires_at: {
+                    bsonType: "date"
+                },
+                used_at: {
+                    bsonType: ["date", "null"]
+                }
+            }
+        }
+    }
+});
+
+db.password_reset_tokens.createIndex({ token_hash: 1 }, { unique: true });
+db.password_reset_tokens.createIndex({ user_id: 1 });
+db.password_reset_tokens.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
 // =========================================
 // REPOSITORIES
@@ -258,6 +414,10 @@ print(" CodePulse Database Created");
 print("==================================");
 print("Collections:");
 print("- users");
+print("- auth_sessions");
+print("- auth_attempts");
+print("- email_verification_tokens");
+print("- password_reset_tokens");
 print("- repositories");
 print("- repo_files");
 print("- commits");

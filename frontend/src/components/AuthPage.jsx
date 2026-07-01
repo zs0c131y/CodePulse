@@ -62,13 +62,17 @@ function getRememberedEmail() {
   return window.localStorage.getItem('codepulse-remembered-email') || ''
 }
 
-export default function AuthPage({ mode = 'signin' }) {
+export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess }) {
   const isSignup = mode === 'signup'
+  const isEmailVerify = mode === 'verify-email'
+  const isResetFlow = mode === 'reset-password'
+  const isPasswordReset = isResetFlow && Boolean(token)
+  const isResetRequest = isResetFlow && !token
   const [theme, setTheme] = useState(getInitialTheme)
   const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
-  const [email, setEmail] = useState(() => (isSignup ? '' : getRememberedEmail()))
+  const [email, setEmail] = useState(() => (isSignup || isPasswordReset ? '' : getRememberedEmail()))
   const [rememberMe, setRememberMe] = useState(() => !isSignup && Boolean(getRememberedEmail()))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
@@ -79,7 +83,7 @@ export default function AuthPage({ mode = 'signin' }) {
   }, [theme])
 
   useEffect(() => {
-    if (isSignup) return
+    if (isSignup || isPasswordReset || isEmailVerify) return
 
     if (rememberMe && email.trim()) {
       window.localStorage.setItem('codepulse-remembered-email', email.trim())
@@ -89,7 +93,7 @@ export default function AuthPage({ mode = 'signin' }) {
     if (!rememberMe) {
       window.localStorage.removeItem('codepulse-remembered-email')
     }
-  }, [email, isSignup, rememberMe])
+  }, [email, isEmailVerify, isPasswordReset, isSignup, rememberMe])
 
   useEffect(() => {
     setAuthError('')
@@ -97,18 +101,99 @@ export default function AuthPage({ mode = 'signin' }) {
     setPassword('')
     setShowPassword(false)
 
-    if (isSignup) {
+    if (isSignup || isPasswordReset || isEmailVerify) {
       setRememberMe(false)
       return
     }
 
     setFullName('')
     setEmail(current => current || getRememberedEmail())
-  }, [isSignup])
+  }, [isEmailVerify, isPasswordReset, isSignup])
+
+  useEffect(() => {
+    if (!isEmailVerify || !token) return
+
+    let cancelled = false
+
+    async function verifyEmail() {
+      setIsSubmitting(true)
+      setAuthError('')
+      setAuthMessage('')
+
+      try {
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
+        const response = await fetch(`${apiBaseUrl}/api/auth/verify-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token }),
+        })
+        const data = await response.json().catch(() => ({}))
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Email verification failed.')
+        }
+
+        if (!cancelled) {
+          setAuthMessage(data.message || 'Email verified. You can now sign in.')
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAuthError(error instanceof Error ? error.message : 'Email verification failed.')
+        }
+      } finally {
+        if (!cancelled) {
+          setIsSubmitting(false)
+        }
+      }
+    }
+
+    verifyEmail()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isEmailVerify, token])
 
   const copy = useMemo(
-    () =>
-      isSignup
+    () => {
+      if (isEmailVerify) {
+        return {
+          eyebrow: 'Verify account',
+          title: 'Confirming your email',
+          subtitle: 'This verification link unlocks protected CodePulse access for your account.',
+          cta: 'Verifying...',
+          swapText: 'Ready to continue?',
+          swapHref: '#signin',
+          swapLabel: 'Sign in',
+        }
+      }
+
+      if (isResetRequest) {
+        return {
+          eyebrow: 'Account recovery',
+          title: 'Reset your password',
+          subtitle: 'Enter your account email and we will send a short-lived reset link.',
+          cta: 'Send reset link',
+          swapText: 'Remember your password?',
+          swapHref: '#signin',
+          swapLabel: 'Sign in',
+        }
+      }
+
+      if (isPasswordReset) {
+        return {
+          eyebrow: 'Account recovery',
+          title: 'Create a new password',
+          subtitle: 'Choose a replacement password before the reset link expires.',
+          cta: 'Update password',
+          swapText: 'Already reset it?',
+          swapHref: '#signin',
+          swapLabel: 'Sign in',
+        }
+      }
+
+      return isSignup
         ? {
             eyebrow: 'Start your workspace',
             title: 'Create your CodePulse account',
@@ -128,8 +213,9 @@ export default function AuthPage({ mode = 'signin' }) {
             swapText: 'New to CodePulse?',
             swapHref: '#signup',
             swapLabel: 'Create account',
-          },
-    [isSignup],
+          }
+    },
+    [isEmailVerify, isPasswordReset, isResetRequest, isSignup],
   )
 
   const isDark = theme === 'dark'
@@ -152,11 +238,19 @@ export default function AuthPage({ mode = 'signin' }) {
     { label: 'One number', valid: /\d/.test(password) },
     { label: 'One uppercase', valid: /[A-Z]/.test(password) },
   ]
-  const canSubmit = Boolean(
-    !isSubmitting &&
-      email.trim() &&
-      password &&
-      (!isSignup || (fullName.trim() && passwordRules.every(rule => rule.valid))),
+  const showProviderButtons = !isEmailVerify && !isResetFlow
+  const canSubmit = Boolean(!isSubmitting) && (
+    isEmailVerify
+      ? false
+      : isResetRequest
+        ? Boolean(email.trim())
+        : isPasswordReset
+          ? passwordRules.every(rule => rule.valid)
+          : Boolean(
+              email.trim() &&
+                password &&
+                (!isSignup || (fullName.trim() && passwordRules.every(rule => rule.valid))),
+            )
   )
 
   async function handleSubmit(event) {
@@ -166,9 +260,13 @@ export default function AuthPage({ mode = 'signin' }) {
 
     if (!canSubmit) {
       setAuthError(
-        isSignup
-          ? 'Enter your name, work email, and a password that meets every rule.'
-          : 'Enter your email and password.',
+        isResetRequest
+          ? 'Enter your account email.'
+          : isPasswordReset
+            ? 'Enter a password that meets every rule.'
+            : isSignup
+              ? 'Enter your name, work email, and a password that meets every rule.'
+              : 'Enter your email and password.',
       )
       return
     }
@@ -177,15 +275,21 @@ export default function AuthPage({ mode = 'signin' }) {
 
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
-      const endpoint = `${apiBaseUrl}/api/auth/${isSignup ? 'signup' : 'signin'}`
+      const endpoint = isResetRequest
+        ? `${apiBaseUrl}/api/auth/request-password-reset`
+        : isPasswordReset
+          ? `${apiBaseUrl}/api/auth/reset-password`
+          : `${apiBaseUrl}/api/auth/${isSignup ? 'signup' : 'signin'}`
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          isSignup
-            ? { name: fullName.trim(), email: email.trim(), password }
-            : { email: email.trim(), password },
-        ),
+        credentials: 'include',
+        body: JSON.stringify({
+          ...(isSignup ? { name: fullName.trim() } : {}),
+          ...(isPasswordReset ? { token, password } : {}),
+          ...(isResetRequest ? { email: email.trim() } : {}),
+          ...(!isResetFlow ? { email: email.trim(), password } : {}),
+        }),
       })
       const data = await response.json().catch(() => ({}))
 
@@ -193,14 +297,19 @@ export default function AuthPage({ mode = 'signin' }) {
         throw new Error(data.message || 'Authentication request failed.')
       }
 
-      if (!isSignup && data.user) {
-        window.localStorage.setItem('codepulse-user', JSON.stringify(data.user))
+      if (!isSignup && !isResetFlow && data.user && data.accessToken) {
+        onAuthSuccess?.(data)
       }
 
       setAuthMessage(
-        isSignup
-          ? 'Account created. You can sign in with your new credentials.'
-          : 'Signed in successfully.',
+        data.verificationUrl || data.resetUrl
+          ? `${data.message} Development link: ${data.verificationUrl || data.resetUrl}`
+          : data.message ||
+              (isSignup
+                ? 'Account created. Check your email to verify it before signing in.'
+                : isResetFlow
+                  ? 'Request completed.'
+                  : 'Signed in successfully.'),
       )
       setPassword('')
     } catch (error) {
@@ -341,32 +450,36 @@ export default function AuthPage({ mode = 'signin' }) {
               <p className={`mt-3 text-sm leading-6 sm:text-base ${mutedText}`}>{copy.subtitle}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
-                  isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <GitHubMark className="h-4.5 w-4.5" />
-                GitHub
-              </button>
-              <button
-                type="button"
-                className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
-                  isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <GitLabMark className="h-4.5 w-4.5 text-[#fc6d26]" />
-                GitLab
-              </button>
-            </div>
+            {showProviderButtons && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+                      isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <GitHubMark className="h-4.5 w-4.5" />
+                    GitHub
+                  </button>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+                      isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <GitLabMark className="h-4.5 w-4.5 text-[#fc6d26]" />
+                    GitLab
+                  </button>
+                </div>
 
-            <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-current/10" />
-              <span className={`text-xs font-medium ${softText}`}>or continue with email</span>
-              <div className="h-px flex-1 bg-current/10" />
-            </div>
+                <div className="my-6 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-current/10" />
+                  <span className={`text-xs font-medium ${softText}`}>or continue with email</span>
+                  <div className="h-px flex-1 bg-current/10" />
+                </div>
+              </>
+            )}
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               {isSignup && (
@@ -386,45 +499,51 @@ export default function AuthPage({ mode = 'signin' }) {
                 </label>
               )}
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold">Work email</span>
-                <span className="relative block">
-                  <Mail size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
-                  <input
-                    className={`${fieldBase} ${inputClass}`}
-                    type="email"
-                    placeholder="you@company.com"
-                    autoComplete="email"
-                    value={email}
-                    onChange={event => setEmail(event.target.value)}
-                  />
-                </span>
-              </label>
+              {!isEmailVerify && !isPasswordReset && (
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold">Work email</span>
+                  <span className="relative block">
+                    <Mail size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
+                    <input
+                      className={`${fieldBase} ${inputClass}`}
+                      type="email"
+                      placeholder="you@company.com"
+                      autoComplete="email"
+                      value={email}
+                      onChange={event => setEmail(event.target.value)}
+                    />
+                  </span>
+                </label>
+              )}
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold">Password</span>
-                <span className="relative block">
-                  <Lock size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
-                  <input
-                    className={`${fieldBase} ${inputClass} pr-12`}
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder={isSignup ? 'Create a strong password' : 'Enter your password'}
-                    autoComplete={isSignup ? 'new-password' : 'current-password'}
-                    value={password}
-                    onChange={event => setPassword(event.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(v => !v)}
-                    className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 transition-colors ${softText}`}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </span>
-              </label>
+              {!isEmailVerify && !isResetRequest && (
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold">
+                    {isPasswordReset ? 'New password' : 'Password'}
+                  </span>
+                  <span className="relative block">
+                    <Lock size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
+                    <input
+                      className={`${fieldBase} ${inputClass} pr-12`}
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder={isSignup || isPasswordReset ? 'Create a strong password' : 'Enter your password'}
+                      autoComplete={isSignup || isPasswordReset ? 'new-password' : 'current-password'}
+                      value={password}
+                      onChange={event => setPassword(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 transition-colors ${softText}`}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </span>
+                </label>
+              )}
 
-              {isSignup ? (
+              {isSignup || isPasswordReset ? (
                 <div className="flex flex-wrap gap-2">
                   {passwordRules.map(rule => (
                     <span
@@ -443,7 +562,7 @@ export default function AuthPage({ mode = 'signin' }) {
                     </span>
                   ))}
                 </div>
-              ) : (
+              ) : !isEmailVerify && !isResetRequest ? (
                 <div className="flex items-center justify-between gap-3">
                   <button
                     type="button"
@@ -465,9 +584,15 @@ export default function AuthPage({ mode = 'signin' }) {
                     </span>
                     Remember me
                   </button>
-                  <a href="#signin" className="text-sm font-semibold text-cyan-500 hover:text-cyan-400">
+                  <a href="#reset-password" className="text-sm font-semibold text-cyan-500 hover:text-cyan-400">
                     Forgot password?
                   </a>
+                </div>
+              ) : null}
+
+              {isEmailVerify && !token && (
+                <div className={`rounded-xl border px-4 py-3 text-sm ${chipClass}`} role="status">
+                  Verification token is missing.
                 </div>
               )}
 
@@ -485,14 +610,16 @@ export default function AuthPage({ mode = 'signin' }) {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
-              >
-                {isSubmitting ? 'Working...' : copy.cta}
-                <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
-              </button>
+              {!isEmailVerify && (
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
+                >
+                  {isSubmitting ? 'Working...' : copy.cta}
+                  <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
+                </button>
+              )}
             </form>
 
             <p className={`mt-6 text-center text-sm ${mutedText}`}>

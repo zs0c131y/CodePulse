@@ -68,12 +68,27 @@ The landing page is composed in [frontend/src/App.jsx](../../frontend/src/App.js
 ## 🔐 Auth Page Wiring
 
 [AuthPage.jsx](../../frontend/src/components/AuthPage.jsx) handles both
-`#signin` and `#signup` modes.
+`#signin` and `#signup` modes, plus account recovery and email verification
+routes.
 
 * Signup posts to `POST /api/auth/signup`.
+* Signup requires email verification before sign-in.
 * Sign-in posts to `POST /api/auth/signin`.
-* Vite proxies `/api` requests to the backend API on `localhost:3000`.
-* Successful sign-in stores the public user object in local storage.
+* Password reset starts at `#reset-password` and posts to
+  `POST /api/auth/request-password-reset`.
+* Reset links use `#reset-password?token=...` and post to
+  `POST /api/auth/reset-password`.
+* Verification links use `#verify-email?token=...` and post to
+  `POST /api/auth/verify-email`.
+* Vite proxies `/api` requests to the backend API on `localhost:3000` during
+  development.
+* Successful sign-in stores the short-lived access token in React state only.
+  The refresh token is held by the backend as a MongoDB session and sent to the
+  browser as an `HttpOnly` cookie.
+* [frontend/src/App.jsx](../../frontend/src/App.jsx) refreshes the session on
+  load with `POST /api/auth/refresh`, gates `#dashboard`, checks
+  `GET /api/auth/me` with a bearer token, and calls `POST /api/auth/logout` to
+  revoke the refresh session.
 
 ---
 

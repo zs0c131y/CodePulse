@@ -18,6 +18,16 @@ backend/
 
 The backend uses Express and MongoDB. Runtime configuration is read from
 `MONGO_URI`, with `mongodb://127.0.0.1:27017/codepulse` as the local fallback.
+Authentication also reads:
+
+* `JWT_SECRET`: required in production for signed access tokens.
+* `AUTH_APP_URL`: public frontend URL used to build verification and reset
+  links.
+* `AUTH_EMAIL_WEBHOOK_URL`: required in production to deliver verification and
+  password reset links. The backend posts `{ kind, email, link }`.
+* `AUTH_EMAIL_WEBHOOK_TOKEN`: optional bearer token for the email webhook.
+* `ALLOWED_ORIGINS`: comma-separated browser origins allowed to send
+  credentialed API requests.
 
 ---
 
@@ -27,12 +37,20 @@ The backend uses Express and MongoDB. Runtime configuration is read from
 * Run the backend API with `npm run dev:backend`.
 * The API listens on `http://localhost:3000`.
 * The Vite dev server proxies `/api` requests to the backend.
+* In local development, verification and reset links are logged to the backend
+  console and returned in the API response for convenience.
 
 ---
 
 ## 🔐 Authentication API
 
 Implemented in [backend/src/index.js](../../backend/src/index.js).
+
+The backend applies security headers, credentialed CORS for configured origins,
+global request rate limiting, auth-route rate limiting, and Mongo-backed
+brute-force lockouts for repeated failed sign-in attempts. Startup fails before
+`app.listen()` if MongoDB indexes cannot be created, including the unique email
+index and auth token indexes.
 
 ### `GET /api/health`
 
@@ -49,7 +67,8 @@ Returns API health and MongoDB user-count metadata.
 
 ### `POST /api/auth/signup`
 
-Creates a CodePulse account. Passwords are hashed with bcrypt before storage.
+Creates an unverified CodePulse account. Passwords are hashed with bcrypt before
+storage, and an email verification link is sent before the account can sign in.
 
 Request:
 
@@ -65,13 +84,34 @@ Response:
 
 ```json
 {
-  "message": "Account created.",
+  "message": "Account created. Check your email to verify your account before signing in.",
   "user": {
     "id": "uuid",
     "name": "Ada Lovelace",
     "email": "ada@example.com",
+    "email_verified": false,
     "created_at": "2026-07-01T07:30:00.000Z"
   }
+}
+```
+
+### `POST /api/auth/verify-email`
+
+Verifies an account using the token from the email verification link.
+
+Request:
+
+```json
+{
+  "token": "verification-token"
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Email verified. You can now sign in."
 }
 ```
 
@@ -97,8 +137,108 @@ Response:
     "id": "uuid",
     "name": "Ada Lovelace",
     "email": "ada@example.com",
+    "email_verified": true,
+    "created_at": "2026-07-01T07:30:00.000Z"
+  },
+  "accessToken": "signed-short-lived-token",
+  "expiresIn": 900
+}
+```
+
+The response sets an `HttpOnly`, `SameSite=Lax` refresh cookie scoped to
+`/api/auth`. In production the cookie is also marked `Secure`.
+
+### `POST /api/auth/refresh`
+
+Uses the refresh cookie to mint a new short-lived access token.
+
+Response:
+
+```json
+{
+  "message": "Session refreshed.",
+  "user": {
+    "id": "uuid",
+    "name": "Ada Lovelace",
+    "email": "ada@example.com",
+    "email_verified": true,
+    "created_at": "2026-07-01T07:30:00.000Z"
+  },
+  "accessToken": "signed-short-lived-token",
+  "expiresIn": 900
+}
+```
+
+### `POST /api/auth/logout`
+
+Revokes the active refresh session and clears the refresh cookie.
+
+Response:
+
+```json
+{
+  "message": "Signed out."
+}
+```
+
+### `GET /api/auth/me`
+
+Protected endpoint requiring `Authorization: Bearer <accessToken>`.
+
+Response:
+
+```json
+{
+  "user": {
+    "id": "uuid",
+    "name": "Ada Lovelace",
+    "email": "ada@example.com",
+    "email_verified": true,
     "created_at": "2026-07-01T07:30:00.000Z"
   }
+}
+```
+
+### `POST /api/auth/request-password-reset`
+
+Sends a short-lived password reset link when the account exists. The response is
+generic to avoid account enumeration.
+
+Request:
+
+```json
+{
+  "email": "ada@example.com"
+}
+```
+
+Response:
+
+```json
+{
+  "message": "If an account exists for that email, a password reset link has been sent."
+}
+```
+
+### `POST /api/auth/reset-password`
+
+Updates the password from a valid reset token and revokes active refresh
+sessions for that user.
+
+Request:
+
+```json
+{
+  "token": "reset-token",
+  "password": "NewStrongpass1"
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Password updated. Sign in with your new password."
 }
 ```
 

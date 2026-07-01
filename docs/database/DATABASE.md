@@ -25,6 +25,9 @@ The MongoDB collection schema lives in:
 ```mermaid
 erDiagram
     users ||--o{ repositories : owns
+    users ||--o{ auth_sessions : authenticates
+    users ||--o{ email_verification_tokens : verifies
+    users ||--o{ password_reset_tokens : resets
     repositories ||--o{ repo_files : contains
     repositories ||--o{ commits : records
     repositories ||--o{ dependencies : maps
@@ -44,7 +47,55 @@ Stores accounts authorized to access the CodePulse dashboard.
 * `name` (`string`): User display name.
 * `email` (`string`): Lowercased unique email address.
 * `password_hash` (`string`): bcrypt password hash.
+* `email_verified` (`boolean`): Whether the account has completed email
+  verification.
 * `created_at` (`string`): ISO timestamp for account creation.
+* `updated_at` (`string`): ISO timestamp for the last account update.
+
+### `auth_sessions`
+
+Stores refresh-token sessions for signed-in users.
+
+* `user_id`: Owner reference to `users`.
+* `token_hash`: SHA-256 hash of the refresh token stored in the secure cookie.
+* `user_agent`: Browser user agent captured at sign-in.
+* `ip`: Request IP captured at sign-in.
+* `created_at`: Session creation timestamp.
+* `expires_at`: Session expiration timestamp.
+* `revoked_at`: Session revocation timestamp when signed out or reset.
+
+### `auth_attempts`
+
+Stores Mongo-backed brute-force lockout counters.
+
+* `key`: Composite email/IP lockout key.
+* `email`: Normalized attempted email.
+* `ip`: Request IP.
+* `failures`: Failed sign-in count.
+* `locked_until`: Timestamp until which sign-in is blocked.
+* `created_at`: First failure timestamp.
+* `updated_at`: Most recent failure timestamp.
+
+### `email_verification_tokens`
+
+Stores short-lived, hashed email verification tokens.
+
+* `user_id`: Account being verified.
+* `email`: Email address being verified.
+* `token_hash`: SHA-256 hash of the verification token.
+* `created_at`: Token creation timestamp.
+* `expires_at`: Token expiration timestamp.
+
+### `password_reset_tokens`
+
+Stores short-lived, hashed password reset tokens.
+
+* `user_id`: Account whose password can be reset.
+* `email`: Account email.
+* `token_hash`: SHA-256 hash of the reset token.
+* `created_at`: Token creation timestamp.
+* `expires_at`: Token expiration timestamp.
+* `used_at`: Timestamp after the reset token has been consumed.
 
 ### `repositories`
 
