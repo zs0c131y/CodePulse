@@ -5,6 +5,7 @@ This document outlines the database schema, entity relationships, and table stru
 ---
 
 ## ⚙️ Database Engine & Configuration
+
 * **Database Engine**: MySQL / MariaDB (configured via Docker Compose in [docker-compose.yaml](file:///home/arden/Coding/CodePulse/docker-compose.yaml))
 * **Host Port**: `3306` (mapped to local host for client tools like MySQL Workbench)
 * **Configuration Files**:
@@ -94,7 +95,9 @@ erDiagram
 ## 🗄️ Detailed Table Specifications
 
 ### 1. `users` Table
+
 Stores user accounts authorized to access the CodePulse dashboard.
+
 * `id` (SERIAL / Primary Key): Unique auto-incrementing user ID.
 * `name` (VARCHAR(100)): User display name.
 * `email` (VARCHAR(255) / UNIQUE / NOT NULL): User email address.
@@ -102,7 +105,9 @@ Stores user accounts authorized to access the CodePulse dashboard.
 * `created_at` (TIMESTAMP): Account registration date.
 
 ### 2. `repositories` Table
+
 Stores high-level metadata of tracked repositories.
+
 * `id` (SERIAL / Primary Key): Unique repository identifier.
 * `user_id` (INTEGER / Foreign Key -> `users.id`): References the owner of the repository project.
 * `repo_name` (VARCHAR(255)): Name of the repository (e.g. `codepulse`).
@@ -113,7 +118,9 @@ Stores high-level metadata of tracked repositories.
 * `created_at` (TIMESTAMP): Date when the repository was added to the platform.
 
 ### 3. `repo_files` Table
+
 Lists files analyzed in the repository structure (Vertical 1).
+
 * `id` (SERIAL / Primary Key): Unique file record identifier.
 * `repository_id` (INTEGER / Foreign Key -> `repositories.id`): Links to the repository parent.
 * `file_path` (TEXT): Relative path of the file (e.g., `src/components/Hero.jsx`).
@@ -122,7 +129,9 @@ Lists files analyzed in the repository structure (Vertical 1).
 * `size` (BIGINT): File size in bytes.
 
 ### 4. `commits` Table
+
 Chronicles development activity for technical debt/churn metrics (Vertical 3).
+
 * `id` (SERIAL / Primary Key): Unique commit entry ID.
 * `repository_id` (INTEGER / Foreign Key -> `repositories.id`): Repository reference.
 * `commit_hash` (VARCHAR(64)): Unique SHA-1 git hash identifying the commit.
@@ -131,7 +140,9 @@ Chronicles development activity for technical debt/churn metrics (Vertical 3).
 * `commit_date` (TIMESTAMP): Date and time of the git commit.
 
 ### 5. `dependencies` Table
+
 Tracks dependency graphs for circular dependencies and coupling analyzes (Vertical 3).
+
 * `id` (SERIAL / Primary Key): Unique dependency record ID.
 * `repository_id` (INTEGER / Foreign Key -> `repositories.id`): Repository reference.
 * `source_file` (TEXT): Relative path of importing file (e.g., `src/App.jsx`).
@@ -139,14 +150,18 @@ Tracks dependency graphs for circular dependencies and coupling analyzes (Vertic
 * `dependency_type` (VARCHAR(50)): Import, require, package dependency, etc.
 
 ### 6. `documentation` Table
+
 Maintains catalog of documentation elements found in the repo (Vertical 2 & 4).
+
 * `id` (SERIAL / Primary Key): Unique documentation record ID.
 * `repository_id` (INTEGER / Foreign Key -> `repositories.id`): Repository reference.
 * `doc_path` (TEXT): Location of markdown or text files (e.g. `README.md`, `docs/api.md`).
 * `content_summary` (TEXT): Semantic representation or token summary of documentation sections.
 
 ### 7. `drift_findings` Table
+
 Records structural mismatch findings identified by the Knowledge Drift Detection Engine (Vertical 2).
+
 * `id` (SERIAL / Primary Key): Unique drift finding ID.
 * `repository_id` (INTEGER / Foreign Key -> `repositories.id`): Repository reference.
 * `drift_type` (VARCHAR(100)): Classification (e.g., `Missing documentation`, `Outdated documentation`, `Incorrect documentation`, `Dead documentation`).

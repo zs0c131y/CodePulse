@@ -5,6 +5,7 @@ This document describes the design system, components, and layout architecture o
 ---
 
 ## 🛠️ Technology Stack & Styling
+
 * **Framework**: React 18+ (bootstrapped with Vite)
 * **Build System**: Vite (configured in [vite.config.js](file:///home/arden/Coding/CodePulse/vite.config.js))
 * **Styling**: Vanilla CSS (global configurations in [src/index.css](file:///home/arden/Coding/CodePulse/src/index.css) and component styles in [src/App.css](file:///home/arden/Coding/CodePulse/src/App.css)).
@@ -38,7 +39,9 @@ src/
 ---
 
 ## 🏛️ Landing Page Flow & Components
+
 The landing page displays in [App.jsx](file:///home/arden/Coding/CodePulse/src/App.jsx). It walks the user through the value proposition:
+
 1. **[Navbar](file:///home/arden/Coding/CodePulse/src/components/Navbar.jsx)**: Header controls. Routes to login page or sections.
 2. **[Hero](file:///home/arden/Coding/CodePulse/src/components/Hero.jsx)**: Visual hook with primary action (Analyze Repository).
 3. **[LogoBar](file:///home/arden/Coding/CodePulse/src/components/LogoBar.jsx)**: Mock integrations.
@@ -73,6 +76,7 @@ When users log in via the **[AuthPage](file:///home/arden/Coding/CodePulse/src/c
 ```
 
 ### 1. Dashboard Overview Tab
+
 * **Repository Health Score Card**: Large radial progress gauge displaying overall score (combining debt, documentation quality, and repository risk).
 * **Summary Cards**:
   * **Technical Debt Score**: Letter grade (A-F) based on cyclomatic complexity and code quality.
@@ -82,6 +86,7 @@ When users log in via the **[AuthPage](file:///home/arden/Coding/CodePulse/src/c
 * **Scan History**: A time-series line chart tracking repository health trends over the last 30 days.
 
 ### 2. Technical Debt Tab
+
 * **Complexity Heatmap**: An interactive tree-map of repository folders. Larger, redder boxes represent large classes/methods with high cyclomatic complexity.
 * **Metric Lists**:
   * Code duplication percentages per file.
@@ -89,12 +94,14 @@ When users log in via the **[AuthPage](file:///home/arden/Coding/CodePulse/src/c
   * High-churn list showing files modified most frequently in commit logs.
 
 ### 3. Knowledge Drift & Debt Tab
+
 * **Drift List**: Table highlighting documentation anomalies:
   * Outdated sections showing code signature diffs next to documentation statements.
   * Deleted files that are still referenced in README files.
 * **Documentation Coverage Breakdown**: Visual progress bars representing documentation coverage for each codebase subdirectory.
 
 ### 4. Risk & AI Recommendations Tab
+
 * **Module Risk Table**: Sortable table ranking files/modules by risk (combining churn, complexity, and missing documentation).
 * **AI Recommendation Drawer**: An interactive sidebar display triggered when clicking a risk card. It renders:
   * A clear explanation of the module's risks.

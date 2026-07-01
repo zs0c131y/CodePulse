@@ -1,15 +1,17 @@
 # CodePulse — Project Workflow & Architecture
 
-This document details the end-to-end workflow, architecture layout, and core verticals of the **CodePulse** Engineering Intelligence Platform. 
+This document details the end-to-end workflow, architecture layout, and core verticals of the **CodePulse** Engineering Intelligence Platform.
 
 ---
 
 ## 🌟 30-Second Project Pitch
+
 **CodePulse** is an AI-assisted Engineering Intelligence Platform that analyzes software repositories beyond traditional static analysis. It extracts repository structure, detects knowledge drift between code and documentation, quantifies technical and knowledge debt, evaluates maintainability risks, and provides AI-generated explanations with actionable recommendations. The platform enables engineering teams to proactively improve repository health, reduce maintenance costs, and sustain long-term software quality.
 
 ---
 
 ## 🔄 End-to-End Processing Workflow
+
 Below is the processing pipeline that runs when a user submits a GitHub repository for evaluation:
 
 ```mermaid
@@ -66,6 +68,7 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
 ## 📊 The 7 Core Project Verticals
 
 ### Vertical 1 — Repository Intelligence Engine
+
 * **Objective**: Collect, clone, parse, and structure repository metadata and files.
 * **Input**: GitHub Repository URL.
 * **Functions**:
@@ -78,6 +81,7 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
 * **Output**: A structured JSON representation of the repository (stored in DB tables: `repositories`, `repo_files`, `commits`, `dependencies`, `documentation`).
 
 ### Vertical 2 — Knowledge Drift Detection
+
 * **Objective**: Detect inconsistencies where code implementation and documentation have diverged.
 * **Process**:
   * Compare semantic content of directories and source files with associated documentation.
@@ -91,6 +95,7 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
 * **Output**: Knowledge Drift Report (stored in `drift_findings`).
 
 ### Vertical 3 — Technical Debt Analysis
+
 * **Objective**: Measure code quality, code maintainability, and structural integrity.
 * **Metrics Tracked**:
   * **Cyclomatic Complexity**: Measures the number of linear paths through code.
@@ -102,6 +107,7 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
 * **Output**: Technical Debt Score, Repository Health Metrics, and Maintainability Index.
 
 ### Vertical 4 — Knowledge Debt Analysis
+
 * **Objective**: Evaluate the documentation quality and knowledge sustainability of the project.
 * **Evaluated Factors**:
   * **Documentation Coverage**: Ratio of code files/functions documented to total files/functions.
@@ -112,11 +118,13 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
 * **Output**: Knowledge Debt Score and Documentation Coverage reports.
 
 ### Vertical 5 — Risk Intelligence Engine
+
 * **Objective**: Prioritize engineering risks to give actionable guidance.
 * **Algorithm**:
   * Combines inputs from Technical Debt (Complexity, Churn, Duplication), Knowledge Debt (Missing or outdated documentation), and Repository Activity (Commit density, key author dependencies).
   * Categorizes modules into risk levels (Low, Medium, High, Critical).
 * **Example Calculation**:
+
   ```text
   Billing Module:
   ├── Technical Debt  : High (Cyclomatic Complexity > 50, Circular Dependency)
@@ -124,15 +132,18 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   └── Repo Activity   : High (Modified in 80% of recent commits)
   └── OVERALL RISK    : CRITICAL (Needs immediate refactoring and documentation updates)
   ```
+
 * **Output**: Risk scores, Risk categories, and Refactoring Priorities.
 
 ### Vertical 6 — AI Explainability Engine
+
 * **Objective**: Provide human-readable, context-aware explanations and refactoring steps.
 * **Responsibilities**:
   * Explain **why** a module is considered risky using evidence.
   * Summarize repository health highlights.
   * Recommend concrete, actionable remediation steps.
 * **Example AI Output**:
+
   ```text
   Module: Billing Service (Risk Score: 87/100)
   
@@ -148,6 +159,7 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   ```
 
 ### Vertical 7 — Dashboard
+
 * **Objective**: Provide a premium visual interface representing repository health.
 * **Sub-dashboards**:
   * **Repository Overview**: High-level health index, overall technical debt, knowledge debt, and critical risks.
