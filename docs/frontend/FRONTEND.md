@@ -39,6 +39,7 @@ src/
 ---
 
 ## 🏛️ Landing Page Flow & Components
+
 The landing page displays in [App.jsx](file:///home/arden/Coding/CodePulse/src/App.jsx). It walks the user through the value proposition:
 
 1. **[Navbar](file:///home/arden/Coding/CodePulse/src/components/Navbar.jsx)**: Header controls. Routes to login page or sections.

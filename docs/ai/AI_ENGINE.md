@@ -5,6 +5,7 @@ This document details the configuration, workflows, and prompts for the **AI Exp
 ---
 
 ## 🤖 Engine Overview & Role
+
 The AI Explainability Engine sits at the top of the analytics pipeline. It takes metrics gathered by the Repository Intelligence, Technical Debt, and Knowledge Drift services, compiles them into a structured context, and leverages LLMs to produce human-readable, evidence-backed explanations and refactoring checklists.
 
 ```text
@@ -32,6 +33,7 @@ The AI Explainability Engine sits at the top of the analytics pipeline. It takes
 ---
 
 ## 🧩 Context Construction & RAG Architecture
+
 To prevent context window bloat when working with large repositories, CodePulse uses a hybrid AST-RAG (Retrieval-Augmented Generation) lookup:
 
 1. **Global Repository Profile**: High-level metrics, total files, module lists, and overall scores are always sent to the prompt context.
@@ -48,6 +50,7 @@ To prevent context window bloat when working with large repositories, CodePulse 
 These blueprints guide LLM interactions to ensure structured, parsing-friendly outputs.
 
 ### 1. Document Drift Analysis & Update Suggestions (Vertical 2)
+
 Used by the Knowledge Drift Detection pipeline to verify if a readme is obsolete.
 
 ```text
@@ -77,6 +80,7 @@ Generate:
 ```
 
 ### 2. Risk Explanation & Refactoring Recommendations (Vertical 5 & 6)
+
 Generates high-impact refactoring priorities for modules determined to be critical or high risk.
 
 ```text
@@ -116,6 +120,7 @@ Provide your findings in JSON format:
 ```
 
 ### 3. Executive Health Summary Prompt
+
 Generates high-level summaries for the repository landing card.
 
 ```text

@@ -88,13 +88,16 @@ All requests expect JSON request payloads and return standard REST JSON response
 
 * **`POST /api/repositories/scan`**: Add repository URL and trigger scanning pipeline.
   * *Request Body*:
+
     ```json
     {
       "repo_url": "https://github.com/user/project.git",
       "branch": "main"
     }
     ```
+
   * *Response*:
+
     ```json
     {
       "repository_id": 102,
@@ -102,6 +105,7 @@ All requests expect JSON request payloads and return standard REST JSON response
       "message": "Scanning pipeline initiated successfully"
     }
     ```
+
 * **`GET /api/repositories/:id/status`**: Check progress status of active scanning pipeline.
 
 ### 📊 Health Metrics & Insights
