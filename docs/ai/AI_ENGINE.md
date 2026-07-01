@@ -33,6 +33,7 @@ The AI Explainability Engine sits at the top of the analytics pipeline. It takes
 
 ## 🧩 Context Construction & RAG Architecture
 To prevent context window bloat when working with large repositories, CodePulse uses a hybrid AST-RAG (Retrieval-Augmented Generation) lookup:
+
 1. **Global Repository Profile**: High-level metrics, total files, module lists, and overall scores are always sent to the prompt context.
 2. **Context-Targeted Slices**: When analyzing a specific high-risk module, the engine fetches:
    - The AST signature of the module (classes, methods, parameters).

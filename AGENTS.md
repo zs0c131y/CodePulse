@@ -11,6 +11,7 @@ Do NOT scan the entire repository or read multiple files to discover the structu
 👉 **[docs/index.md](docs/index.md)** 👈
 
 Open and read the [docs/index.md](docs/index.md) file first before writing code or suggesting changes. It provides a complete map of:
+
 - **Project Workflows & Verticals** -> [docs/workflow/WORKFLOW.md](docs/workflow/WORKFLOW.md)
 - **Frontend Architecture & Components** -> [docs/frontend/FRONTEND.md](docs/frontend/FRONTEND.md)
 - **Backend Services & APIs** -> [docs/backend/BACKEND.md](docs/backend/BACKEND.md)
