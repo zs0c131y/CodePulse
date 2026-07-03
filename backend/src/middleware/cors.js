@@ -1,9 +1,9 @@
-import { allowedOrigins } from '../config/index.js'
+import { ALLOWED_ORIGINS } from '../config/index.js'
 
 export function cors(request, response, next) {
   const origin = request.headers.origin
 
-  if (origin && allowedOrigins.has(origin)) {
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
     response.setHeader('Access-Control-Allow-Origin', origin)
     response.setHeader('Vary', 'Origin')
     response.setHeader('Access-Control-Allow-Credentials', 'true')

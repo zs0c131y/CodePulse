@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { authSecret, accessTokenTtlSeconds } from '../config/index.js'
+import { JWT_SECRET, accessTokenTtlSeconds } from '../config/index.js'
 
 export function base64Url(value) {
   return Buffer.from(value).toString('base64url')
@@ -18,7 +18,7 @@ export function signAccessToken(user) {
     }),
   )
   const signature = crypto
-    .createHmac('sha256', authSecret)
+    .createHmac('sha256', JWT_SECRET)
     .update(`${header}.${payload}`)
     .digest('base64url')
 
@@ -34,7 +34,7 @@ export function verifyAccessToken(token) {
 
   const [header, payload, signature] = parts
   const expected = crypto
-    .createHmac('sha256', authSecret)
+    .createHmac('sha256', JWT_SECRET)
     .update(`${header}.${payload}`)
     .digest('base64url')
 

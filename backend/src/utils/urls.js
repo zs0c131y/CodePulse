@@ -1,27 +1,17 @@
 /**
- * Centralized URL utility module.
+ * Derived URL builders for OAuth callbacks and frontend links.
  *
- * Provides all application URLs (frontend, backend, OAuth callbacks) from a
- * single source. Reads from environment variables and falls back to local
- * development defaults when the variables are not set.
+ * The raw FRONTEND_URL / BACKEND_URL env values live in config/index.js —
+ * this module only builds specific paths on top of them.
  */
 
-import { isProduction } from '../config/index.js'
-
-const DEV_FRONTEND_URL = 'http://localhost:5174'
-const DEV_BACKEND_URL = 'http://localhost:5000'
-
-/** Public frontend URL used for redirects after OAuth and email links. */
-export const frontendUrl = (process.env.FRONTEND_URL || DEV_FRONTEND_URL).replace(/\/+$/, '')
-
-/** Public backend URL used for constructing OAuth callback URLs. */
-export const backendUrl = (process.env.BACKEND_URL || DEV_BACKEND_URL).replace(/\/+$/, '')
+import { FRONTEND_URL, BACKEND_URL } from '../config/index.js'
 
 /** GitHub OAuth callback URL registered in the GitHub OAuth App settings. */
-export const githubCallbackUrl = `${backendUrl}/auth/github/callback`
+export const githubCallbackUrl = `${BACKEND_URL}/auth/github/callback`
 
 /** GitLab OAuth callback URL registered in the GitLab OAuth Application settings. */
-export const gitlabCallbackUrl = `${backendUrl}/auth/gitlab/callback`
+export const gitlabCallbackUrl = `${BACKEND_URL}/auth/gitlab/callback`
 
 /**
  * Build a frontend hash link with an optional token query parameter.
@@ -30,8 +20,8 @@ export const gitlabCallbackUrl = `${backendUrl}/auth/gitlab/callback`
  */
 export function buildFrontendLink(hashPath, token) {
   if (token) {
-    return `${frontendUrl}/#${hashPath}?token=${encodeURIComponent(token)}`
+    return `${FRONTEND_URL}/#${hashPath}?token=${encodeURIComponent(token)}`
   }
 
-  return `${frontendUrl}/#${hashPath}`
+  return `${FRONTEND_URL}/#${hashPath}`
 }

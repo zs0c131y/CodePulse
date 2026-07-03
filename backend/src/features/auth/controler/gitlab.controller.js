@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
-import { gitlabClientId, gitlabClientSecret, isProduction } from '../../../config/index.js'
+import { GITLAB_ID, GITLAB_SECRET, IS_PRODUCTION, FRONTEND_URL } from '../../../config/index.js'
 import { getUsersCollection, getOAuthAccountsCollection } from '../../../db/index.js'
-import { gitlabCallbackUrl, frontendUrl } from '../../../utils/urls.js'
+import { gitlabCallbackUrl } from '../../../utils/urls.js'
 import { createSession } from '../../../utils/session.js'
 
 const GITLAB_AUTHORIZE_URL = 'https://gitlab.com/oauth/authorize'
@@ -13,7 +13,7 @@ const STATE_COOKIE = 'codepulse_gitlab_state'
  * Redirect the browser to GitLab's OAuth authorization page.
  */
 export function redirectToGitlab(_request, response) {
-  if (!gitlabClientId || !gitlabClientSecret) {
+  if (!GITLAB_ID || !GITLAB_SECRET) {
     response.status(503).json({ message: 'GitLab login is not configured.' })
     return
   }
@@ -28,14 +28,14 @@ export function redirectToGitlab(_request, response) {
     'Max-Age=600',
   ]
 
-  if (isProduction) {
+  if (IS_PRODUCTION) {
     stateCookieParts.push('Secure')
   }
 
   response.setHeader('Set-Cookie', stateCookieParts.join('; '))
 
   const params = new URLSearchParams({
-    client_id: gitlabClientId,
+    client_id: GITLAB_ID,
     redirect_uri: gitlabCallbackUrl,
     response_type: 'code',
     scope: 'read_user',
@@ -50,7 +50,7 @@ export function redirectToGitlab(_request, response) {
  */
 export async function gitlabCallback(request, response, next) {
   try {
-    if (!gitlabClientId || !gitlabClientSecret) {
+    if (!GITLAB_ID || !GITLAB_SECRET) {
       response.status(503).json({ message: 'GitLab login is not configured.' })
       return
     }
@@ -77,11 +77,11 @@ export async function gitlabCallback(request, response, next) {
       'Path=/auth/gitlab',
       'Max-Age=0',
     ]
-    if (isProduction) clearParts.push('Secure')
+    if (IS_PRODUCTION) clearParts.push('Secure')
     response.setHeader('Set-Cookie', clearParts.join('; '))
 
     if (!code || !state || state !== savedState) {
-      response.redirect(`${frontendUrl}/#signin?error=${encodeURIComponent('GitLab login failed: invalid state.')}`)
+      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitLab login failed: invalid state.')}`)
       return
     }
 
@@ -93,8 +93,8 @@ export async function gitlabCallback(request, response, next) {
         Accept: 'application/json',
       },
       body: JSON.stringify({
-        client_id: gitlabClientId,
-        client_secret: gitlabClientSecret,
+        client_id: GITLAB_ID,
+        client_secret: GITLAB_SECRET,
         code,
         grant_type: 'authorization_code',
         redirect_uri: gitlabCallbackUrl,
@@ -104,7 +104,7 @@ export async function gitlabCallback(request, response, next) {
     const tokenData = await tokenResponse.json()
 
     if (!tokenData.access_token) {
-      response.redirect(`${frontendUrl}/#signin?error=${encodeURIComponent('GitLab login failed: could not obtain access token.')}`)
+      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitLab login failed: could not obtain access token.')}`)
       return
     }
 
@@ -116,7 +116,7 @@ export async function gitlabCallback(request, response, next) {
     })
 
     if (!userResponse.ok) {
-      response.redirect(`${frontendUrl}/#signin?error=${encodeURIComponent('GitLab login failed: could not fetch user profile.')}`)
+      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitLab login failed: could not fetch user profile.')}`)
       return
     }
 
@@ -127,7 +127,7 @@ export async function gitlabCallback(request, response, next) {
     const providerUserId = String(gitlabUser.id)
 
     if (!email) {
-      response.redirect(`${frontendUrl}/#signin?error=${encodeURIComponent('GitLab login failed: no email found on your GitLab account.')}`)
+      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitLab login failed: no email found on your GitLab account.')}`)
       return
     }
 
@@ -183,7 +183,7 @@ export async function gitlabCallback(request, response, next) {
 
     // --- Create session and redirect to frontend ---
     await createSession(response, request, user)
-    response.redirect(`${frontendUrl}/#dashboard`)
+    response.redirect(`${FRONTEND_URL}/#dashboard`)
   } catch (error) {
     next(error)
   }

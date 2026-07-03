@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { isProduction, accessTokenTtlSeconds, resetTokenTtlMs } from '../../../config/index.js'
+import { IS_PRODUCTION, accessTokenTtlSeconds, resetTokenTtlMs } from '../../../config/index.js'
 import {
   getUsersCollection,
   getSessionsCollection,
@@ -67,7 +67,7 @@ export async function signup(request, response, next) {
         email_verified: false,
         created_at: createdAt,
       }),
-      ...(isProduction ? {} : { verificationUrl }),
+      ...(IS_PRODUCTION ? {} : { verificationUrl }),
     })
   } catch (error) {
     if (error.code === 11000) {
@@ -288,7 +288,7 @@ export async function requestPasswordReset(request, response, next) {
 
       response.json({
         message: 'If an account exists for that email, a password reset link has been sent.',
-        ...(isProduction ? {} : { resetUrl }),
+        ...(IS_PRODUCTION ? {} : { resetUrl }),
       })
       return
     }

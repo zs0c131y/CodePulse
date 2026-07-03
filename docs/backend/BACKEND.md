@@ -9,11 +9,14 @@ service boundaries for CodePulse.
 
 ```text
 backend/
+├── .env                                 # Environment variables (not committed)
+├── index.js                             # Server entry point (backend project root)
 ├── schema/
 │   └── db_schema.js                    # Draft MongoDB collection setup
 └── src/
+    ├── env.js                          # Loads backend/.env via dotenv (imported first by index.js)
     ├── config/
-    │   └── index.js                    # App config, env vars, constants
+    │   └── index.js                    # Single source of truth for env vars (UPPER_CASE exports) + app constants
     ├── db/
     │   └── index.js                    # MongoDB connection and index setup
     ├── features/
@@ -37,11 +40,22 @@ backend/
     │   ├── loginAttempts.js            # Brute-force login protection
     │   ├── session.js                  # Session and verification token logic
     │   ├── token.js                    # JWT signing, verification, crypto
-    │   ├── urls.js                     # Centralized frontend/backend/OAuth URL builder
+    │   ├── urls.js                     # OAuth callback + frontend link builders (derived from config)
     │   └── validators.js              # Input validation and user serialization
-    ├── app.js                          # Express app setup and middleware wiring
-    └── index.js                        # Server entry point
+    └── app.js                          # Express app setup and middleware wiring
 ```
+
+[backend/src/env.js](../../backend/src/env.js) loads `backend/.env` via
+`dotenv`, resolving the path relative to its own file location (not
+`process.cwd()`, which would break when launched from a different working
+directory). It is the first import in [backend/index.js](../../backend/index.js),
+before any other module runs. Every environment variable is then read exactly
+once, in [backend/src/config/index.js](../../backend/src/config/index.js), and
+re-exported under the same `UPPER_CASE` name as the variable itself (e.g.
+`process.env.MONGO_URI` → `export const MONGO_URI`). No other module reads
+`process.env` directly — they import the named constant from `config/index.js`
+instead, so a reader can always tell an env-sourced value from an internal
+constant by its casing.
 
 The backend uses Express and MongoDB. Runtime configuration is read from
 `MONGO_URI`, with `mongodb://127.0.0.1:27017/codepulse` as the local fallback.
@@ -49,10 +63,11 @@ Authentication also reads:
 
 * `JWT_SECRET`: required in production for signed access tokens.
 * `FRONTEND_URL`: public frontend URL used to build verification/reset links
-  and OAuth redirect targets (`http://localhost:5174` local fallback). See
-  [backend/src/utils/urls.js](../../backend/src/utils/urls.js).
+  and OAuth redirect targets (`http://localhost:5174` local fallback).
 * `BACKEND_URL`: public backend URL used to build OAuth callback URLs
-  (`http://localhost:5000` local fallback).
+  (`http://localhost:5000` local fallback). See
+  [backend/src/utils/urls.js](../../backend/src/utils/urls.js) for the derived
+  callback/link builders.
 * `EMAIL_KEY`: SMTP2GO API key used to send verification and password reset
   emails through `POST https://api.smtp2go.com/v3/email/send`.
 * `VERIFICATION_EMAIL`: verified SMTP2GO sender address used for email

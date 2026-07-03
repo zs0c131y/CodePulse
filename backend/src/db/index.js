@@ -1,9 +1,7 @@
 import { MongoClient } from 'mongodb'
+import { MONGO_URI, MONGO_DB_NAME } from '../config/index.js'
 
-const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/codepulse'
-const databaseName = process.env.MONGO_DB_NAME || 'codepulse'
-
-const client = new MongoClient(mongoUri, {
+const client = new MongoClient(MONGO_URI, {
   serverSelectionTimeoutMS: 5000,
 })
 
@@ -12,7 +10,7 @@ let database
 export async function getDatabase() {
   if (!database) {
     await client.connect()
-    database = client.db(databaseName)
+    database = client.db(MONGO_DB_NAME)
   }
 
   return database

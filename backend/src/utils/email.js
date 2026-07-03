@@ -1,4 +1,11 @@
-import { isProduction, smtp2goApiKey, verificationSenderEmail, passwordResetSenderEmail } from '../config/index.js'
+import {
+  IS_PRODUCTION,
+  EMAIL_KEY,
+  VERIFICATION_EMAIL,
+  PASSWORD_RESET_EMAIL,
+  AUTH_EMAIL_WEBHOOK_URL,
+  AUTH_EMAIL_WEBHOOK_TOKEN,
+} from '../config/index.js'
 import { buildFrontendLink } from './urls.js'
 
 const SMTP2GO_API_URL = 'https://api.smtp2go.com/v3/email/send'
@@ -58,30 +65,30 @@ async function readJsonResponse(response) {
 
 function getAuthSenderEmail(kind) {
   if (kind === 'password reset') {
-    return passwordResetSenderEmail || verificationSenderEmail
+    return PASSWORD_RESET_EMAIL || VERIFICATION_EMAIL
   }
 
-  return verificationSenderEmail
+  return VERIFICATION_EMAIL
 }
 
 function hasAuthSenderConfig() {
-  return Boolean(verificationSenderEmail || passwordResetSenderEmail)
+  return Boolean(VERIFICATION_EMAIL || PASSWORD_RESET_EMAIL)
 }
 
 function getSmtp2goConfig(kind) {
   const sender = getAuthSenderEmail(kind)
 
-  if (!smtp2goApiKey && !hasAuthSenderConfig()) {
+  if (!EMAIL_KEY && !hasAuthSenderConfig()) {
     return null
   }
 
-  if (!smtp2goApiKey || !sender) {
+  if (!EMAIL_KEY || !sender) {
     throw new Error(
       'EMAIL_KEY and the context sender email are required for SMTP2GO auth emails.',
     )
   }
 
-  return { apiKey: smtp2goApiKey, sender }
+  return { apiKey: EMAIL_KEY, sender }
 }
 
 function formatSmtp2goError(payload) {
@@ -127,14 +134,12 @@ export async function deliverAuthLink(kind, email, link) {
     return
   }
 
-  if (process.env.AUTH_EMAIL_WEBHOOK_URL) {
-    const response = await fetch(process.env.AUTH_EMAIL_WEBHOOK_URL, {
+  if (AUTH_EMAIL_WEBHOOK_URL) {
+    const response = await fetch(AUTH_EMAIL_WEBHOOK_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(process.env.AUTH_EMAIL_WEBHOOK_TOKEN
-          ? { Authorization: `Bearer ${process.env.AUTH_EMAIL_WEBHOOK_TOKEN}` }
-          : {}),
+        ...(AUTH_EMAIL_WEBHOOK_TOKEN ? { Authorization: `Bearer ${AUTH_EMAIL_WEBHOOK_TOKEN}` } : {}),
       },
       body: JSON.stringify({ kind, email, link }),
     })
@@ -146,7 +151,7 @@ export async function deliverAuthLink(kind, email, link) {
     return
   }
 
-  if (!isProduction) {
+  if (!IS_PRODUCTION) {
     console.log(`CodePulse ${kind} link for ${email}: ${link}`)
     return
   }

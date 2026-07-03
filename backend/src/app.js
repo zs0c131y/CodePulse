@@ -1,5 +1,5 @@
 import express from 'express'
-import { isProduction } from './config/index.js'
+import { IS_PRODUCTION } from './config/index.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
 import { cors } from './middleware/cors.js'
 import { createRateLimiter } from './middleware/rateLimiter.js'
@@ -8,7 +8,7 @@ import authRouter from './features/auth/router.js'
 
 const app = express()
 
-app.set('trust proxy', isProduction ? 1 : 0)
+app.set('trust proxy', IS_PRODUCTION ? 1 : 0)
 app.use(securityHeaders)
 app.use(cors)
 app.use(express.json({ limit: '1mb' }))

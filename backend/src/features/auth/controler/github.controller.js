@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
-import { githubClientId, githubClientSecret, isProduction } from '../../../config/index.js'
+import { GITHUB_ID, GITHUB_SECRET, IS_PRODUCTION, FRONTEND_URL } from '../../../config/index.js'
 import { getUsersCollection, getOAuthAccountsCollection } from '../../../db/index.js'
-import { githubCallbackUrl, frontendUrl } from '../../../utils/urls.js'
+import { githubCallbackUrl } from '../../../utils/urls.js'
 import { createSession } from '../../../utils/session.js'
 import { toPublicUser } from '../../../utils/validators.js'
 
@@ -15,7 +15,7 @@ const STATE_COOKIE = 'codepulse_github_state'
  * Redirect the browser to GitHub's OAuth authorization page.
  */
 export function redirectToGithub(_request, response) {
-  if (!githubClientId || !githubClientSecret) {
+  if (!GITHUB_ID || !GITHUB_SECRET) {
     response.status(503).json({ message: 'GitHub login is not configured.' })
     return
   }
@@ -30,14 +30,14 @@ export function redirectToGithub(_request, response) {
     'Max-Age=600',
   ]
 
-  if (isProduction) {
+  if (IS_PRODUCTION) {
     stateCookieParts.push('Secure')
   }
 
   response.setHeader('Set-Cookie', stateCookieParts.join('; '))
 
   const params = new URLSearchParams({
-    client_id: githubClientId,
+    client_id: GITHUB_ID,
     redirect_uri: githubCallbackUrl,
     scope: 'user:email',
     state,
@@ -51,7 +51,7 @@ export function redirectToGithub(_request, response) {
  */
 export async function githubCallback(request, response, next) {
   try {
-    if (!githubClientId || !githubClientSecret) {
+    if (!GITHUB_ID || !GITHUB_SECRET) {
       response.status(503).json({ message: 'GitHub login is not configured.' })
       return
     }
@@ -78,11 +78,11 @@ export async function githubCallback(request, response, next) {
       'Path=/auth/github',
       'Max-Age=0',
     ]
-    if (isProduction) clearParts.push('Secure')
+    if (IS_PRODUCTION) clearParts.push('Secure')
     response.setHeader('Set-Cookie', clearParts.join('; '))
 
     if (!code || !state || state !== savedState) {
-      response.redirect(`${frontendUrl}/#signin?error=${encodeURIComponent('GitHub login failed: invalid state.')}`)
+      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitHub login failed: invalid state.')}`)
       return
     }
 
@@ -94,8 +94,8 @@ export async function githubCallback(request, response, next) {
         Accept: 'application/json',
       },
       body: JSON.stringify({
-        client_id: githubClientId,
-        client_secret: githubClientSecret,
+        client_id: GITHUB_ID,
+        client_secret: GITHUB_SECRET,
         code,
         redirect_uri: githubCallbackUrl,
       }),
@@ -104,7 +104,7 @@ export async function githubCallback(request, response, next) {
     const tokenData = await tokenResponse.json()
 
     if (!tokenData.access_token) {
-      response.redirect(`${frontendUrl}/#signin?error=${encodeURIComponent('GitHub login failed: could not obtain access token.')}`)
+      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitHub login failed: could not obtain access token.')}`)
       return
     }
 
@@ -121,7 +121,7 @@ export async function githubCallback(request, response, next) {
     ])
 
     if (!userResponse.ok) {
-      response.redirect(`${frontendUrl}/#signin?error=${encodeURIComponent('GitHub login failed: could not fetch user profile.')}`)
+      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitHub login failed: could not fetch user profile.')}`)
       return
     }
 
@@ -135,7 +135,7 @@ export async function githubCallback(request, response, next) {
     const providerUserId = String(githubUser.id)
 
     if (!email) {
-      response.redirect(`${frontendUrl}/#signin?error=${encodeURIComponent('GitHub login failed: no verified email found on your GitHub account.')}`)
+      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitHub login failed: no verified email found on your GitHub account.')}`)
       return
     }
 
@@ -191,7 +191,7 @@ export async function githubCallback(request, response, next) {
 
     // --- Create session and redirect to frontend ---
     await createSession(response, request, user)
-    response.redirect(`${frontendUrl}/#dashboard`)
+    response.redirect(`${FRONTEND_URL}/#dashboard`)
   } catch (error) {
     next(error)
   }

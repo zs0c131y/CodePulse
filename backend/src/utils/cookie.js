@@ -1,4 +1,4 @@
-import { isProduction, refreshCookieName, refreshTokenTtlMs } from '../config/index.js'
+import { IS_PRODUCTION, refreshCookieName, refreshTokenTtlMs } from '../config/index.js'
 
 export function parseCookies(cookieHeader = '') {
   return Object.fromEntries(
@@ -22,7 +22,7 @@ export function setRefreshCookie(response, token) {
     `Max-Age=${Math.floor(refreshTokenTtlMs / 1000)}`,
   ]
 
-  if (isProduction) {
+  if (IS_PRODUCTION) {
     parts.push('Secure')
   }
 
@@ -38,7 +38,7 @@ export function clearRefreshCookie(response) {
     'Max-Age=0',
   ]
 
-  if (isProduction) {
+  if (IS_PRODUCTION) {
     parts.push('Secure')
   }
 
