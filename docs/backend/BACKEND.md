@@ -90,7 +90,9 @@ the API still listens on port `3000` in degraded mode and auth routes return
 Verification and password reset emails are delivered by SMTP2GO when
 `EMAIL_KEY` and the context sender email are present. Each email uses the
 SMTP2GO standard email API with `sender`, a single-recipient `to` array,
-`subject`, `text_body`, and `html_body`.
+`subject`, `text_body`, and `html_body`. The HTML bodies use branded
+responsive, table-based templates with inline CSS for broad email-client
+compatibility. Plain-text fallbacks are always sent.
 
 ### `GET /api/health`
 
