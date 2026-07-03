@@ -30,6 +30,10 @@ import {
   User,
   Users,
 } from 'lucide-react'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Select } from './ui/select'
 
 function apiUrl(path) {
   return `${import.meta.env.VITE_API_BASE_URL || ''}${path}`
@@ -234,6 +238,14 @@ function severityClass(severity) {
   return 'bg-emerald-50 text-emerald-700 border-emerald-200'
 }
 
+function severityVariant(severity) {
+  if (severity === 'Critical') return 'danger'
+  if (severity === 'High') return 'danger'
+  if (severity === 'Medium') return 'warning'
+  if (severity === 'Low') return 'success'
+  return 'secondary'
+}
+
 function initials(name, email) {
   const source = name || email || 'CodePulse'
   return source
@@ -310,40 +322,44 @@ function PipelinePanel() {
 
 function DebtTable() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
         <div>
           <h2 className="text-base font-bold text-slate-950">Highest-risk modules</h2>
           <p className="mt-1 text-sm text-slate-500">Ranked by complexity, churn, duplication, and drift adjacency.</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+        <Button type="button" variant="outline" size="sm">
           <ListFilter size={16} />
           Filter
-        </button>
+        </Button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-180 text-left">
+      <div className="hidden lg:block">
+        <table className="w-full table-fixed text-left">
           <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
             <tr>
-              <th className="px-5 py-3">Module</th>
-              <th className="px-5 py-3">Owner</th>
-              <th className="px-5 py-3">Complexity</th>
-              <th className="px-5 py-3">Churn</th>
-              <th className="px-5 py-3">Duplication</th>
-              <th className="px-5 py-3">Risk</th>
+              <th className="w-[34%] px-5 py-3">Module</th>
+              <th className="w-[14%] px-5 py-3">Owner</th>
+              <th className="w-[20%] px-5 py-3">Complexity</th>
+              <th className="w-[10%] px-5 py-3">Churn</th>
+              <th className="w-[12%] px-5 py-3">Duplication</th>
+              <th className="w-[10%] px-5 py-3">Risk</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {debtModules.map(item => (
               <tr key={item.module} className="hover:bg-slate-50/80">
-                <td className="px-5 py-4">
-                  <p className="font-semibold text-slate-900">{item.module}</p>
+                <td className="min-w-0 px-5 py-4">
+                  <p className="truncate font-semibold text-slate-900" title={item.module}>
+                    {item.module}
+                  </p>
                   <p className="text-xs text-slate-500">Last touched in recent scan window</p>
                 </td>
-                <td className="px-5 py-4 text-sm text-slate-600">{item.owner}</td>
+                <td className="px-5 py-4 text-sm text-slate-600">
+                  <span className="block truncate">{item.owner}</span>
+                </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="h-2 w-24 rounded-full bg-slate-100">
+                    <div className="h-2 min-w-0 flex-1 rounded-full bg-slate-100">
                       <div className="h-full rounded-full bg-slate-950" style={{ width: `${item.complexity}%` }} />
                     </div>
                     <span className="text-sm font-semibold text-slate-700">{item.complexity}</span>
@@ -360,6 +376,37 @@ function DebtTable() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="grid gap-3 p-4 lg:hidden">
+        {debtModules.map(item => (
+          <article key={item.module} className="rounded-lg border border-slate-200 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate font-semibold text-slate-900" title={item.module}>
+                  {item.module}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">{item.owner}</p>
+              </div>
+              <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-bold ${severityClass(item.risk)}`}>
+                {item.risk}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-500">Complexity</p>
+                <p className="mt-1 font-bold text-slate-950">{item.complexity}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-500">Churn</p>
+                <p className="mt-1 font-bold text-slate-950">{item.churn}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-500">Duplication</p>
+                <p className="mt-1 font-bold text-slate-950">{item.duplication}</p>
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   )
@@ -474,7 +521,7 @@ function OverviewContent() {
         <PipelinePanel />
         <RiskPanel />
       </div>
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
         <DebtTable />
         <DriftPanel />
       </div>
@@ -498,7 +545,7 @@ function MainContent({ activeTab }) {
 
   if (activeTab === 'Knowledge Drift') {
     return (
-      <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <DriftPanel />
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-bold text-slate-950">Documentation coverage</h2>
@@ -529,7 +576,7 @@ function MainContent({ activeTab }) {
   if (activeTab === 'Risk & AI') {
     return (
       <div className="space-y-5">
-        <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+        <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
           <RiskPanel />
           <PipelinePanel />
         </div>
@@ -567,7 +614,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         }
 
         if (!cancelled) {
-          setStatus(`Session verified for ${data.user.email}`)
+          setStatus('Session verified')
         }
       } catch (error) {
         if (!cancelled) {
@@ -639,12 +686,19 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <LockKeyhole size={16} className="text-emerald-300" />
               Protected session
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-400">{status}</p>
+            <div className="mt-3 flex min-w-0 items-center justify-between gap-2">
+              <span className="truncate text-xs font-medium text-slate-400" title={user.email}>
+                {user.email}
+              </span>
+              <span className="shrink-0 rounded-md border border-emerald-300/25 bg-emerald-300/10 px-2 py-0.5 text-[11px] font-bold text-emerald-200">
+                {status === 'Session verified' ? 'Verified' : 'Checking'}
+              </span>
+            </div>
           </div>
         </div>
       </aside>
 
-      <div className="lg:pl-64">
+      <div className="min-w-0 lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/92 backdrop-blur">
           <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <div className="min-w-0">
@@ -652,62 +706,70 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 <span>Workspace</span>
                 <span>/</span>
                 <span className="text-slate-950">{repository.name}</span>
-                <span className={`rounded-md border px-2 py-0.5 ${severityClass(repository.risk)}`}>
+                <Badge variant={severityVariant(repository.risk)} className="capitalize">
                   {repository.risk} risk
-                </span>
+                </Badge>
               </div>
               <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Engineering intelligence dashboard</h1>
             </div>
 
             <div className="flex items-center gap-2">
-              <button className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50" aria-label="Notifications">
+              <Button type="button" variant="outline" size="icon" aria-label="Notifications">
                 <Bell size={18} />
-              </button>
-              <a
+              </Button>
+              <Button
                 href="/settings"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                asChild
+                variant="outline"
+                size="icon"
                 aria-label="Settings"
               >
-                <Settings size={18} />
-              </a>
-              <a
+                <a href="/settings">
+                  <Settings size={18} />
+                </a>
+              </Button>
+              <Button
                 href="/profile"
-                className="hidden h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 md:inline-flex"
+                asChild
+                variant="outline"
+                className="hidden md:inline-flex"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-950 text-xs font-bold text-white">
-                  {initials(user.name, user.email)}
-                </span>
-                Profile
-              </a>
-              <button
+                <a href="/profile">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-cyan-400 text-xs font-bold text-slate-950">
+                    {initials(user.name, user.email)}
+                  </span>
+                  Profile
+                </a>
+              </Button>
+              <Button
                 type="button"
                 onClick={onLogout}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                variant="outline"
               >
                 <LogOut size={16} />
                 Sign out
-              </button>
+              </Button>
             </div>
           </div>
         </header>
 
-        <main className="px-4 py-5 sm:px-6">
+        <main className="mx-auto min-w-0 max-w-[1600px] px-4 py-5 sm:px-6">
           <section className="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr_auto] xl:items-end">
+            <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(18rem,1fr)_minmax(22rem,1.2fr)_auto] 2xl:items-end">
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-slate-700">Repository</span>
                 <span className="relative block">
-                  <select
+                  <Select
                     value={selectedRepo}
                     onChange={event => setSelectedRepo(event.target.value)}
-                    className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 pr-10 text-sm font-semibold text-slate-900 outline-none focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100"
+                    className="appearance-none pr-10"
                   >
                     {repositories.map(item => (
                       <option key={item.name} value={item.name}>
                         {item.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 </span>
               </label>
@@ -716,27 +778,27 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 <span className="mb-2 block text-sm font-semibold text-slate-700">Analyze a repository</span>
                 <span className="relative block">
                   <GitPullRequest size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
+                  <Input
                     value={repoUrl}
                     onChange={event => setRepoUrl(event.target.value)}
                     placeholder="https://github.com/company/repository"
-                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-10 text-sm outline-none placeholder:text-slate-400 focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100"
+                    className="px-10"
                   />
                   <Search size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 </span>
               </label>
 
-              <button
+              <Button
                 type="button"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+                size="lg"
                 disabled={!repoUrl.trim()}
               >
                 <Play size={16} />
                 Start scan
-              </button>
+              </Button>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-3 text-sm text-slate-600">
+            <div className="mt-4 flex min-w-0 flex-wrap gap-3 text-sm text-slate-600">
               <span className="inline-flex items-center gap-2">
                 <GitBranch size={15} />
                 {repository.branch}
@@ -749,14 +811,14 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 <Clock3 size={15} />
                 Last scan {repository.lastScan}
               </span>
-              <span className="inline-flex items-center gap-2">
+              <span className="inline-flex min-w-0 items-center gap-2">
                 <Users size={15} />
-                Signed in as {user.email}
+                <span className="truncate">Signed in as {user.email}</span>
               </span>
             </div>
           </section>
 
-          <div className="mb-5 flex gap-2 overflow-x-auto lg:hidden" role="tablist" aria-label="Dashboard sections">
+          <div className="mb-5 flex flex-wrap gap-2 lg:hidden" role="tablist" aria-label="Dashboard sections">
             {navItems.map(item => {
               const selected = activeTab === item.label
               return (
@@ -764,7 +826,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                   key={item.label}
                   type="button"
                   onClick={() => setActiveTab(item.label)}
-                  className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
                     selected
                       ? 'border-slate-950 bg-slate-950 text-white'
                       : 'border-slate-200 bg-white text-slate-700'

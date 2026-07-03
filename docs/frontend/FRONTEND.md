@@ -9,8 +9,10 @@ wiring for CodePulse.
 
 * **Framework**: React with Vite.
 * **Build Config**: [frontend/vite.config.js](../../frontend/vite.config.js).
-* **Styling**: Tailwind utilities and project CSS in
-  [frontend/src/index.css](../../frontend/src/index.css) and
+* **Styling**: Tailwind utilities, local shadcn-style primitives in
+  [frontend/src/components/ui](../../frontend/src/components/ui), shared class
+  merging in [frontend/src/lib/utils.js](../../frontend/src/lib/utils.js), and
+  project CSS in [frontend/src/index.css](../../frontend/src/index.css) and
   [frontend/src/App.css](../../frontend/src/App.css).
 * **Routing**: Lightweight client-side path routing in
   [frontend/src/App.jsx](../../frontend/src/App.jsx). Legacy hash routes are
@@ -28,6 +30,12 @@ frontend/
 │   ├── assets/
 │   │   └── hero.png
 │   ├── components/
+│   │   ├── ui/
+│   │   │   ├── badge.jsx
+│   │   │   ├── button.jsx
+│   │   │   ├── card.jsx
+│   │   │   ├── input.jsx
+│   │   │   └── select.jsx
 │   │   ├── AuthPage.jsx
 │   │   ├── AccountPage.jsx
 │   │   ├── Dashboard.jsx
@@ -41,6 +49,8 @@ frontend/
 │   │   ├── Problems.jsx
 │   │   ├── Stats.jsx
 │   │   └── Testimonials.jsx
+│   ├── lib/
+│   │   └── utils.js
 │   ├── App.css
 │   ├── App.jsx
 │   ├── index.css
@@ -119,6 +129,12 @@ and access four dashboard tabs:
 * **Knowledge Drift & Debt**: Drift findings and documentation coverage.
 * **Risk & AI Recommendations**: Ranked modules with AI-generated remediation
   guidance.
+
+Authenticated screens share a fixed sidebar, sticky header, responsive content
+width, and shadcn-style buttons, badges, inputs, and selects. Dashboard grids use
+single-column layouts until enough viewport width is available, and the
+highest-risk module table switches to compact cards on smaller screens to avoid
+page-level horizontal scrolling.
 
 ---
 
