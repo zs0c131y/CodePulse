@@ -1,16 +1,41 @@
-# React + Vite
+# CodePulse
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+CodePulse is an engineering intelligence prototype for analyzing repository
+health, documentation drift, technical debt, knowledge debt, and AI-assisted
+recommendations.
 
-Currently, two official plugins are available:
+## Project Layout
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```text
+frontend/   React + Vite application
+backend/    Express API and local development data store
+docs/       Architecture, frontend, backend, and data model docs
+```
 
-## React Compiler
+## Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Install dependencies from the repository root:
 
-## Expanding the Oxlint configuration
+```powershell
+npm install
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Run the frontend:
+
+```powershell
+npm run dev
+```
+
+Run the backend API:
+
+```powershell
+npm run dev:backend
+```
+
+The frontend runs through Vite and proxies `/api` calls to the backend API on
+`http://localhost:3000`.
+
+## Documentation
+
+Start with [docs/index.md](docs/index.md), then open the focused document for
+the area you are changing.

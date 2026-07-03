@@ -1,72 +1,78 @@
 # CodePulse — Project Root Context & Agent Guide
 
-Welcome to the **CodePulse** project context. This document serves as the primary entry point for AI agents, developers, and tools working on this codebase. It provides a complete map of the documentation, codebase structure, and developer guidelines to ensure seamless collaboration.
+Welcome to the **CodePulse** project context. This is the documentation entry
+point for agents, developers, and tools working on this repository.
 
 ---
 
 ## 🚀 About CodePulse
-**CodePulse** is an AI-powered Engineering Intelligence Platform that continuously analyzes software repositories to evaluate their overall health. Unlike traditional static analysis tools that only check code quality, CodePulse identifies documentation drift, technical and knowledge debt, maintainability risks, and provides AI-assisted recommendations to improve software sustainability.
 
-For details on the project pitch and architecture, refer to the [Workflow & Architecture Overview](file:///home/arden/Coding/CodePulse/docs/workflow/WORKFLOW.md).
+**CodePulse** is an AI-powered Engineering Intelligence Platform that analyzes
+software repositories for documentation drift, technical debt, knowledge debt,
+maintainability risks, and AI-assisted remediation opportunities.
 
 ---
 
 ## 🗺️ Documentation Sitemap
-To avoid reading multiple codebase files simultaneously, refer directly to these modular documentation files based on the component you are working on:
 
-| Section | Target File | Purpose & Contents |
+Use these focused documentation files instead of scanning the repository:
+
+| Section | Target File | Purpose |
 | :--- | :--- | :--- |
-| **Workflow & Architecture** | [docs/workflow/WORKFLOW.md](file:///home/arden/Coding/CodePulse/docs/workflow/WORKFLOW.md) | End-to-end processing pipeline, the 7 core verticals, architecture diagrams, and high-level workflows. |
-| **Frontend Documentation** | [docs/frontend/FRONTEND.md](file:///home/arden/Coding/CodePulse/docs/frontend/FRONTEND.md) | UI components (existing landing page structures), planned dashboard views (tech debt, knowledge debt, risk dashboard), and styling guides. |
-| **Backend Documentation** | [docs/backend/BACKEND.md](file:///home/arden/Coding/CodePulse/docs/backend/BACKEND.md) | Core backend services (Repo Intelligence, Debt Analyzers, Risk Engine), API specifications, and overall backend architecture. |
-| **Database Schema** | [docs/database/DATABASE.md](file:///home/arden/Coding/CodePulse/docs/database/DATABASE.md) | Database configuration, Entity-Relationship Diagram (ERD), detailed table structures, and relationships. |
-| **AI Explainability Engine** | [docs/ai/AI_ENGINE.md](file:///home/arden/Coding/CodePulse/docs/ai/AI_ENGINE.md) | AI explainability pipelines, prompt templates, context construction, and recommendation generators. |
+| **Workflow & Architecture** | [docs/workflow/WORKFLOW.md](workflow/WORKFLOW.md) | End-to-end processing pipeline and core verticals. |
+| **Frontend** | [docs/frontend/FRONTEND.md](frontend/FRONTEND.md) | React app structure, routes, and UI component layout. |
+| **Backend** | [docs/backend/BACKEND.md](backend/BACKEND.md) | Express API, auth routes, and backend service boundaries. |
+| **Data Model** | [docs/database/DATABASE.md](database/DATABASE.md) | Runtime data store and domain schema overview. |
+| **MongoDB Schema Reference** | [docs/database/MONGODB_SCHEMA.md](database/MONGODB_SCHEMA.md) | Collection-level schema converted from the draft schema script. |
+| **AI Engine** | [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) | AI explainability pipelines, prompt templates, and context construction. |
 
 ---
 
 ## 📁 Codebase Directory Structure
-The repository is structured as a monorepo containing the frontend app, docker configurations, database scripts, and project documentation:
+
+The repository is organized as a small monorepo with separated frontend,
+backend, schema, and documentation areas:
 
 ```text
 CodePulse/
-├── src/                       # Frontend Source Code (React + Vite)
-│   ├── assets/                # Images, fonts, and static SVGs
-│   ├── components/            # Reusable UI Components (Hero, Navbar, Problems, Features, AuthPage)
-│   ├── App.jsx                # Main Application Shell & Landing Page Router
-│   ├── index.css              # Global Tailored CSS Variables & Reset
-│   └── main.jsx               # React Application Entry Point
-├── databases/                 # Database initialization and migration scripts
-│   └── init/
-│       └── creation.sql       # Initial database schemas and table definitions
-├── dockerFiles/               # Docker configurations for development and production
-│   ├── dev/                   # Development containers
-│   │   ├── database/          # Custom MySQL configurations & Dockers
-│   │   └── workbench/         # MySQL Workbench container configuration
-│   └── production/            # Production container configuration
-├── docs/                      # Technical Documentation
-│   ├── database/              # Database-specific docs
-│   │   └── DATABASE.md        # Database Entity-Relationship and schema details
-│   ├── workflow/              # Workflow-specific docs
-│   │   └── WORKFLOW.md        # Processing pipeline and architecture layout
-│   ├── frontend/              # Frontend-specific docs
-│   │   └── FRONTEND.md        # Component mappings and dashboard views
-│   ├── backend/               # Backend-specific docs
-│   │   └── BACKEND.md         # API routes and analytical engines specifications
-│   ├── ai/                    # AI explainability-specific docs
-│   │   └── AI_ENGINE.md       # Context builder and prompt patterns
-│   └── index.md               # This entry point document
-├── docker-compose.yaml        # Local development multi-container setup (MySQL + Workbench)
-└── package.json               # Frontend dependencies and run scripts
+├── frontend/                  # React + Vite frontend application
+│   ├── public/                # Static browser assets
+│   ├── src/                   # Frontend source code
+│   │   ├── assets/            # Images, fonts, and static SVGs
+│   │   ├── components/        # Reusable UI components
+│   │   ├── App.jsx            # Hash route controller
+│   │   ├── App.css            # Component and layout styling
+│   │   ├── index.css          # Global CSS and Tailwind imports
+│   │   └── main.jsx           # React entry point
+│   ├── index.html             # Vite HTML shell
+│   └── vite.config.js         # Frontend build and dev proxy config
+├── backend/                   # Express API backend
+│   ├── schema/                # Draft database schema scripts
+│   │   └── db_schema.js       # MongoDB collection setup draft
+│   └── src/                   # Backend source code
+│       ├── db.js              # MongoDB connection and indexes
+│       └── index.js           # API route definitions
+├── docs/                      # Technical documentation
+│   ├── ai/
+│   ├── backend/
+│   ├── database/
+│   ├── frontend/
+│   ├── workflow/
+│   └── index.md
+├── package.json               # Root scripts and shared dependencies
+├── package-lock.json          # Root lockfile
+└── README.md                  # Project overview
 ```
 
 ---
 
-## 🛠️ Instructions for AI Agents & Developers
+## 🛠️ Instructions for Agents & Developers
 
-1. **Keep Documentation Updated**: If you add a new database table, modify a frontend route, or change an API endpoint, you **must** update the corresponding documentation file under `docs/`.
-2. **Modular Architecture**:
-   - Keep frontend logic inside [docs/frontend/FRONTEND.md](file:///home/arden/Coding/CodePulse/docs/frontend/FRONTEND.md) and code in `src/`.
-   - Keep backend logic inside [docs/backend/BACKEND.md](file:///home/arden/Coding/CodePulse/docs/backend/BACKEND.md) and database files under `databases/` and `docs/database/`.
-   - Keep AI LLM prompts and explainability logic inside [docs/ai/AI_ENGINE.md](file:///home/arden/Coding/CodePulse/docs/ai/AI_ENGINE.md).
-3. **Reference Links**: Always use absolute or project-relative file links (e.g. `[Hero.jsx](file:///home/arden/Coding/CodePulse/src/components/Hero.jsx)`) when referencing code elements in documentation, so other agents can navigate instantly.
-4. **Environment Configuration**: Always consult `.env` (managed locally) for development credentials. MySQL runs on port `3306` inside the Docker network.
+1. **Read Before Writing**: Start here, then read the relevant doc for the
+   folder you are changing.
+2. **Synchronized Changes**: Update the matching file under `docs/` whenever
+   code structure, APIs, routes, or the data model changes.
+3. **Folder Ownership**: Keep UI code under `frontend/`, API code under
+   `backend/`, and technical docs under `docs/`.
+4. **Reference Links**: Use project-relative Markdown links such as
+   `[AuthPage.jsx](../../frontend/src/components/AuthPage.jsx)`.

@@ -78,7 +78,7 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * Extract git commit histories (authors, dates, commit frequencies, modifications).
   * Generate dependency graphs showing module connections.
   * Identify distinct modules, services, and libraries.
-* **Output**: A structured JSON representation of the repository (stored in DB tables: `repositories`, `repo_files`, `commits`, `dependencies`, `documentation`).
+* **Output**: A structured repository model stored in MongoDB collections: `repositories`, `repo_files`, `commits`, `dependencies`, and `documentation`.
 
 ### Vertical 2 — Knowledge Drift Detection
 

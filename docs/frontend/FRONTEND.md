@@ -1,109 +1,105 @@
 # CodePulse — Frontend Documentation
 
-This document describes the design system, components, and layout architecture of the CodePulse web interface.
+This document describes the React frontend structure, route flow, and auth API
+wiring for CodePulse.
 
 ---
 
 ## 🛠️ Technology Stack & Styling
 
-* **Framework**: React 18+ (bootstrapped with Vite)
-* **Build System**: Vite (configured in [vite.config.js](file:///home/arden/Coding/CodePulse/vite.config.js))
-* **Styling**: Vanilla CSS (global configurations in [src/index.css](file:///home/arden/Coding/CodePulse/src/index.css) and component styles in [src/App.css](file:///home/arden/Coding/CodePulse/src/App.css)).
-* **Design Principles**: Dark mode UI, sleek glassmorphism, responsive grids, rich visual elements, and smooth CSS micro-animations.
+* **Framework**: React with Vite.
+* **Build Config**: [frontend/vite.config.js](../../frontend/vite.config.js).
+* **Styling**: Tailwind utilities and project CSS in
+  [frontend/src/index.css](../../frontend/src/index.css) and
+  [frontend/src/App.css](../../frontend/src/App.css).
+* **Routing**: Lightweight hash routing in
+  [frontend/src/App.jsx](../../frontend/src/App.jsx).
 
 ---
 
-## 📂 Current Frontend Directory Structure
+## 📂 Frontend Directory Structure
 
 ```text
-src/
-├── App.css                    # Main application styling (gradients, hero grids, layout utilities)
-├── App.jsx                    # Application entry controller displaying the landing pages
-├── assets/                    # Assets and logos
-├── components/                # Modular layout components
-│   ├── AuthPage.jsx           # User Authentication component (Sign In / Register tab views)
-│   ├── Features.jsx           # Feature highlight grid (continuous scan, AI explainability, risk score)
-│   ├── FinalCTA.jsx           # Conversion CTA section at the bottom of the landing page
-│   ├── Footer.jsx             # Footer with product navigation and social links
-│   ├── Hero.jsx               # Interactive header with gradient text, visuals, and animations
-│   ├── HowItWorks.jsx         # Step-by-step workflow visualizer
-│   ├── LogoBar.jsx            # Trust section representing mock client logos
-│   ├── Navbar.jsx             # Navigation header with scroll triggers and routing triggers
-│   ├── Problems.jsx           # Core challenges section (technical debt, knowledge drift)
-│   ├── Stats.jsx              # Platform performance showcase counter cards
-│   └── Testimonials.jsx       # Customer quotes carousel/grid
-├── index.css                  # Typography imports, custom CSS variables, and resets
-└── main.jsx                   # React mounting script
+frontend/
+├── public/
+│   └── favicon.svg
+├── src/
+│   ├── assets/
+│   │   └── hero.png
+│   ├── components/
+│   │   ├── AuthPage.jsx
+│   │   ├── Features.jsx
+│   │   ├── FinalCTA.jsx
+│   │   ├── Footer.jsx
+│   │   ├── Hero.jsx
+│   │   ├── HowItWorks.jsx
+│   │   ├── LogoBar.jsx
+│   │   ├── Navbar.jsx
+│   │   ├── Problems.jsx
+│   │   ├── Stats.jsx
+│   │   └── Testimonials.jsx
+│   ├── App.css
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+├── index.html
+└── vite.config.js
 ```
 
 ---
 
-## 🏛️ Landing Page Flow & Components
+## 🏛️ Landing Page Flow
 
-The landing page displays in [App.jsx](file:///home/arden/Coding/CodePulse/src/App.jsx). It walks the user through the value proposition:
+The landing page is composed in [frontend/src/App.jsx](../../frontend/src/App.jsx):
 
-1. **[Navbar](file:///home/arden/Coding/CodePulse/src/components/Navbar.jsx)**: Header controls. Routes to login page or sections.
-2. **[Hero](file:///home/arden/Coding/CodePulse/src/components/Hero.jsx)**: Visual hook with primary action (Analyze Repository).
-3. **[LogoBar](file:///home/arden/Coding/CodePulse/src/components/LogoBar.jsx)**: Mock integrations.
-4. **[Stats](file:///home/arden/Coding/CodePulse/src/components/Stats.jsx)**: Quick impact figures.
-5. **[Problems](file:///home/arden/Coding/CodePulse/src/components/Problems.jsx)**: Code decay and outdated docs.
-6. **[HowItWorks](file:///home/arden/Coding/CodePulse/src/components/HowItWorks.jsx)**: Steps from URL input to AI suggestions.
-7. **[Features](file:///home/arden/Coding/CodePulse/src/components/Features.jsx)**: Highlights core technical features.
-8. **[Testimonials](file:///home/arden/Coding/CodePulse/src/components/Testimonials.jsx)**: Social proof.
-9. **[FinalCTA](file:///home/arden/Coding/CodePulse/src/components/FinalCTA.jsx)**: Bottom action trigger.
-10. **[Footer](file:///home/arden/Coding/CodePulse/src/components/Footer.jsx)**: Standard site links.
+1. [Navbar](../../frontend/src/components/Navbar.jsx)
+2. [Hero](../../frontend/src/components/Hero.jsx)
+3. [LogoBar](../../frontend/src/components/LogoBar.jsx)
+4. [Problems](../../frontend/src/components/Problems.jsx)
+5. [Features](../../frontend/src/components/Features.jsx)
+6. [HowItWorks](../../frontend/src/components/HowItWorks.jsx)
+7. [Stats](../../frontend/src/components/Stats.jsx)
+8. [Testimonials](../../frontend/src/components/Testimonials.jsx)
+9. [FinalCTA](../../frontend/src/components/FinalCTA.jsx)
+10. [Footer](../../frontend/src/components/Footer.jsx)
 
 ---
 
-## 🎨 Planned Dashboard Interface (Vertical 7)
+## 🔐 Auth Page Wiring
 
-When users log in via the **[AuthPage](file:///home/arden/Coding/CodePulse/src/components/AuthPage.jsx)** and select a repository, they will access the CodePulse Dashboard. This dashboard will be organized into four tabs:
+[AuthPage.jsx](../../frontend/src/components/AuthPage.jsx) handles both
+`#signin` and `#signup` modes, plus account recovery and email verification
+routes.
 
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│  CodePulse  |  [Dashboard] [Tech Debt] [Knowledge Drift] [Risk & AI]   │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  [ Repository Health Score: 78/100 ]     [ Technical Debt Score: A- ]  │
-│  [ Knowledge Drift Findings: 12 ]        [ Overall Risk: Medium ]      │
-│                                                                        │
-│  ┌──────────────────────────────┐    ┌──────────────────────────────┐  │
-│  │    Risk Heatmap Graph        │    │    Drift Breakdown Details   │  │
-│  │                              │    │                              │  │
-│  └──────────────────────────────┘    └──────────────────────────────┘  │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
-```
+* Signup posts to `POST /api/auth/signup`.
+* Signup requires email verification before sign-in.
+* Sign-in posts to `POST /api/auth/signin`.
+* Password reset starts at `#reset-password` and posts to
+  `POST /api/auth/request-password-reset`.
+* Reset links use `#reset-password?token=...` and post to
+  `POST /api/auth/reset-password`.
+* Verification links use `#verify-email?token=...` and post to
+  `POST /api/auth/verify-email`.
+* Vite proxies `/api` requests to the backend API on `localhost:3000` during
+  development.
+* Successful sign-in stores the short-lived access token in React state only.
+  The refresh token is held by the backend as a MongoDB session and sent to the
+  browser as an `HttpOnly` cookie.
+* [frontend/src/App.jsx](../../frontend/src/App.jsx) refreshes the session on
+  load with `POST /api/auth/refresh`, gates `#dashboard`, checks
+  `GET /api/auth/me` with a bearer token, and calls `POST /api/auth/logout` to
+  revoke the refresh session.
 
-### 1. Dashboard Overview Tab
+---
 
-* **Repository Health Score Card**: Large radial progress gauge displaying overall score (combining debt, documentation quality, and repository risk).
-* **Summary Cards**:
-  * **Technical Debt Score**: Letter grade (A-F) based on cyclomatic complexity and code quality.
-  * **Knowledge Coverage**: Percentage of codebase covered by up-to-date documentation.
-  * **Drift Count**: Total number of documented components that no longer match the code.
-  * **Critical Risks**: Number of modules requiring immediate action.
-* **Scan History**: A time-series line chart tracking repository health trends over the last 30 days.
+## 🎨 Planned Dashboard Interface
 
-### 2. Technical Debt Tab
+After sign-in, users will select a repository and access four dashboard tabs:
 
-* **Complexity Heatmap**: An interactive tree-map of repository folders. Larger, redder boxes represent large classes/methods with high cyclomatic complexity.
-* **Metric Lists**:
-  * Code duplication percentages per file.
-  * Circular dependency paths visualized as interactive nodes.
-  * High-churn list showing files modified most frequently in commit logs.
-
-### 3. Knowledge Drift & Debt Tab
-
-* **Drift List**: Table highlighting documentation anomalies:
-  * Outdated sections showing code signature diffs next to documentation statements.
-  * Deleted files that are still referenced in README files.
-* **Documentation Coverage Breakdown**: Visual progress bars representing documentation coverage for each codebase subdirectory.
-
-### 4. Risk & AI Recommendations Tab
-
-* **Module Risk Table**: Sortable table ranking files/modules by risk (combining churn, complexity, and missing documentation).
-* **AI Recommendation Drawer**: An interactive sidebar display triggered when clicking a risk card. It renders:
-  * A clear explanation of the module's risks.
-  * Step-by-step refactoring guidelines.
-  * Code suggestions with copyable diffs.
+* **Overview**: Repository health score, technical debt grade, drift count, and
+  critical risk count.
+* **Technical Debt**: Complexity heatmaps, duplication lists, circular
+  dependencies, and churn hotspots.
+* **Knowledge Drift & Debt**: Drift findings and documentation coverage.
+* **Risk & AI Recommendations**: Ranked modules with AI-generated remediation
+  guidance.
