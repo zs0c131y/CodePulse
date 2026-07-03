@@ -25,6 +25,7 @@ const maxLoginFailures = 5
 const authSecret = getAuthSecret()
 const appUrl = process.env.AUTH_APP_URL || 'http://localhost:5173'
 const smtp2goApiUrl = 'https://api.smtp2go.com/v3/email/send'
+const authEmailSenderName = 'CodePulse Account Team'
 let startupDatabaseError = null
 const allowedOrigins = new Set(
   (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
@@ -319,7 +320,7 @@ function clearRefreshCookie(response) {
 
 function buildAppLink(hashPath, token) {
   const base = appUrl.endsWith('/') ? appUrl.slice(0, -1) : appUrl
-  return `${base}/#${hashPath}?token=${encodeURIComponent(token)}`
+  return `${base}/${hashPath}?token=${encodeURIComponent(token)}`
 }
 
 function escapeHtml(value) {
@@ -351,7 +352,7 @@ function getAuthEmailContent(kind, link) {
   const metricTwo = isPasswordReset ? 'Secure' : 'AI-ready'
   const metricTwoLabel = isPasswordReset ? 'Session reset flow' : 'Repository insight layer'
   const metricThree = isPasswordReset ? 'Private' : 'Protected'
-  const metricThreeLabel = isPasswordReset ? 'Token never shown in app' : 'Auth-gated dashboard'
+  const metricThreeLabel = isPasswordReset ? 'Account recovery' : 'Secure workspace'
   const escapedLink = escapeHtml(link)
 
   return {
@@ -365,7 +366,7 @@ function getAuthEmailContent(kind, link) {
       '',
       footerNote,
       '',
-      'For security, CodePulse never displays tokenized verification or reset links in the browser.',
+      'This message was sent by the CodePulse Account Team.',
     ].join('\n'),
     htmlBody: [
       '<!doctype html>',
@@ -459,8 +460,8 @@ function getAuthEmailContent(kind, link) {
       '<div style="width:34px; height:34px; border-radius:12px; background:#dcfce7; color:#166534; line-height:34px; text-align:center; font-size:18px; font-weight:900;">!</div>',
       '</td>',
       '<td style="vertical-align:top;">',
-      '<div style="font-size:14px; line-height:20px; font-weight:800; color:#0f172a;">Security note</div>',
-      `<div style="margin-top:4px; font-size:13px; line-height:20px; color:#475569;">${escapeHtml(footerNote)} CodePulse never displays tokenized authentication links in the browser.</div>`,
+      '<div style="font-size:14px; line-height:20px; font-weight:800; color:#0f172a;">Account protection</div>',
+      `<div style="margin-top:4px; font-size:13px; line-height:20px; color:#475569;">${escapeHtml(footerNote)}</div>`,
       '</td>',
       '</tr>',
       '</table>',
@@ -523,6 +524,17 @@ function getAuthSenderEmail(kind) {
   return process.env.VERIFICATION_EMAIL
 }
 
+function formatEmailAddress(email, name = authEmailSenderName) {
+  const trimmedEmail = String(email || '').trim()
+  const trimmedName = String(name || '').trim()
+
+  if (!trimmedEmail || /<[^>]+>/.test(trimmedEmail)) {
+    return trimmedEmail
+  }
+
+  return `${trimmedName} <${trimmedEmail}>`
+}
+
 function hasAuthSenderConfig() {
   return Boolean(process.env.VERIFICATION_EMAIL || process.env.PASSWORD_RESET_EMAIL)
 }
@@ -551,6 +563,8 @@ function formatSmtp2goError(payload) {
 
 async function deliverSmtp2goAuthLink(kind, email, link, config) {
   const { subject, textBody, htmlBody } = getAuthEmailContent(kind, link)
+  const sender = formatEmailAddress(config.sender)
+
   const response = await fetch(smtp2goApiUrl, {
     method: 'POST',
     headers: {
@@ -559,7 +573,7 @@ async function deliverSmtp2goAuthLink(kind, email, link, config) {
       'X-Smtp2go-Api-Key': config.apiKey,
     },
     body: JSON.stringify({
-      sender: config.sender,
+      sender,
       to: [email],
       subject,
       text_body: textBody,
@@ -580,6 +594,7 @@ async function deliverSmtp2goAuthLink(kind, email, link, config) {
 }
 
 async function deliverAuthLink(kind, email, link) {
+  const { subject, textBody, htmlBody } = getAuthEmailContent(kind, link)
   const smtp2goConfig = getSmtp2goConfig(kind)
 
   if (smtp2goConfig) {
@@ -588,6 +603,8 @@ async function deliverAuthLink(kind, email, link) {
   }
 
   if (process.env.AUTH_EMAIL_WEBHOOK_URL) {
+    const senderEmail = getAuthSenderEmail(kind)
+    const sender = senderEmail ? formatEmailAddress(senderEmail) : authEmailSenderName
     const response = await fetch(process.env.AUTH_EMAIL_WEBHOOK_URL, {
       method: 'POST',
       headers: {
@@ -596,7 +613,16 @@ async function deliverAuthLink(kind, email, link) {
           ? { Authorization: `Bearer ${process.env.AUTH_EMAIL_WEBHOOK_TOKEN}` }
           : {}),
       },
-      body: JSON.stringify({ kind, email, link }),
+      body: JSON.stringify({
+        kind,
+        email,
+        link,
+        sender,
+        sender_name: authEmailSenderName,
+        subject,
+        text_body: textBody,
+        html_body: htmlBody,
+      }),
     })
 
     if (!response.ok) {
@@ -815,17 +841,6 @@ app.post('/api/auth/signup', authRateLimiter, async (request, response, next) =>
     })
   } catch (error) {
     if (error.code === 11000) {
-      const users = await getUsersCollection()
-      const existingUser = await users.findOne({ email })
-
-      if (existingUser && !existingUser.email_verified) {
-        response.status(409).json({
-          message: 'An account already exists for this email but it is not verified.',
-          canResendVerification: true,
-        })
-        return
-      }
-
       response.status(409).json({ message: 'An account already exists for this email.' })
       return
     }
@@ -918,7 +933,10 @@ app.post('/api/auth/signin', authRateLimiter, async (request, response, next) =>
     }
 
     if (!user.email_verified) {
-      response.status(403).json({ message: 'Verify your email before signing in.' })
+      response.status(403).json({
+        message: 'Verify your email before signing in.',
+        canResendVerification: true,
+      })
       return
     }
 

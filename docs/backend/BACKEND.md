@@ -39,12 +39,14 @@ Authentication also reads:
   emails through `POST https://api.smtp2go.com/v3/email/send`.
 * `VERIFICATION_EMAIL`: verified SMTP2GO sender address used for email
   verification messages. SMTP2GO requires the sender domain or address to be
-  verified.
+  verified. Emails are sent with the display name `CodePulse Account Team`.
 * `PASSWORD_RESET_EMAIL`: optional verified SMTP2GO sender address used for
   password reset messages. If omitted, password reset emails use
-  `VERIFICATION_EMAIL`.
+  `VERIFICATION_EMAIL`. Emails are sent with the display name
+  `CodePulse Account Team`.
 * `AUTH_EMAIL_WEBHOOK_URL`: optional fallback delivery webhook when SMTP2GO is
-  not configured. The backend posts `{ kind, email, link }`.
+  not configured. The backend posts `{ kind, email, link, sender,
+  sender_name, subject, text_body, html_body }`.
 * `AUTH_EMAIL_WEBHOOK_TOKEN`: optional bearer token for the fallback email
   webhook.
 * `ALLOWED_ORIGINS`: comma-separated browser origins allowed to send
@@ -148,16 +150,6 @@ Response:
 }
 ```
 
-If the email already belongs to an unverified account, the backend returns
-`409` with:
-
-```json
-{
-  "message": "An account already exists for this email but it is not verified.",
-  "canResendVerification": true
-}
-```
-
 ### `POST /api/auth/resend-verification`
 
 Sends a fresh verification link for an unverified account. The response is
@@ -232,6 +224,16 @@ Response:
 
 The response sets an `HttpOnly`, `SameSite=Lax` refresh cookie scoped to
 `/api/auth`. In production the cookie is also marked `Secure`.
+
+If the credentials are valid but the account has not verified its email, the
+backend returns `403` with:
+
+```json
+{
+  "message": "Verify your email before signing in.",
+  "canResendVerification": true
+}
+```
 
 ### `POST /api/auth/refresh`
 

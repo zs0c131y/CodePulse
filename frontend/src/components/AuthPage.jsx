@@ -145,7 +145,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
         }
       } catch (error) {
         if (!cancelled) {
-          setAuthError(error instanceof Error ? error.message : 'Email verification failed.')
+          setAuthError(error instanceof Error ? error.message : 'Email verification could not be completed.')
         }
       } finally {
         if (!cancelled) {
@@ -170,7 +170,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
           subtitle: 'This verification link unlocks protected CodePulse access for your account.',
           cta: 'Verifying...',
           swapText: 'Ready to continue?',
-          swapHref: '#signin',
+          swapHref: '/signin',
           swapLabel: 'Sign in',
         }
       }
@@ -182,7 +182,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
           subtitle: 'Enter your account email and we will send a short-lived reset link.',
           cta: 'Send reset link',
           swapText: 'Remember your password?',
-          swapHref: '#signin',
+          swapHref: '/signin',
           swapLabel: 'Sign in',
         }
       }
@@ -194,7 +194,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
           subtitle: 'Choose a replacement password before the reset link expires.',
           cta: 'Update password',
           swapText: 'Already reset it?',
-          swapHref: '#signin',
+          swapHref: '/signin',
           swapLabel: 'Sign in',
         }
       }
@@ -207,7 +207,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
               'Connect your repositories, invite your team, and see the first health report in minutes.',
             cta: 'Create account',
             swapText: 'Already have an account?',
-            swapHref: '#signin',
+            swapHref: '/signin',
             swapLabel: 'Sign in',
           }
         : {
@@ -217,7 +217,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
               'Jump back into repository health, drift alerts, and AI recommendations for your team.',
             cta: 'Sign in',
             swapText: 'New to CodePulse?',
-            swapHref: '#signup',
+            swapHref: '/signup',
             swapLabel: 'Create account',
           }
     },
@@ -301,7 +301,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
-        if (response.status === 409 && data.canResendVerification) {
+        if (!isSignup && response.status === 403 && data.canResendVerification) {
           setCanResendVerification(true)
         }
 
@@ -315,25 +315,25 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
       if (isSignup) {
         setSuccessDialog({
           title: 'Check your email',
-          message: `We sent a verification link to ${email.trim()}. For security, verification tokens are never shown in the browser.`,
-          actionHref: '#signin',
-          actionLabel: 'Back to sign in',
+          message: `A verification link has been sent to ${email.trim()}. Complete verification before signing in.`,
+          actionHref: '/signin',
+          actionLabel: 'Continue to sign in',
         })
         setAuthMessage('')
       } else if (isResetRequest) {
         setSuccessDialog({
           title: 'Reset link sent',
           message:
-            'If an account exists for that email, a password reset link has been sent. For security, reset tokens are never shown in the browser.',
-          actionHref: '#signin',
-          actionLabel: 'Back to sign in',
+            'Password reset instructions have been sent if an account matches that email.',
+          actionHref: '/signin',
+          actionLabel: 'Continue to sign in',
         })
         setAuthMessage('')
       } else if (isPasswordReset) {
         setSuccessDialog({
           title: 'Password updated',
           message: 'Your password has been updated. Sign in with your new password.',
-          actionHref: '#signin',
+          actionHref: '/signin',
           actionLabel: 'Sign in',
         })
         setAuthMessage('')
@@ -377,9 +377,9 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
       setCanResendVerification(false)
       setSuccessDialog({
         title: 'Verification email sent',
-        message: `If ${targetEmail} belongs to an unverified account, a new verification link has been sent. For security, verification tokens are never shown in the browser.`,
-        actionHref: '#signin',
-        actionLabel: 'Back to sign in',
+        message: `A new verification link has been sent to ${targetEmail} if the account is awaiting verification.`,
+        actionHref: '/signin',
+        actionLabel: 'Continue to sign in',
       })
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Verification resend failed.')
@@ -402,7 +402,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
 
       <header className="relative z-10">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <a href="#" className="flex items-center gap-2.5">
+          <a href="/" className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/20">
               <Activity size={17} strokeWidth={2.5} className="text-white" />
             </span>
@@ -413,7 +413,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
 
           <div className="flex items-center gap-2">
             <a
-              href="#"
+              href="/"
               className={`hidden items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors sm:flex ${
                 isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-950'
               }`}
@@ -653,7 +653,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
                     </span>
                     Remember me
                   </button>
-                  <a href="#reset-password" className="text-sm font-semibold text-cyan-500 hover:text-cyan-400">
+                  <a href="/reset-password" className="text-sm font-semibold text-cyan-500 hover:text-cyan-400">
                     Forgot password?
                   </a>
                 </div>
@@ -661,7 +661,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
 
               {isEmailVerify && !token && (
                 <div className={`rounded-xl border px-4 py-3 text-sm ${chipClass}`} role="status">
-                  Verification token is missing.
+                  This verification link is invalid or incomplete.
                 </div>
               )}
 
@@ -701,7 +701,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
                   disabled={!canSubmit}
                   className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
                 >
-                  {isSubmitting ? 'Working...' : copy.cta}
+                  {isSubmitting ? 'Please wait...' : copy.cta}
                   <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
                 </button>
               )}
@@ -766,7 +766,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
                     : 'border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
               >
-                Stay here
+                Close
               </button>
             </div>
           </div>

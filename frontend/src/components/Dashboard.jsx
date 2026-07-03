@@ -70,8 +70,8 @@ const navItems = [
 ]
 
 const accountNavItems = [
-  { label: 'Profile', href: '#profile', icon: User },
-  { label: 'Settings', href: '#settings', icon: Settings },
+  { label: 'Profile', href: '/profile', icon: User },
+  { label: 'Settings', href: '/settings', icon: Settings },
 ]
 
 const kpis = [
@@ -164,11 +164,11 @@ const driftFindings = [
     evidence: 'Payment webhook handler was removed in commit b91a4f2.',
   },
   {
-    title: 'API docs omit refresh-session behavior',
+    title: 'Authentication guide needs an update',
     file: 'docs/api/authentication.md',
     severity: 'Medium',
     age: '9 days',
-    evidence: 'Refresh cookie path changed without documentation update.',
+    evidence: 'Recent sign-in changes are not reflected in the onboarding guide.',
   },
   {
     title: 'Architecture diagram missing risk engine',
@@ -189,12 +189,12 @@ const recommendations = [
     steps: ['Extract pure invoice calculator', 'Move retry policy into queue worker', 'Add contract tests for tax boundaries'],
   },
   {
-    title: 'Refresh authentication docs from current route behavior',
+    title: 'Refresh authentication documentation',
     impact: 'Medium',
     effort: '4 hours',
     reason:
-      'Sign-in, refresh, and logout now use an HttpOnly refresh cookie, but the docs still describe token-only client storage.',
-    steps: ['Update sequence diagram', 'Document cookie scope', 'Add reset-token expiry notes'],
+      'Authentication behavior changed recently. Update the docs so onboarding, support, and incident response stay accurate.',
+    steps: ['Update sequence diagram', 'Document session lifecycle', 'Add reset link expiry notes'],
   },
   {
     title: 'Assign secondary owners to billing hotspots',
@@ -543,7 +543,7 @@ function MainContent({ activeTab }) {
 
 export default function Dashboard({ user, accessToken, onLogout }) {
   const [activeTab, setActiveTab] = useState('Overview')
-  const [status, setStatus] = useState('Checking protected API access...')
+  const [status, setStatus] = useState('Verifying session...')
   const [selectedRepo, setSelectedRepo] = useState(repositories[0].name)
   const [repoUrl, setRepoUrl] = useState('')
   const repository = useMemo(
@@ -563,15 +563,15 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         const data = await response.json().catch(() => ({}))
 
         if (!response.ok) {
-          throw new Error(data.message || 'Protected API check failed.')
+          throw new Error(data.message || 'Session verification failed.')
         }
 
         if (!cancelled) {
-          setStatus(`Authorized as ${data.user.email}`)
+          setStatus(`Session verified for ${data.user.email}`)
         }
       } catch (error) {
         if (!cancelled) {
-          setStatus(error instanceof Error ? error.message : 'Protected API check failed.')
+          setStatus(error instanceof Error ? error.message : 'Session verification failed.')
         }
       }
     }
@@ -584,7 +584,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   }, [accessToken])
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] text-slate-950">
+    <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-[#10131a] text-white lg:flex lg:flex-col">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-5">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-slate-950">
@@ -664,14 +664,14 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 <Bell size={18} />
               </button>
               <a
-                href="#settings"
+                href="/settings"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 aria-label="Settings"
               >
                 <Settings size={18} />
               </a>
               <a
-                href="#profile"
+                href="/profile"
                 className="hidden h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 md:inline-flex"
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-950 text-xs font-bold text-white">
@@ -780,8 +780,8 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             <div className="flex gap-2">
               <CircleAlert size={17} className="mt-0.5 shrink-0" />
               <p>
-                Sample report data is shown until repository analysis APIs are connected. Authentication and session
-                protection are live.
+                Repository intelligence preview. Connect analysis services to populate this workspace with live
+                repository signals.
               </p>
             </div>
           </div>

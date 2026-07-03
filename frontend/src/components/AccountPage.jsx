@@ -52,9 +52,9 @@ const defaultSettings = {
 const timezones = ['UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Calcutta']
 
 const navItems = [
-  { label: 'Dashboard', href: '#dashboard', icon: LayoutDashboard },
-  { label: 'Profile', href: '#profile', icon: User },
-  { label: 'Settings', href: '#settings', icon: Settings },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Profile', href: '/profile', icon: User },
+  { label: 'Settings', href: '/settings', icon: Settings },
 ]
 
 function initials(name, email) {
@@ -144,7 +144,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
   const isProfile = mode === 'profile'
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] text-slate-950">
+    <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-[#10131a] text-white lg:flex lg:flex-col">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-5">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-slate-950">
@@ -193,7 +193,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
           <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                <a href="#dashboard" className="inline-flex items-center gap-1 hover:text-slate-950">
+                <a href="/dashboard" className="inline-flex items-center gap-1 hover:text-slate-950">
                   <ArrowLeft size={14} />
                   Dashboard
                 </a>
@@ -207,7 +207,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
 
             <div className="flex items-center gap-2">
               <a
-                href="#profile"
+                href="/profile"
                 className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-950 text-xs font-bold text-white">
@@ -353,8 +353,8 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
             <div className="mt-4 space-y-3">
               {[
                 ['Email verified', user.email_verified ? 'Complete' : 'Pending', ShieldCheck],
-                ['Session storage', 'HttpOnly refresh cookie', LockKeyhole],
-                ['Workspace access', 'Protected by bearer token', KeyRound],
+                ['Session storage', 'Secure workspace session', LockKeyhole],
+                ['Workspace access', 'Verified account session', KeyRound],
               ].map(([label, value, Icon]) => (
                 <div key={label} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
@@ -522,11 +522,11 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
           <div>
             <h2 className="text-base font-bold text-slate-950">Security</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Password changes use the verified reset-email flow so refresh sessions can be revoked cleanly.
+              Reset your password through a verified email flow.
             </p>
           </div>
           <a
-            href="#reset-password"
+            href="/reset-password"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
           >
             <KeyRound size={16} />
@@ -553,7 +553,7 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
   const [name, setName] = useState(user.name || '')
   const [profile, setProfile] = useState(() => mergeProfile(user))
   const [settings, setSettings] = useState(() => mergeSettings(user))
-  const [status, setStatus] = useState('Checking protected API access...')
+  const [status, setStatus] = useState('Verifying session...')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -576,15 +576,15 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
         const data = await response.json().catch(() => ({}))
 
         if (!response.ok) {
-          throw new Error(data.message || 'Protected API check failed.')
+          throw new Error(data.message || 'Session verification failed.')
         }
 
         if (!cancelled) {
-          setStatus(`Authorized as ${data.user.email}`)
+          setStatus(`Session verified for ${data.user.email}`)
         }
       } catch (sessionError) {
         if (!cancelled) {
-          setStatus(sessionError instanceof Error ? sessionError.message : 'Protected API check failed.')
+          setStatus(sessionError instanceof Error ? sessionError.message : 'Session verification failed.')
         }
       }
     }

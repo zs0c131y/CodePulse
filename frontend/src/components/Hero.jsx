@@ -124,7 +124,7 @@ export default function Hero() {
           {/* CTAs */}
           <div className="flex flex-wrap gap-3">
             <a
-              href="#signup"
+              href="/signup"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-linear-to-r from-violet-600 to-cyan-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-600/25"
             >
               Get Early Access
