@@ -49,6 +49,13 @@ Stores accounts authorized to access the CodePulse dashboard.
 * `password_hash` (`string`): bcrypt password hash.
 * `email_verified` (`boolean`): Whether the account has completed email
   verification.
+* `profile` (`object`, optional): Account profile metadata used by the
+  authenticated profile page.
+  Fields: `title`, `company`, `timezone`, `location`, and `bio`.
+* `settings` (`object`, optional): Account preferences used by the
+  authenticated settings page.
+  Fields: `theme`, `density`, `scan_frequency`, `ai_summary_level`,
+  `email_notifications`, `weekly_digest`, `risk_alerts`, and `drift_alerts`.
 * `created_at` (`string`): ISO timestamp for account creation.
 * `updated_at` (`string`): ISO timestamp for the last account update.
 

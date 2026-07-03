@@ -212,7 +212,92 @@ Response:
     "name": "Ada Lovelace",
     "email": "ada@example.com",
     "email_verified": true,
-    "created_at": "2026-07-01T07:30:00.000Z"
+    "created_at": "2026-07-01T07:30:00.000Z",
+    "profile": {
+      "title": "Engineering Manager",
+      "company": "Acme Inc.",
+      "timezone": "UTC",
+      "location": "Bengaluru, India",
+      "bio": "Owns platform engineering health."
+    },
+    "settings": {
+      "theme": "system",
+      "density": "comfortable",
+      "scan_frequency": "daily",
+      "ai_summary_level": "balanced",
+      "email_notifications": true,
+      "weekly_digest": true,
+      "risk_alerts": true,
+      "drift_alerts": true
+    }
+  }
+}
+```
+
+### `PATCH /api/auth/profile`
+
+Protected endpoint requiring `Authorization: Bearer <accessToken>`. Updates the
+signed-in user's display name and optional profile metadata.
+
+Request:
+
+```json
+{
+  "name": "Ada Lovelace",
+  "profile": {
+    "title": "Engineering Manager",
+    "company": "Acme Inc.",
+    "timezone": "Asia/Calcutta",
+    "location": "Bengaluru, India",
+    "bio": "Owns platform engineering health."
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Profile updated.",
+  "user": {
+    "id": "uuid",
+    "name": "Ada Lovelace"
+  }
+}
+```
+
+### `PATCH /api/auth/settings`
+
+Protected endpoint requiring `Authorization: Bearer <accessToken>`. Updates the
+signed-in user's dashboard, scan, AI, and notification preferences.
+
+Request:
+
+```json
+{
+  "settings": {
+    "theme": "system",
+    "density": "comfortable",
+    "scan_frequency": "daily",
+    "ai_summary_level": "balanced",
+    "email_notifications": true,
+    "weekly_digest": true,
+    "risk_alerts": true,
+    "drift_alerts": true
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Settings saved.",
+  "user": {
+    "id": "uuid",
+    "settings": {
+      "theme": "system"
+    }
   }
 }
 ```

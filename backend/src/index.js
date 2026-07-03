@@ -133,6 +133,70 @@ function validatePassword(password) {
   )
 }
 
+const defaultAccountSettings = {
+  theme: 'system',
+  density: 'comfortable',
+  scan_frequency: 'daily',
+  ai_summary_level: 'balanced',
+  email_notifications: true,
+  weekly_digest: true,
+  risk_alerts: true,
+  drift_alerts: true,
+}
+
+function cleanText(value, maxLength = 120) {
+  return String(value || '').trim().slice(0, maxLength)
+}
+
+function cleanProfile(profile = {}) {
+  return {
+    title: cleanText(profile.title),
+    company: cleanText(profile.company),
+    timezone: cleanText(profile.timezone || 'UTC', 80),
+    location: cleanText(profile.location),
+    bio: cleanText(profile.bio, 320),
+  }
+}
+
+function cleanSettings(settings = {}) {
+  const option = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback)
+
+  return {
+    theme: option(settings.theme, ['system', 'light', 'dark'], defaultAccountSettings.theme),
+    density: option(
+      settings.density,
+      ['compact', 'comfortable', 'spacious'],
+      defaultAccountSettings.density,
+    ),
+    scan_frequency: option(
+      settings.scan_frequency,
+      ['manual', 'daily', 'weekly'],
+      defaultAccountSettings.scan_frequency,
+    ),
+    ai_summary_level: option(
+      settings.ai_summary_level,
+      ['concise', 'balanced', 'detailed'],
+      defaultAccountSettings.ai_summary_level,
+    ),
+    email_notifications:
+      typeof settings.email_notifications === 'boolean'
+        ? settings.email_notifications
+        : defaultAccountSettings.email_notifications,
+    weekly_digest:
+      typeof settings.weekly_digest === 'boolean'
+        ? settings.weekly_digest
+        : defaultAccountSettings.weekly_digest,
+    risk_alerts:
+      typeof settings.risk_alerts === 'boolean'
+        ? settings.risk_alerts
+        : defaultAccountSettings.risk_alerts,
+    drift_alerts:
+      typeof settings.drift_alerts === 'boolean'
+        ? settings.drift_alerts
+        : defaultAccountSettings.drift_alerts,
+  }
+}
+
 function toPublicUser(row) {
   return {
     id: row._id.toString(),
@@ -140,6 +204,8 @@ function toPublicUser(row) {
     email: row.email,
     email_verified: Boolean(row.email_verified),
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    profile: cleanProfile(row.profile),
+    settings: cleanSettings({ ...defaultAccountSettings, ...row.settings }),
   }
 }
 
@@ -720,6 +786,63 @@ app.post('/api/auth/logout', async (request, response, next) => {
 
 app.get('/api/auth/me', requireAccessToken, (request, response) => {
   response.json({ user: toPublicUser(request.user) })
+})
+
+app.patch('/api/auth/profile', requireAccessToken, async (request, response, next) => {
+  try {
+    const name = cleanText(request.body.name)
+    const profile = cleanProfile(request.body.profile)
+
+    if (!name) {
+      response.status(400).json({ message: 'Display name is required.' })
+      return
+    }
+
+    const users = await getUsersCollection()
+    await users.updateOne(
+      { _id: request.user._id },
+      {
+        $set: {
+          name,
+          profile,
+          updated_at: new Date(),
+        },
+      },
+    )
+    const updatedUser = await users.findOne({ _id: request.user._id })
+
+    response.json({
+      message: 'Profile updated.',
+      user: toPublicUser(updatedUser),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.patch('/api/auth/settings', requireAccessToken, async (request, response, next) => {
+  try {
+    const settings = cleanSettings(request.body.settings)
+    const users = await getUsersCollection()
+
+    await users.updateOne(
+      { _id: request.user._id },
+      {
+        $set: {
+          settings,
+          updated_at: new Date(),
+        },
+      },
+    )
+    const updatedUser = await users.findOne({ _id: request.user._id })
+
+    response.json({
+      message: 'Settings saved.',
+      user: toPublicUser(updatedUser),
+    })
+  } catch (error) {
+    next(error)
+  }
 })
 
 app.post('/api/auth/request-password-reset', authRateLimiter, async (request, response, next) => {

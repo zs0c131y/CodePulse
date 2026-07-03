@@ -58,6 +58,11 @@ Required fields:
 
 Optional fields:
 
+* `profile` (`object`): Account profile metadata with optional `title`,
+  `company`, `timezone`, `location`, and `bio` strings.
+* `settings` (`object`): Account preferences with optional `theme`, `density`,
+  `scan_frequency`, `ai_summary_level`, `email_notifications`,
+  `weekly_digest`, `risk_alerts`, and `drift_alerts` fields.
 * `created_at` (`date`): Account creation timestamp.
 * `updated_at` (`date`): Last account update timestamp.
 
