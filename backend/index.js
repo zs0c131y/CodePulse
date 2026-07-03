@@ -1,4 +1,5 @@
 import './src/env.js'
+import './src/network.js'
 import { PORT } from './src/config/index.js'
 import { ensureIndexes } from './src/db/index.js'
 import app from './src/app.js'
