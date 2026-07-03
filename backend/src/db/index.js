@@ -1,7 +1,4 @@
-import dotenv from 'dotenv'
 import { MongoClient } from 'mongodb'
-
-dotenv.config({ quiet: true })
 
 const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/codepulse'
 const databaseName = process.env.MONGO_DB_NAME || 'codepulse'

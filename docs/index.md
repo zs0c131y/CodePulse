@@ -50,8 +50,15 @@ CodePulse/
 │   ├── schema/                # Draft database schema scripts
 │   │   └── db_schema.js       # MongoDB collection setup draft
 │   └── src/                   # Backend source code
-│       ├── db.js              # MongoDB connection and indexes
-│       └── index.js           # API route definitions
+│       ├── config/            # App config, env vars, constants
+│       ├── db/                # MongoDB connection and indexes
+│       ├── features/          # Feature modules (router + controller per feature)
+│       │   ├── auth/          # Authentication feature
+│       │   └── health/        # Health check feature
+│       ├── middleware/        # Express middleware (CORS, auth, etc.)
+│       ├── utils/             # Shared helpers (tokens, cookies, etc.)
+│       ├── app.js             # Express app setup
+│       └── index.js           # Server entry point
 ├── docs/                      # Technical documentation
 │   ├── ai/
 │   ├── backend/

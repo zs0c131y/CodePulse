@@ -10,10 +10,33 @@ service boundaries for CodePulse.
 ```text
 backend/
 ├── schema/
-│   └── db_schema.js          # Draft MongoDB collection setup
+│   └── db_schema.js                    # Draft MongoDB collection setup
 └── src/
-    ├── db.js                 # MongoDB connection and index setup
-    └── index.js              # Express app and API routes
+    ├── config/
+    │   └── index.js                    # App config, env vars, constants
+    ├── db/
+    │   └── index.js                    # MongoDB connection and index setup
+    ├── features/
+    │   ├── auth/
+    │   │   ├── controller.js           # Auth handler logic (signup, signin, etc.)
+    │   │   └── router.js               # Auth route definitions
+    │   └── health/
+    │       ├── controller.js           # Health check handler
+    │       └── router.js               # Health route definition
+    ├── middleware/
+    │   ├── cors.js                     # CORS middleware
+    │   ├── rateLimiter.js              # Rate limiting middleware
+    │   ├── requireAccessToken.js       # JWT access token guard
+    │   └── securityHeaders.js          # Security response headers
+    ├── utils/
+    │   ├── cookie.js                   # Cookie parsing and management
+    │   ├── email.js                    # Auth email delivery and link builder
+    │   ├── loginAttempts.js            # Brute-force login protection
+    │   ├── session.js                  # Session and verification token logic
+    │   ├── token.js                    # JWT signing, verification, crypto
+    │   └── validators.js              # Input validation and user serialization
+    ├── app.js                          # Express app setup and middleware wiring
+    └── index.js                        # Server entry point
 ```
 
 The backend uses Express and MongoDB. Runtime configuration is read from
@@ -44,7 +67,7 @@ Authentication also reads:
 
 ## 🔐 Authentication API
 
-Implemented in [backend/src/index.js](../../backend/src/index.js).
+Implemented in [backend/src/features/auth/controller.js](../../backend/src/features/auth/controller.js).
 
 The backend applies security headers, credentialed CORS for configured origins,
 global request rate limiting, auth-route rate limiting, and Mongo-backed
