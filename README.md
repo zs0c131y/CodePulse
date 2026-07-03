@@ -32,8 +32,14 @@ Run the backend API:
 npm run dev:backend
 ```
 
+Run both together from the repository root:
+
+```powershell
+npm start
+```
+
 The frontend runs through Vite and proxies `/api` calls to the backend API on
-`http://localhost:3000`.
+`http://localhost:3000`. The backend always binds to port `3000`.
 
 ## Documentation
 

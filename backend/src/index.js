@@ -13,7 +13,7 @@ import {
 } from './db.js'
 
 const app = express()
-const port = Number(process.env.API_PORT || process.env.PORT || 3000)
+const port = 3000
 const isProduction = process.env.NODE_ENV === 'production'
 const refreshCookieName = 'codepulse_refresh'
 const accessTokenTtlSeconds = 15 * 60
@@ -25,6 +25,7 @@ const maxLoginFailures = 5
 const authSecret = getAuthSecret()
 const appUrl = process.env.AUTH_APP_URL || 'http://localhost:5173'
 const smtp2goApiUrl = 'https://api.smtp2go.com/v3/email/send'
+let startupDatabaseError = null
 const allowedOrigins = new Set(
   (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',')
@@ -590,6 +591,16 @@ async function clearLoginFailures(email, ip) {
 
 app.get('/api/health', async (_request, response, next) => {
   try {
+    if (startupDatabaseError) {
+      response.status(503).json({
+        status: 'degraded',
+        store: 'mongodb',
+        message: 'Database is unavailable.',
+        error: startupDatabaseError.message,
+      })
+      return
+    }
+
     await pingDatabase()
     const users = await getUsersCollection()
     response.json({
@@ -601,6 +612,19 @@ app.get('/api/health', async (_request, response, next) => {
     next(error)
   }
 })
+
+function requireDatabaseReady(_request, response, next) {
+  if (startupDatabaseError) {
+    response.status(503).json({
+      message: 'Database is unavailable. Check backend startup logs and MongoDB connectivity.',
+    })
+    return
+  }
+
+  next()
+}
+
+app.use('/api/auth', requireDatabaseReady)
 
 app.post('/api/auth/signup', authRateLimiter, async (request, response, next) => {
   try {
@@ -648,7 +672,6 @@ app.post('/api/auth/signup', authRateLimiter, async (request, response, next) =>
         email_verified: false,
         created_at: createdAt,
       }),
-      ...(isProduction ? {} : { verificationUrl }),
     })
   } catch (error) {
     if (error.code === 11000) {
@@ -880,7 +903,6 @@ app.post('/api/auth/request-password-reset', authRateLimiter, async (request, re
 
       response.json({
         message: 'If an account exists for that email, a password reset link has been sent.',
-        ...(isProduction ? {} : { resetUrl }),
       })
       return
     }
@@ -946,7 +968,18 @@ app.use((error, _request, response, _next) => {
 })
 
 async function start() {
-  await ensureIndexes()
+  try {
+    await ensureIndexes()
+  } catch (error) {
+    if (isProduction) {
+      throw error
+    }
+
+    startupDatabaseError = error
+    console.error('CodePulse database startup failed:', error.message)
+    console.error('CodePulse API will listen in degraded mode until MongoDB connectivity is fixed.')
+  }
+
   app.listen(port, () => {
     console.log(`CodePulse API listening on http://localhost:${port}`)
   })

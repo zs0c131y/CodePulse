@@ -13,6 +13,16 @@ The connection string is read from `MONGO_URI`, with this local fallback:
 mongodb://127.0.0.1:27017/codepulse
 ```
 
+If `MONGO_DB_NAME` is not set, the backend uses the database name from the
+`MONGO_URI` path. For local Windows `npm` runs, a `MONGO_URI` host of `mongo`
+is mapped to `127.0.0.1` because `mongo` is only resolvable inside a Docker
+network. Set `MONGO_LOCAL_HOST` to override that local host mapping.
+
+For local `mongodb+srv://` Atlas URIs, the backend sets Node's DNS servers to
+`1.1.1.1,8.8.8.8` by default because some local DNS resolvers refuse SRV
+lookups even when the operating system resolver succeeds. Set
+`MONGO_DNS_SERVERS` to override the resolver list.
+
 The MongoDB collection schema lives in:
 
 * [backend/schema/db_schema.js](../../backend/schema/db_schema.js)

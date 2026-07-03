@@ -13,6 +13,7 @@ import {
   Sparkles,
   Sun,
   User,
+  X,
 } from 'lucide-react'
 
 const fieldBase =
@@ -77,6 +78,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
   const [authError, setAuthError] = useState('')
+  const [successDialog, setSuccessDialog] = useState(null)
 
   useEffect(() => {
     window.localStorage.setItem('codepulse-auth-theme', theme)
@@ -98,6 +100,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
   useEffect(() => {
     setAuthError('')
     setAuthMessage('')
+    setSuccessDialog(null)
     setPassword('')
     setShowPassword(false)
 
@@ -301,16 +304,34 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
         onAuthSuccess?.(data)
       }
 
-      setAuthMessage(
-        data.verificationUrl || data.resetUrl
-          ? `${data.message} Development link: ${data.verificationUrl || data.resetUrl}`
-          : data.message ||
-              (isSignup
-                ? 'Account created. Check your email to verify it before signing in.'
-                : isResetFlow
-                  ? 'Request completed.'
-                  : 'Signed in successfully.'),
-      )
+      if (isSignup) {
+        setSuccessDialog({
+          title: 'Check your email',
+          message: `We sent a verification link to ${email.trim()}. For security, verification tokens are never shown in the browser.`,
+          actionHref: '#signin',
+          actionLabel: 'Back to sign in',
+        })
+        setAuthMessage('')
+      } else if (isResetRequest) {
+        setSuccessDialog({
+          title: 'Reset link sent',
+          message:
+            'If an account exists for that email, a password reset link has been sent. For security, reset tokens are never shown in the browser.',
+          actionHref: '#signin',
+          actionLabel: 'Back to sign in',
+        })
+        setAuthMessage('')
+      } else if (isPasswordReset) {
+        setSuccessDialog({
+          title: 'Password updated',
+          message: 'Your password has been updated. Sign in with your new password.',
+          actionHref: '#signin',
+          actionLabel: 'Sign in',
+        })
+        setAuthMessage('')
+      } else {
+        setAuthMessage(data.message || 'Signed in successfully.')
+      }
       setPassword('')
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Authentication request failed.')
@@ -631,6 +652,62 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
           </div>
         </section>
       </main>
+
+      {successDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auth-success-title"
+        >
+          <div
+            className={`w-full max-w-md rounded-3xl border p-6 shadow-2xl ${
+              isDark
+                ? 'border-white/10 bg-[#0b1020] text-slate-100'
+                : 'border-slate-200 bg-white text-slate-950'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-500">
+                <ShieldCheck size={24} />
+              </span>
+              <button
+                type="button"
+                onClick={() => setSuccessDialog(null)}
+                className={`rounded-xl p-2 transition-colors ${
+                  isDark ? 'text-slate-400 hover:bg-white/8 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-950'
+                }`}
+                aria-label="Close confirmation"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <h2 id="auth-success-title" className="mt-5 text-2xl font-bold tracking-tight">
+              {successDialog.title}
+            </h2>
+            <p className={`mt-3 text-sm leading-6 ${mutedText}`}>{successDialog.message}</p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={successDialog.actionHref}
+                className="inline-flex flex-1 items-center justify-center rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-violet-600/20"
+              >
+                {successDialog.actionLabel}
+              </a>
+              <button
+                type="button"
+                onClick={() => setSuccessDialog(null)}
+                className={`inline-flex flex-1 items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold ${
+                  isDark
+                    ? 'border-white/10 text-slate-300 hover:bg-white/8 hover:text-white'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Stay here
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

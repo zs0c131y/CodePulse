@@ -1,10 +1,64 @@
 import dotenv from 'dotenv'
+import dns from 'node:dns'
 import { MongoClient } from 'mongodb'
 
 dotenv.config({ quiet: true })
 
-const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/codepulse'
-const databaseName = process.env.MONGO_DB_NAME || 'codepulse'
+const defaultMongoUri = 'mongodb://127.0.0.1:27017/codepulse'
+const mongoUri = getRuntimeMongoUri(process.env.MONGO_URI || defaultMongoUri)
+const databaseName = process.env.MONGO_DB_NAME || getDatabaseNameFromUri(mongoUri) || 'codepulse'
+
+configureLocalDns(mongoUri)
+
+function configureLocalDns(uri) {
+  if (process.env.NODE_ENV === 'production' || !uri.startsWith('mongodb+srv://')) {
+    return
+  }
+
+  const dnsServers = (process.env.MONGO_DNS_SERVERS || '1.1.1.1,8.8.8.8')
+    .split(',')
+    .map(server => server.trim())
+    .filter(Boolean)
+
+  if (dnsServers.length > 0) {
+    dns.setServers(dnsServers)
+  }
+}
+
+function getRuntimeMongoUri(uri) {
+  if (process.env.NODE_ENV === 'production') {
+    return uri
+  }
+
+  const localMongoHost = process.env.MONGO_LOCAL_HOST || (process.platform === 'win32' ? '127.0.0.1' : '')
+
+  if (!localMongoHost) {
+    return uri
+  }
+
+  try {
+    const parsed = new URL(uri)
+
+    if (parsed.hostname === 'mongo') {
+      parsed.hostname = localMongoHost
+      return parsed.toString()
+    }
+  } catch {
+    return uri
+  }
+
+  return uri
+}
+
+function getDatabaseNameFromUri(uri) {
+  try {
+    const parsed = new URL(uri)
+    const pathDatabaseName = decodeURIComponent(parsed.pathname.replace(/^\//, ''))
+    return pathDatabaseName || ''
+  } catch {
+    return ''
+  }
+}
 
 const client = new MongoClient(mongoUri, {
   serverSelectionTimeoutMS: 5000,

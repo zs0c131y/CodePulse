@@ -75,6 +75,8 @@ routes.
 
 * Signup posts to `POST /api/auth/signup`.
 * Signup requires email verification before sign-in.
+* Signup and password reset request success states are shown in modal dialogs.
+  Tokenized verification and reset links are never rendered in the browser.
 * Sign-in posts to `POST /api/auth/signin`.
 * Password reset starts at `#reset-password` and posts to
   `POST /api/auth/request-password-reset`.
