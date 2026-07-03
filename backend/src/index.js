@@ -815,10 +815,47 @@ app.post('/api/auth/signup', authRateLimiter, async (request, response, next) =>
     })
   } catch (error) {
     if (error.code === 11000) {
+      const users = await getUsersCollection()
+      const existingUser = await users.findOne({ email })
+
+      if (existingUser && !existingUser.email_verified) {
+        response.status(409).json({
+          message: 'An account already exists for this email but it is not verified.',
+          canResendVerification: true,
+        })
+        return
+      }
+
       response.status(409).json({ message: 'An account already exists for this email.' })
       return
     }
 
+    next(error)
+  }
+})
+
+app.post('/api/auth/resend-verification', authRateLimiter, async (request, response, next) => {
+  try {
+    const email = normalizeEmail(request.body.email)
+
+    if (!validateEmail(email)) {
+      response.status(400).json({ message: 'A valid email is required.' })
+      return
+    }
+
+    const users = await getUsersCollection()
+    const user = await users.findOne({ email })
+
+    if (user && !user.email_verified) {
+      const verificationToken = await createVerificationToken(user._id, email)
+      const verificationUrl = buildAppLink('verify-email', verificationToken)
+      await deliverAuthLink('email verification', email, verificationUrl)
+    }
+
+    response.json({
+      message: 'If an unverified account exists for that email, a new verification link has been sent.',
+    })
+  } catch (error) {
     next(error)
   }
 })

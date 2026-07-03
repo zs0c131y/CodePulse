@@ -79,6 +79,8 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
   const [authMessage, setAuthMessage] = useState('')
   const [authError, setAuthError] = useState('')
   const [successDialog, setSuccessDialog] = useState(null)
+  const [canResendVerification, setCanResendVerification] = useState(false)
+  const [isResendingVerification, setIsResendingVerification] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem('codepulse-auth-theme', theme)
@@ -101,6 +103,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
     setAuthError('')
     setAuthMessage('')
     setSuccessDialog(null)
+    setCanResendVerification(false)
     setPassword('')
     setShowPassword(false)
 
@@ -260,6 +263,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
     event.preventDefault()
     setAuthError('')
     setAuthMessage('')
+    setCanResendVerification(false)
 
     if (!canSubmit) {
       setAuthError(
@@ -297,6 +301,10 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
+        if (response.status === 409 && data.canResendVerification) {
+          setCanResendVerification(true)
+        }
+
         throw new Error(data.message || 'Authentication request failed.')
       }
 
@@ -337,6 +345,46 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
       setAuthError(error instanceof Error ? error.message : 'Authentication request failed.')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleResendVerification() {
+    const targetEmail = email.trim()
+
+    if (!targetEmail) {
+      setAuthError('Enter the email address for the unverified account.')
+      return
+    }
+
+    setIsResendingVerification(true)
+    setAuthError('')
+    setAuthMessage('')
+
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
+      const response = await fetch(`${apiBaseUrl}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: targetEmail }),
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Verification resend failed.')
+      }
+
+      setCanResendVerification(false)
+      setSuccessDialog({
+        title: 'Verification email sent',
+        message: `If ${targetEmail} belongs to an unverified account, a new verification link has been sent. For security, verification tokens are never shown in the browser.`,
+        actionHref: '#signin',
+        actionLabel: 'Back to sign in',
+      })
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Verification resend failed.')
+    } finally {
+      setIsResendingVerification(false)
     }
   }
 
@@ -629,6 +677,22 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
                 >
                   {authError || authMessage}
                 </div>
+              )}
+
+              {canResendVerification && (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={isResendingVerification}
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-5 py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                    isDark
+                      ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15'
+                      : 'border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100'
+                  }`}
+                >
+                  <Mail size={16} />
+                  {isResendingVerification ? 'Sending verification email...' : 'Resend verification email'}
+                </button>
               )}
 
               {!isEmailVerify && (

@@ -148,6 +148,38 @@ Response:
 }
 ```
 
+If the email already belongs to an unverified account, the backend returns
+`409` with:
+
+```json
+{
+  "message": "An account already exists for this email but it is not verified.",
+  "canResendVerification": true
+}
+```
+
+### `POST /api/auth/resend-verification`
+
+Sends a fresh verification link for an unverified account. The response is
+generic to avoid exposing whether an arbitrary email belongs to an unverified
+account.
+
+Request:
+
+```json
+{
+  "email": "ada@example.com"
+}
+```
+
+Response:
+
+```json
+{
+  "message": "If an unverified account exists for that email, a new verification link has been sent."
+}
+```
+
 ### `POST /api/auth/verify-email`
 
 Verifies an account using the token from the email verification link.

@@ -75,6 +75,9 @@ routes.
 
 * Signup posts to `POST /api/auth/signup`.
 * Signup requires email verification before sign-in.
+* If signup reports an existing unverified account, the form shows a
+  **Resend verification email** action and posts to
+  `POST /api/auth/resend-verification`.
 * Signup and password reset request success states are shown in modal dialogs.
   Tokenized verification and reset links are never rendered in the browser.
 * Sign-in posts to `POST /api/auth/signin`.
