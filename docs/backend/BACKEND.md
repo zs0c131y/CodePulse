@@ -14,7 +14,6 @@ backend/
 ├── schema/
 │   └── db_schema.js                    # Draft MongoDB collection setup
 └── src/
-    ├── env.js                          # Loads backend/.env via dotenv (imported first by index.js)
     ├── config/
     │   └── index.js                    # Single source of truth for env vars (UPPER_CASE exports) + app constants
     ├── db/
@@ -37,7 +36,9 @@ backend/
     ├── utils/
     │   ├── cookie.js                   # Cookie parsing and management
     │   ├── email.js                    # Auth email delivery and link builder
+    │   ├── env.js                      # Loads backend/.env via dotenv (imported first by index.js)
     │   ├── loginAttempts.js            # Brute-force login protection
+    │   ├── network.js                  # Forces fetch() to IPv4-only (works around undici Happy-Eyeballs bug)
     │   ├── session.js                  # Session and verification token logic
     │   ├── token.js                    # JWT signing, verification, crypto
     │   ├── urls.js                     # OAuth callback + frontend link builders (derived from config)
@@ -45,12 +46,18 @@ backend/
     └── app.js                          # Express app setup and middleware wiring
 ```
 
-[backend/src/env.js](../../backend/src/env.js) loads `backend/.env` via
-`dotenv`, resolving the path relative to its own file location (not
+[backend/src/utils/env.js](../../backend/src/utils/env.js) loads `backend/.env`
+via `dotenv`, resolving the path relative to its own file location (not
 `process.cwd()`, which would break when launched from a different working
-directory). It is the first import in [backend/index.js](../../backend/index.js),
-before any other module runs. Every environment variable is then read exactly
-once, in [backend/src/config/index.js](../../backend/src/config/index.js), and
+directory). [backend/src/utils/network.js](../../backend/src/utils/network.js)
+forces `fetch()` to use IPv4-only connections, working around an `undici` bug
+where a non-internet-routable IPv6 interface (e.g. a VPN) makes `fetch()` fail
+outbound calls to GitHub/GitLab/SMTP2GO even though the network is otherwise
+fine. Both are the first two imports in
+[backend/index.js](../../backend/index.js), before any other module runs, so
+env vars and the fetch dispatcher are ready before anything can need them.
+Every environment variable is then read exactly once, in
+[backend/src/config/index.js](../../backend/src/config/index.js), and
 re-exported under the same `UPPER_CASE` name as the variable itself (e.g.
 `process.env.MONGO_URI` → `export const MONGO_URI`). No other module reads
 `process.env` directly — they import the named constant from `config/index.js`

@@ -1,4 +1,4 @@
-import '../env.js'
+import '../utils/env.js'
 
 export const PORT = Number(process.env.API_PORT || process.env.PORT || 5000)
 export const IS_PRODUCTION = process.env.NODE_ENV === 'production'
