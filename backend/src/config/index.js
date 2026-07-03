@@ -36,3 +36,9 @@ export const githubClientId = process.env.GITHUB_ID || null
 export const githubClientSecret = process.env.GITHUB_SECRET || null
 export const gitlabClientId = process.env.GITLAB_ID || null
 export const gitlabClientSecret = process.env.GITLAB_SECRET || null
+
+// --- SMTP2GO email delivery (optional — falls back to webhook/console) ---
+
+export const smtp2goApiKey = process.env.EMAIL_KEY || null
+export const verificationSenderEmail = process.env.VERIFICATION_EMAIL || null
+export const passwordResetSenderEmail = process.env.PASSWORD_RESET_EMAIL || null

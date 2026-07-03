@@ -6,7 +6,7 @@ This document describes the current CodePulse MongoDB data model.
 
 ## Runtime Data Store
 
-The backend connects to MongoDB through [backend/src/db.js](../../backend/src/db.js).
+The backend connects to MongoDB through [backend/src/db/index.js](../../backend/src/db/index.js).
 The connection string is read from `MONGO_URI`, with this local fallback:
 
 ```text
@@ -51,6 +51,13 @@ Stores accounts authorized to access the CodePulse dashboard.
   accounts created through GitHub/GitLab OAuth.
 * `email_verified` (`boolean`): Whether the account has completed email
   verification.
+* `profile` (`object`, optional): Account profile metadata used by the
+  authenticated profile page.
+  Fields: `title`, `company`, `timezone`, `location`, and `bio`.
+* `settings` (`object`, optional): Account preferences used by the
+  authenticated settings page.
+  Fields: `theme`, `density`, `scan_frequency`, `ai_summary_level`,
+  `email_notifications`, `weekly_digest`, `risk_alerts`, and `drift_alerts`.
 * `created_at` (`string`): ISO timestamp for account creation.
 * `updated_at` (`string`): ISO timestamp for the last account update.
 

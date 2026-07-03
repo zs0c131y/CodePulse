@@ -8,7 +8,15 @@ import {
 } from '../../../db/index.js'
 import { hashToken, randomToken, signAccessToken } from '../../../utils/token.js'
 import { clearRefreshCookie } from '../../../utils/cookie.js'
-import { normalizeEmail, validateEmail, validatePassword, toPublicUser } from '../../../utils/validators.js'
+import {
+  normalizeEmail,
+  validateEmail,
+  validatePassword,
+  toPublicUser,
+  cleanText,
+  cleanProfile,
+  cleanSettings,
+} from '../../../utils/validators.js'
 import { buildAppLink, deliverAuthLink } from '../../../utils/email.js'
 import { createVerificationToken, createSession, getSessionFromCookie } from '../../../utils/session.js'
 import { assertLoginAllowed, recordLoginFailure, clearLoginFailures } from '../../../utils/loginAttempts.js'
@@ -197,6 +205,52 @@ export async function logout(request, response, next) {
 
 export function me(request, response) {
   response.json({ user: toPublicUser(request.user) })
+}
+
+export async function updateProfile(request, response, next) {
+  try {
+    const name = cleanText(request.body.name)
+    const profile = cleanProfile(request.body.profile)
+
+    if (!name) {
+      response.status(400).json({ message: 'Display name is required.' })
+      return
+    }
+
+    const users = await getUsersCollection()
+    await users.updateOne(
+      { _id: request.user._id },
+      { $set: { name, profile, updated_at: new Date() } },
+    )
+    const updatedUser = await users.findOne({ _id: request.user._id })
+
+    response.json({
+      message: 'Profile updated.',
+      user: toPublicUser(updatedUser),
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function updateSettings(request, response, next) {
+  try {
+    const settings = cleanSettings(request.body.settings)
+    const users = await getUsersCollection()
+
+    await users.updateOne(
+      { _id: request.user._id },
+      { $set: { settings, updated_at: new Date() } },
+    )
+    const updatedUser = await users.findOne({ _id: request.user._id })
+
+    response.json({
+      message: 'Settings saved.',
+      user: toPublicUser(updatedUser),
+    })
+  } catch (error) {
+    next(error)
+  }
 }
 
 export async function requestPasswordReset(request, response, next) {

@@ -8,6 +8,8 @@ import {
   refresh,
   logout,
   me,
+  updateProfile,
+  updateSettings,
   requestPasswordReset,
   resetPassword,
 } from './controler/credentials.controller.js'
@@ -22,6 +24,8 @@ router.post('/api/auth/signin', authRateLimiter, signin)
 router.post('/api/auth/refresh', authRateLimiter, refresh)
 router.post('/api/auth/logout', logout)
 router.get('/api/auth/me', requireAccessToken, me)
+router.patch('/api/auth/profile', requireAccessToken, updateProfile)
+router.patch('/api/auth/settings', requireAccessToken, updateSettings)
 router.post('/api/auth/request-password-reset', authRateLimiter, requestPasswordReset)
 router.post('/api/auth/reset-password', authRateLimiter, resetPassword)
 

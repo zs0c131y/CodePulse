@@ -28,6 +28,8 @@ frontend/
 │   │   └── hero.png
 │   ├── components/
 │   │   ├── AuthPage.jsx
+│   │   ├── AccountPage.jsx
+│   │   ├── Dashboard.jsx
 │   │   ├── Features.jsx
 │   │   ├── FinalCTA.jsx
 │   │   ├── Footer.jsx
@@ -89,7 +91,8 @@ routes.
   The refresh token is held by the backend as a MongoDB session and sent to the
   browser as an `HttpOnly` cookie.
 * [frontend/src/App.jsx](../../frontend/src/App.jsx) refreshes the session on
-  load with `POST /api/auth/refresh`, gates `#dashboard`, checks
+  load with `POST /api/auth/refresh`, gates `#dashboard`, `#profile`, and
+  `#settings`, checks
   `GET /api/auth/me` with a bearer token, and calls `POST /api/auth/logout` to
   revoke the refresh session. After a GitHub/GitLab login the backend redirects
   the browser straight to `#dashboard`; the refresh-on-load call picks up the
@@ -100,14 +103,36 @@ routes.
 
 ---
 
-## 🎨 Planned Dashboard Interface
+## 🎨 Dashboard Interface
 
-After sign-in, users will select a repository and access four dashboard tabs:
+After sign-in, `#dashboard` renders
+[Dashboard.jsx](../../frontend/src/components/Dashboard.jsx). The dashboard
+preserves the protected-session check against `GET /api/auth/me`, supports
+sign-out, and shows sample report data until repository-analysis APIs are
+implemented.
+
+Users can select a repository, enter a repository URL for a future scan flow,
+and access four dashboard tabs:
 
 * **Overview**: Repository health score, technical debt grade, drift count, and
-  critical risk count.
+  critical risk count, plus analysis pipeline and risk trend panels.
 * **Technical Debt**: Complexity heatmaps, duplication lists, circular
-  dependencies, and churn hotspots.
+  dependencies, and churn hotspots in a ranked module table.
 * **Knowledge Drift & Debt**: Drift findings and documentation coverage.
 * **Risk & AI Recommendations**: Ranked modules with AI-generated remediation
   guidance.
+
+---
+
+## 👤 Profile & Settings
+
+`#profile` and `#settings` render
+[AccountPage.jsx](../../frontend/src/components/AccountPage.jsx). Both routes
+reuse the protected-session flow and shared account layout.
+
+* **Profile**: Edits display name and profile metadata, then persists through
+  `PATCH /api/auth/profile`.
+* **Settings**: Edits theme, density, scan cadence, AI summary detail, and
+  notification preferences, then persists through `PATCH /api/auth/settings`.
+* The dashboard links to both routes from the sidebar and header controls.
+* Password changes continue to use the reset-email flow at `#reset-password`.

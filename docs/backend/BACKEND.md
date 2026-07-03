@@ -53,9 +53,18 @@ Authentication also reads:
   [backend/src/utils/urls.js](../../backend/src/utils/urls.js).
 * `BACKEND_URL`: public backend URL used to build OAuth callback URLs
   (`http://localhost:5000` local fallback).
-* `AUTH_EMAIL_WEBHOOK_URL`: required in production to deliver verification and
-  password reset links. The backend posts `{ kind, email, link }`.
-* `AUTH_EMAIL_WEBHOOK_TOKEN`: optional bearer token for the email webhook.
+* `EMAIL_KEY`: SMTP2GO API key used to send verification and password reset
+  emails through `POST https://api.smtp2go.com/v3/email/send`.
+* `VERIFICATION_EMAIL`: verified SMTP2GO sender address used for email
+  verification messages. SMTP2GO requires the sender domain or address to be
+  verified.
+* `PASSWORD_RESET_EMAIL`: optional verified SMTP2GO sender address used for
+  password reset messages. If omitted, password reset emails use
+  `VERIFICATION_EMAIL`.
+* `AUTH_EMAIL_WEBHOOK_URL`: optional fallback delivery webhook used when
+  SMTP2GO is not configured. The backend posts `{ kind, email, link }`.
+* `AUTH_EMAIL_WEBHOOK_TOKEN`: optional bearer token for the fallback email
+  webhook.
 * `ALLOWED_ORIGINS`: comma-separated browser origins allowed to send
   credentialed API requests (`http://localhost:5174,http://127.0.0.1:5174`
   local fallback).
@@ -63,6 +72,10 @@ Authentication also reads:
   disabled (`503`) when unset.
 * `GITLAB_ID` / `GITLAB_SECRET`: GitLab OAuth Application credentials. GitLab
   login is disabled (`503`) when unset.
+
+If `EMAIL_KEY` or any context sender email is set, the matching sender email is
+also required. In production, auth email delivery requires SMTP2GO configuration
+unless the fallback webhook is configured.
 
 ---
 
@@ -86,6 +99,11 @@ global request rate limiting, auth-route rate limiting, and Mongo-backed
 brute-force lockouts for repeated failed sign-in attempts. Startup fails before
 `app.listen()` if MongoDB indexes cannot be created, including the unique email
 index and auth token indexes.
+
+Verification and password reset emails are delivered by SMTP2GO when
+`EMAIL_KEY` and the context sender email are present. Each email uses the
+SMTP2GO standard email API with `sender`, a single-recipient `to` array,
+`subject`, `text_body`, and `html_body`.
 
 ### `GET /api/health`
 
@@ -229,7 +247,92 @@ Response:
     "name": "Ada Lovelace",
     "email": "ada@example.com",
     "email_verified": true,
-    "created_at": "2026-07-01T07:30:00.000Z"
+    "created_at": "2026-07-01T07:30:00.000Z",
+    "profile": {
+      "title": "Engineering Manager",
+      "company": "Acme Inc.",
+      "timezone": "UTC",
+      "location": "Bengaluru, India",
+      "bio": "Owns platform engineering health."
+    },
+    "settings": {
+      "theme": "system",
+      "density": "comfortable",
+      "scan_frequency": "daily",
+      "ai_summary_level": "balanced",
+      "email_notifications": true,
+      "weekly_digest": true,
+      "risk_alerts": true,
+      "drift_alerts": true
+    }
+  }
+}
+```
+
+### `PATCH /api/auth/profile`
+
+Protected endpoint requiring `Authorization: Bearer <accessToken>`. Updates the
+signed-in user's display name and optional profile metadata.
+
+Request:
+
+```json
+{
+  "name": "Ada Lovelace",
+  "profile": {
+    "title": "Engineering Manager",
+    "company": "Acme Inc.",
+    "timezone": "Asia/Calcutta",
+    "location": "Bengaluru, India",
+    "bio": "Owns platform engineering health."
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Profile updated.",
+  "user": {
+    "id": "uuid",
+    "name": "Ada Lovelace"
+  }
+}
+```
+
+### `PATCH /api/auth/settings`
+
+Protected endpoint requiring `Authorization: Bearer <accessToken>`. Updates the
+signed-in user's dashboard, scan, AI, and notification preferences.
+
+Request:
+
+```json
+{
+  "settings": {
+    "theme": "system",
+    "density": "comfortable",
+    "scan_frequency": "daily",
+    "ai_summary_level": "balanced",
+    "email_notifications": true,
+    "weekly_digest": true,
+    "risk_alerts": true,
+    "drift_alerts": true
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Settings saved.",
+  "user": {
+    "id": "uuid",
+    "settings": {
+      "theme": "system"
+    }
   }
 }
 ```

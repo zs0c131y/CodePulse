@@ -27,6 +27,55 @@ db.createCollection("users", {
                 email_verified: {
                     bsonType: "bool"
                 },
+                profile: {
+                    bsonType: "object",
+                    properties: {
+                        title: {
+                            bsonType: "string"
+                        },
+                        company: {
+                            bsonType: "string"
+                        },
+                        timezone: {
+                            bsonType: "string"
+                        },
+                        location: {
+                            bsonType: "string"
+                        },
+                        bio: {
+                            bsonType: "string"
+                        }
+                    }
+                },
+                settings: {
+                    bsonType: "object",
+                    properties: {
+                        theme: {
+                            enum: ["system", "light", "dark"]
+                        },
+                        density: {
+                            enum: ["compact", "comfortable", "spacious"]
+                        },
+                        scan_frequency: {
+                            enum: ["manual", "daily", "weekly"]
+                        },
+                        ai_summary_level: {
+                            enum: ["concise", "balanced", "detailed"]
+                        },
+                        email_notifications: {
+                            bsonType: "bool"
+                        },
+                        weekly_digest: {
+                            bsonType: "bool"
+                        },
+                        risk_alerts: {
+                            bsonType: "bool"
+                        },
+                        drift_alerts: {
+                            bsonType: "bool"
+                        }
+                    }
+                },
                 created_at: {
                     bsonType: "date"
                 },
