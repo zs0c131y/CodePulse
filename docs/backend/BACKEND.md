@@ -23,11 +23,24 @@ Authentication also reads:
 * `JWT_SECRET`: required in production for signed access tokens.
 * `AUTH_APP_URL`: public frontend URL used to build verification and reset
   links.
-* `AUTH_EMAIL_WEBHOOK_URL`: required in production to deliver verification and
-  password reset links. The backend posts `{ kind, email, link }`.
-* `AUTH_EMAIL_WEBHOOK_TOKEN`: optional bearer token for the email webhook.
+* `EMAIL_KEY`: SMTP2GO API key used to send verification and password reset
+  emails through `POST https://api.smtp2go.com/v3/email/send`.
+* `VERIFICATION_EMAIL`: verified SMTP2GO sender address used for email
+  verification messages. SMTP2GO requires the sender domain or address to be
+  verified.
+* `PASSWORD_RESET_EMAIL`: optional verified SMTP2GO sender address used for
+  password reset messages. If omitted, password reset emails use
+  `VERIFICATION_EMAIL`.
+* `AUTH_EMAIL_WEBHOOK_URL`: optional fallback delivery webhook when SMTP2GO is
+  not configured. The backend posts `{ kind, email, link }`.
+* `AUTH_EMAIL_WEBHOOK_TOKEN`: optional bearer token for the fallback email
+  webhook.
 * `ALLOWED_ORIGINS`: comma-separated browser origins allowed to send
   credentialed API requests.
+
+If `EMAIL_KEY` or any context sender email is set, the matching sender email is
+also required. In production, auth email delivery requires SMTP2GO configuration
+unless the fallback webhook is configured.
 
 ---
 
@@ -51,6 +64,11 @@ global request rate limiting, auth-route rate limiting, and Mongo-backed
 brute-force lockouts for repeated failed sign-in attempts. Startup fails before
 `app.listen()` if MongoDB indexes cannot be created, including the unique email
 index and auth token indexes.
+
+Verification and password reset emails are delivered by SMTP2GO when
+`EMAIL_KEY` and the context sender email are present. Each email uses the
+SMTP2GO standard email API with `sender`, a single-recipient `to` array,
+`subject`, `text_body`, and `html_body`.
 
 ### `GET /api/health`
 
