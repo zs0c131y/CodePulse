@@ -22,7 +22,7 @@ db.createCollection("users", {
                     bsonType: "string"
                 },
                 password_hash: {
-                    bsonType: "string"
+                    bsonType: ["string", "null"]
                 },
                 email_verified: {
                     bsonType: "bool"
@@ -189,6 +189,42 @@ db.createCollection("password_reset_tokens", {
 db.password_reset_tokens.createIndex({ token_hash: 1 }, { unique: true });
 db.password_reset_tokens.createIndex({ user_id: 1 });
 db.password_reset_tokens.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+
+// =========================================
+// OAUTH ACCOUNTS
+// =========================================
+
+db.createCollection("oauth_accounts", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["provider", "provider_user_id", "user_id", "created_at"],
+            properties: {
+                provider: {
+                    enum: ["github", "gitlab"]
+                },
+                provider_user_id: {
+                    bsonType: "string"
+                },
+                user_id: {
+                    bsonType: "objectId"
+                },
+                provider_email: {
+                    bsonType: "string"
+                },
+                provider_name: {
+                    bsonType: "string"
+                },
+                created_at: {
+                    bsonType: "date"
+                }
+            }
+        }
+    }
+});
+
+db.oauth_accounts.createIndex({ provider: 1, provider_user_id: 1 }, { unique: true });
+db.oauth_accounts.createIndex({ user_id: 1 });
 
 // =========================================
 // REPOSITORIES
@@ -418,6 +454,7 @@ print("- auth_sessions");
 print("- auth_attempts");
 print("- email_verification_tokens");
 print("- password_reset_tokens");
+print("- oauth_accounts");
 print("- repositories");
 print("- repo_files");
 print("- commits");

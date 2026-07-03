@@ -43,6 +43,11 @@ export async function getPasswordResetTokensCollection() {
   return db.collection('password_reset_tokens')
 }
 
+export async function getOAuthAccountsCollection() {
+  const db = await getDatabase()
+  return db.collection('oauth_accounts')
+}
+
 export async function ensureIndexes() {
   const users = await getUsersCollection()
   await users.createIndex({ email: 1 }, { unique: true })
@@ -65,6 +70,10 @@ export async function ensureIndexes() {
   await passwordResetTokens.createIndex({ token_hash: 1 }, { unique: true })
   await passwordResetTokens.createIndex({ user_id: 1 })
   await passwordResetTokens.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 })
+
+  const oauthAccounts = await getOAuthAccountsCollection()
+  await oauthAccounts.createIndex({ provider: 1, provider_user_id: 1 }, { unique: true })
+  await oauthAccounts.createIndex({ user_id: 1 })
 }
 
 export async function pingDatabase() {

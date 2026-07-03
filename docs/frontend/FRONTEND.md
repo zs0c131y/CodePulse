@@ -80,15 +80,23 @@ routes.
   `POST /api/auth/reset-password`.
 * Verification links use `#verify-email?token=...` and post to
   `POST /api/auth/verify-email`.
-* Vite proxies `/api` requests to the backend API on `localhost:3000` during
-  development.
+* The GitHub and GitLab buttons are plain links to `GET /auth/github` and
+  `GET /auth/gitlab` on the backend (full-page navigation, not `fetch`, so the
+  browser follows the provider's OAuth consent redirect).
+* Vite proxies `/api` and `/auth` requests to the backend API on
+  `localhost:5000` during development.
 * Successful sign-in stores the short-lived access token in React state only.
   The refresh token is held by the backend as a MongoDB session and sent to the
   browser as an `HttpOnly` cookie.
 * [frontend/src/App.jsx](../../frontend/src/App.jsx) refreshes the session on
   load with `POST /api/auth/refresh`, gates `#dashboard`, checks
   `GET /api/auth/me` with a bearer token, and calls `POST /api/auth/logout` to
-  revoke the refresh session.
+  revoke the refresh session. After a GitHub/GitLab login the backend redirects
+  the browser straight to `#dashboard`; the refresh-on-load call picks up the
+  session cookie the OAuth callback already set. On OAuth failure the backend
+  redirects to `#signin?error=<message>`, which
+  [AuthPage.jsx](../../frontend/src/components/AuthPage.jsx) surfaces as the
+  sign-in form's error banner.
 
 ---
 

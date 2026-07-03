@@ -171,7 +171,13 @@ export default function App() {
   }
 
   if (route.name === 'signin' || route.name === 'signup') {
-    return <AuthPage mode={route.name} onAuthSuccess={handleAuthSuccess} />
+    return (
+      <AuthPage
+        mode={route.name}
+        oauthError={route.params.get('error') || ''}
+        onAuthSuccess={handleAuthSuccess}
+      />
+    )
   }
 
   if (route.name === 'reset-password' || route.name === 'verify-email') {

@@ -19,7 +19,9 @@ backend/
     ├── features/
     │   ├── auth/
     │   │   ├── controler/
-    │   │   │   └── credentials.controller.js # Email/password auth logic (signup, signin, etc.)
+    │   │   │   ├── credentials.controller.js # Email/password auth logic (signup, signin, etc.)
+    │   │   │   ├── github.controller.js       # GitHub OAuth login/callback
+    │   │   │   └── gitlab.controller.js       # GitLab OAuth login/callback
     │   │   └── router.js               # Auth route definitions
     │   └── health/
     │       ├── controller.js           # Health check handler
@@ -35,6 +37,7 @@ backend/
     │   ├── loginAttempts.js            # Brute-force login protection
     │   ├── session.js                  # Session and verification token logic
     │   ├── token.js                    # JWT signing, verification, crypto
+    │   ├── urls.js                     # Centralized frontend/backend/OAuth URL builder
     │   └── validators.js              # Input validation and user serialization
     ├── app.js                          # Express app setup and middleware wiring
     └── index.js                        # Server entry point
@@ -45,13 +48,21 @@ The backend uses Express and MongoDB. Runtime configuration is read from
 Authentication also reads:
 
 * `JWT_SECRET`: required in production for signed access tokens.
-* `AUTH_APP_URL`: public frontend URL used to build verification and reset
-  links.
+* `FRONTEND_URL`: public frontend URL used to build verification/reset links
+  and OAuth redirect targets (`http://localhost:5174` local fallback). See
+  [backend/src/utils/urls.js](../../backend/src/utils/urls.js).
+* `BACKEND_URL`: public backend URL used to build OAuth callback URLs
+  (`http://localhost:5000` local fallback).
 * `AUTH_EMAIL_WEBHOOK_URL`: required in production to deliver verification and
   password reset links. The backend posts `{ kind, email, link }`.
 * `AUTH_EMAIL_WEBHOOK_TOKEN`: optional bearer token for the email webhook.
 * `ALLOWED_ORIGINS`: comma-separated browser origins allowed to send
-  credentialed API requests.
+  credentialed API requests (`http://localhost:5174,http://127.0.0.1:5174`
+  local fallback).
+* `GITHUB_ID` / `GITHUB_SECRET`: GitHub OAuth App credentials. GitHub login is
+  disabled (`503`) when unset.
+* `GITLAB_ID` / `GITLAB_SECRET`: GitLab OAuth Application credentials. GitLab
+  login is disabled (`503`) when unset.
 
 ---
 
@@ -59,8 +70,8 @@ Authentication also reads:
 
 * Run the frontend with `npm run dev`.
 * Run the backend API with `npm run dev:backend`.
-* The API listens on `http://localhost:3000`.
-* The Vite dev server proxies `/api` requests to the backend.
+* The API listens on `http://localhost:5000` (`API_PORT` / `PORT` override).
+* The Vite dev server proxies `/api` and `/auth` requests to the backend.
 * In local development, verification and reset links are logged to the backend
   console and returned in the API response for convenience.
 
@@ -265,6 +276,41 @@ Response:
   "message": "Password updated. Sign in with your new password."
 }
 ```
+
+### `GET /auth/github`
+
+Redirects the browser to GitHub's OAuth consent screen. Sets a short-lived,
+`HttpOnly` CSRF state cookie scoped to `/auth/github`. Returns `503` when
+`GITHUB_ID`/`GITHUB_SECRET` are not configured.
+
+### `GET /auth/github/callback`
+
+Handles GitHub's redirect back to the backend. Validates the CSRF state,
+exchanges the authorization code for an access token, and fetches the GitHub
+profile and primary verified email. Finds or creates a matching CodePulse
+user (auto-verified, no password), links the account in `oauth_accounts`,
+starts a session, and redirects to `FRONTEND_URL/#dashboard`. On failure it
+redirects to `FRONTEND_URL/#signin?error=<message>`.
+
+### `GET /auth/gitlab`
+
+Redirects the browser to GitLab's OAuth consent screen. Sets a short-lived,
+`HttpOnly` CSRF state cookie scoped to `/auth/gitlab`. Returns `503` when
+`GITLAB_ID`/`GITLAB_SECRET` are not configured.
+
+### `GET /auth/gitlab/callback`
+
+Handles GitLab's redirect back to the backend. Validates the CSRF state,
+exchanges the authorization code for an access token, and fetches the GitLab
+profile. Finds or creates a matching CodePulse user (auto-verified, no
+password), links the account in `oauth_accounts`, starts a session, and
+redirects to `FRONTEND_URL/#dashboard`. On failure it redirects to
+`FRONTEND_URL/#signin?error=<message>`.
+
+Both OAuth flows reuse the same refresh-cookie session mechanism as
+credential sign-in (see [utils/session.js](../../backend/src/utils/session.js)),
+so the frontend picks up the new session via `POST /api/auth/refresh` after
+landing on `#dashboard`.
 
 ---
 

@@ -14,8 +14,10 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    port: 5174,
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': 'http://localhost:5000',
+      '/auth': 'http://localhost:5000',
     },
   },
 })

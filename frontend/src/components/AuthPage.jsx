@@ -62,7 +62,7 @@ function getRememberedEmail() {
   return window.localStorage.getItem('codepulse-remembered-email') || ''
 }
 
-export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess }) {
+export default function AuthPage({ mode = 'signin', token = '', oauthError = '', onAuthSuccess }) {
   const isSignup = mode === 'signup'
   const isEmailVerify = mode === 'verify-email'
   const isResetFlow = mode === 'reset-password'
@@ -96,7 +96,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
   }, [email, isEmailVerify, isPasswordReset, isSignup, rememberMe])
 
   useEffect(() => {
-    setAuthError('')
+    setAuthError(oauthError || '')
     setAuthMessage('')
     setPassword('')
     setShowPassword(false)
@@ -108,7 +108,7 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
 
     setFullName('')
     setEmail(current => current || getRememberedEmail())
-  }, [isEmailVerify, isPasswordReset, isSignup])
+  }, [isEmailVerify, isPasswordReset, isSignup, oauthError])
 
   useEffect(() => {
     if (!isEmailVerify || !token) return
@@ -453,24 +453,24 @@ export default function AuthPage({ mode = 'signin', token = '', onAuthSuccess })
             {showProviderButtons && (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL || ''}/auth/github`}
                     className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                       isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
                     }`}
                   >
                     <GitHubMark className="h-4.5 w-4.5" />
                     GitHub
-                  </button>
-                  <button
-                    type="button"
+                  </a>
+                  <a
+                    href={`${import.meta.env.VITE_API_BASE_URL || ''}/auth/gitlab`}
                     className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
                       isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
                     }`}
                   >
                     <GitLabMark className="h-4.5 w-4.5 text-[#fc6d26]" />
                     GitLab
-                  </button>
+                  </a>
                 </div>
 
                 <div className="my-6 flex items-center gap-3">

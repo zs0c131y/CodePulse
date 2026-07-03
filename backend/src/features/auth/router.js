@@ -11,6 +11,8 @@ import {
   requestPasswordReset,
   resetPassword,
 } from './controler/credentials.controller.js'
+import { redirectToGithub, githubCallback } from './controler/github.controller.js'
+import { redirectToGitlab, gitlabCallback } from './controler/gitlab.controller.js'
 
 const router = Router()
 
@@ -22,5 +24,10 @@ router.post('/api/auth/logout', logout)
 router.get('/api/auth/me', requireAccessToken, me)
 router.post('/api/auth/request-password-reset', authRateLimiter, requestPasswordReset)
 router.post('/api/auth/reset-password', authRateLimiter, resetPassword)
+
+router.get('/auth/github', authRateLimiter, redirectToGithub)
+router.get('/auth/github/callback', authRateLimiter, githubCallback)
+router.get('/auth/gitlab', authRateLimiter, redirectToGitlab)
+router.get('/auth/gitlab/callback', authRateLimiter, gitlabCallback)
 
 export default router

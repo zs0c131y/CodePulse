@@ -1,8 +1,8 @@
-import { isProduction, appUrl } from '../config/index.js'
+import { isProduction } from '../config/index.js'
+import { buildFrontendLink } from './urls.js'
 
 export function buildAppLink(hashPath, token) {
-  const base = appUrl.endsWith('/') ? appUrl.slice(0, -1) : appUrl
-  return `${base}/#${hashPath}?token=${encodeURIComponent(token)}`
+  return buildFrontendLink(hashPath, token)
 }
 
 export async function deliverAuthLink(kind, email, link) {
