@@ -18,7 +18,8 @@ backend/
     │   └── index.js                    # MongoDB connection and index setup
     ├── features/
     │   ├── auth/
-    │   │   ├── controller.js           # Auth handler logic (signup, signin, etc.)
+    │   │   ├── controler/
+    │   │   │   └── credentials.controller.js # Email/password auth logic (signup, signin, etc.)
     │   │   └── router.js               # Auth route definitions
     │   └── health/
     │       ├── controller.js           # Health check handler
@@ -67,7 +68,7 @@ Authentication also reads:
 
 ## 🔐 Authentication API
 
-Implemented in [backend/src/features/auth/controller.js](../../backend/src/features/auth/controller.js).
+Implemented in [backend/src/features/auth/controler/credentials.controller.js](../../backend/src/features/auth/controler/credentials.controller.js).
 
 The backend applies security headers, credentialed CORS for configured origins,
 global request rate limiting, auth-route rate limiting, and Mongo-backed

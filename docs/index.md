@@ -54,6 +54,8 @@ CodePulse/
 │       ├── db/                # MongoDB connection and indexes
 │       ├── features/          # Feature modules (router + controller per feature)
 │       │   ├── auth/          # Authentication feature
+│       │   │   ├── controler/ # Auth controllers
+│       │   │   └── router.js  # Auth router
 │       │   └── health/        # Health check feature
 │       ├── middleware/        # Express middleware (CORS, auth, etc.)
 │       ├── utils/             # Shared helpers (tokens, cookies, etc.)

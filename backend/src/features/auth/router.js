@@ -10,7 +10,7 @@ import {
   me,
   requestPasswordReset,
   resetPassword,
-} from './controller.js'
+} from './controler/credentials.controller.js'
 
 const router = Router()
 

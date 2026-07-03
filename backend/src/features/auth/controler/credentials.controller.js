@@ -1,17 +1,17 @@
 import bcrypt from 'bcryptjs'
-import { isProduction, accessTokenTtlSeconds, resetTokenTtlMs } from '../../config/index.js'
+import { isProduction, accessTokenTtlSeconds, resetTokenTtlMs } from '../../../config/index.js'
 import {
   getUsersCollection,
   getSessionsCollection,
   getVerificationTokensCollection,
   getPasswordResetTokensCollection,
-} from '../../db/index.js'
-import { hashToken, randomToken, signAccessToken } from '../../utils/token.js'
-import { clearRefreshCookie } from '../../utils/cookie.js'
-import { normalizeEmail, validateEmail, validatePassword, toPublicUser } from '../../utils/validators.js'
-import { buildAppLink, deliverAuthLink } from '../../utils/email.js'
-import { createVerificationToken, createSession, getSessionFromCookie } from '../../utils/session.js'
-import { assertLoginAllowed, recordLoginFailure, clearLoginFailures } from '../../utils/loginAttempts.js'
+} from '../../../db/index.js'
+import { hashToken, randomToken, signAccessToken } from '../../../utils/token.js'
+import { clearRefreshCookie } from '../../../utils/cookie.js'
+import { normalizeEmail, validateEmail, validatePassword, toPublicUser } from '../../../utils/validators.js'
+import { buildAppLink, deliverAuthLink } from '../../../utils/email.js'
+import { createVerificationToken, createSession, getSessionFromCookie } from '../../../utils/session.js'
+import { assertLoginAllowed, recordLoginFailure, clearLoginFailures } from '../../../utils/loginAttempts.js'
 
 export async function signup(request, response, next) {
   try {
