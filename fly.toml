@@ -1,0 +1,24 @@
+app = "codepulse"
+primary_region = "iad"
+
+[build]
+dockerfile = "Dockerfile"
+
+[http_service]
+auto_start_machines = true
+auto_stop_machines = true
+force_https = true
+internal_port = 5_000
+min_machines_running = 0
+
+  [[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  path = "/"
+  timeout = "5s"
+
+[[vm]]
+memory = "256mb"
+size = "shared-cpu-1x"
+    

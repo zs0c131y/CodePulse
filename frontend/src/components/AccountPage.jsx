@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
+  AlertTriangle,
   ArrowLeft,
   Bell,
   BriefcaseBusiness,
+  CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Clock3,
   Code2,
@@ -28,6 +31,7 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
+import { cn } from '../lib/utils'
 
 function apiUrl(path) {
   return `${import.meta.env.VITE_API_BASE_URL || ''}${path}`
@@ -90,12 +94,31 @@ function Field({ label, icon: Icon, children }) {
   )
 }
 
-function TextInput(props) {
-  return <Input {...props} />
+function TextInput({ className, ...props }) {
+  return (
+    <Input
+      {...props}
+      className={cn(
+        'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:ring-cyan-100',
+        className,
+      )}
+    />
+  )
 }
 
-function SelectInput(props) {
-  return <Select {...props} />
+function SelectInput({ className, ...props }) {
+  return (
+    <span className="relative block">
+      <Select
+        {...props}
+        className={cn(
+          'appearance-none border-slate-200 bg-white pr-10 text-slate-900 focus:border-cyan-400 focus:ring-cyan-100',
+          className,
+        )}
+      />
+      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+    </span>
+  )
 }
 
 function Toggle({ checked, onChange, title, description, icon: Icon }) {
@@ -245,7 +268,7 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="bg-linear-to-r from-slate-950 via-slate-900 to-cyan-950 px-5 py-8 text-white sm:px-7">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="flex items-center gap-4">
@@ -272,7 +295,7 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <form className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" onSubmit={onSave}>
+        <form className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md" onSubmit={onSave}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
               <h2 className="text-base font-bold text-slate-950">Personal details</h2>
@@ -334,45 +357,54 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
               value={profile.bio}
               onChange={event => setProfile(current => ({ ...current, bio: event.target.value }))}
               placeholder="Tell teammates what systems you own and how CodePulse should support your review flow."
-            className="min-h-28 w-full rounded-lg border border-white/10 bg-slate-950/45 px-3 py-3 text-sm leading-6 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60 focus:ring-4 focus:ring-cyan-300/10"
+              className="min-h-28 w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
             />
           </Field>
 
           {(message || error) && (
             <p
-              className={`mt-4 rounded-lg border px-3 py-2 text-sm font-semibold ${
+              className={`mt-4 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
                 error ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
               }`}
               role="status"
             >
-              {error || message}
+              {error ? (
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              ) : (
+                <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+              )}
+              <span>{error || message}</span>
             </p>
           )}
         </form>
 
         <aside className="space-y-5">
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
             <h2 className="text-base font-bold text-slate-950">Account posture</h2>
             <div className="mt-4 space-y-3">
               {[
-                ['Email verified', user.email_verified ? 'Complete' : 'Pending', ShieldCheck],
-                ['Session storage', 'Secure workspace session', LockKeyhole],
-                ['Workspace access', 'Verified account session', KeyRound],
-              ].map(([label, value, Icon]) => (
-                <div key={label} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                    <Icon size={17} />
+                { label: 'Email verified', value: user.email_verified ? 'Complete' : 'Pending', icon: ShieldCheck, ok: user.email_verified },
+                { label: 'Session storage', value: 'Secure workspace session', icon: LockKeyhole, ok: true },
+                { label: 'Workspace access', value: 'Verified account session', icon: KeyRound, ok: true },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+                  <span
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                      item.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    }`}
+                  >
+                    <item.icon size={17} />
                   </span>
                   <span>
-                    <span className="block text-sm font-bold text-slate-950">{label}</span>
-                    <span className="block text-xs text-slate-500">{value}</span>
+                    <span className="block text-sm font-bold text-slate-950">{item.label}</span>
+                    <span className="block text-xs text-slate-500">{item.value}</span>
                   </span>
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
             <h2 className="text-base font-bold text-slate-950">Usage snapshot</h2>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {[

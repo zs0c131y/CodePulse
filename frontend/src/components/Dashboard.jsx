@@ -30,7 +30,6 @@ import {
   User,
   Users,
 } from 'lucide-react'
-import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -87,6 +86,7 @@ const kpis = [
     trendTone: 'good',
     icon: ShieldCheck,
     accent: 'emerald',
+    sparkline: [78, 79, 80, 79, 81, 82, 83, 84, 83, 85, 86, 86],
   },
   {
     label: 'Critical risks',
@@ -96,6 +96,7 @@ const kpis = [
     trendTone: 'good',
     icon: ShieldAlert,
     accent: 'rose',
+    sparkline: [11, 10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7],
   },
   {
     label: 'Documentation drift',
@@ -105,6 +106,7 @@ const kpis = [
     trendTone: 'bad',
     icon: BookOpenCheck,
     accent: 'amber',
+    sparkline: [12, 13, 13, 14, 15, 15, 16, 17, 17, 18, 19, 19],
   },
   {
     label: 'AI actions ready',
@@ -112,6 +114,7 @@ const kpis = [
     unit: 'recommendations',
     trend: '4 high impact',
     trendTone: 'neutral',
+    deltaKind: 'meta',
     icon: Sparkles,
     accent: 'cyan',
   },
@@ -238,14 +241,6 @@ function severityClass(severity) {
   return 'bg-emerald-50 text-emerald-700 border-emerald-200'
 }
 
-function severityVariant(severity) {
-  if (severity === 'Critical') return 'danger'
-  if (severity === 'High') return 'danger'
-  if (severity === 'Medium') return 'warning'
-  if (severity === 'Low') return 'success'
-  return 'secondary'
-}
-
 function initials(name, email) {
   const source = name || email || 'CodePulse'
   return source
@@ -256,8 +251,31 @@ function initials(name, email) {
     .join('')
 }
 
+function Sparkline({ points, tone }) {
+  if (!points || points.length < 2) return null
+
+  const width = 64
+  const height = 22
+  const min = Math.min(...points)
+  const max = Math.max(...points)
+  const range = max - min || 1
+  const stepX = width / (points.length - 1)
+  const coords = points.map((point, index) => [index * stepX, height - ((point - min) / range) * height])
+  const path = coords.map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const [lastX, lastY] = coords[coords.length - 1]
+  const dotClass = tone === 'bad' ? 'fill-rose-500' : tone === 'good' ? 'fill-emerald-500' : 'fill-cyan-500'
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="shrink-0 overflow-visible" aria-hidden="true">
+      <path d={path} fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="2.5" className={dotClass} />
+    </svg>
+  )
+}
+
 function KpiCard({ item }) {
   const Icon = item.icon
+  const isMeta = item.deltaKind === 'meta'
   const TrendIcon = item.trendTone === 'bad' ? ArrowUpRight : ArrowDownRight
   const trendClass =
     item.trendTone === 'bad'
@@ -267,28 +285,41 @@ function KpiCard({ item }) {
         : 'text-slate-600 bg-slate-50 border-slate-200'
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${accentClasses(item.accent)}`}>
           <Icon size={18} />
         </div>
         <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${trendClass}`}>
-          <TrendIcon size={13} />
+          {!isMeta && <TrendIcon size={13} />}
           {item.trend}
         </span>
       </div>
       <p className="mt-4 text-sm font-medium text-slate-500">{item.label}</p>
-      <div className="mt-1 flex items-baseline gap-1">
-        <span className="text-3xl font-bold text-slate-950">{item.value}</span>
-        <span className="text-sm font-semibold text-slate-500">{item.unit}</span>
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <div className="flex items-baseline gap-1">
+          <span className="text-3xl font-bold text-slate-950">{item.value}</span>
+          <span className="text-sm font-semibold text-slate-500">{item.unit}</span>
+        </div>
+        <Sparkline points={item.sparkline} tone={item.trendTone} />
       </div>
     </article>
   )
 }
 
+function pipelineStatusMeta(status) {
+  if (status === 'Complete') {
+    return { icon: CheckCircle2, badgeClass: 'text-emerald-700 bg-emerald-50 border-emerald-200', track: 'bg-emerald-100', fill: 'bg-emerald-500' }
+  }
+  if (status === 'Running') {
+    return { icon: RefreshCw, badgeClass: 'text-cyan-700 bg-cyan-50 border-cyan-200', track: 'bg-cyan-100', fill: 'bg-cyan-500', spin: true }
+  }
+  return { icon: Clock3, badgeClass: 'text-slate-600 bg-slate-50 border-slate-200', track: 'bg-slate-100', fill: 'bg-slate-300' }
+}
+
 function PipelinePanel() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-slate-950">Analysis pipeline</h2>
@@ -297,24 +328,32 @@ function PipelinePanel() {
         <RefreshCw size={18} className="text-slate-400" />
       </div>
       <div className="mt-5 space-y-4">
-        {pipeline.map(item => (
-          <div key={item.label}>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-                <p className="text-xs text-slate-500">{item.detail}</p>
+        {pipeline.map(item => {
+          const meta = pipelineStatusMeta(item.status)
+          const StatusIcon = meta.icon
+
+          return (
+            <div key={item.label}>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                  <p className="text-xs text-slate-500">{item.detail}</p>
+                </div>
+                <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-bold ${meta.badgeClass}`}>
+                  <StatusIcon size={12} className={meta.spin ? 'animate-spin' : ''} />
+                  {item.status}
+                </span>
               </div>
-              <span className="text-xs font-semibold text-slate-500">{item.status}</span>
+              <div className={`h-2 rounded-full ${meta.track}`}>
+                <div
+                  className={`h-full rounded-full ${meta.fill}`}
+                  style={{ width: `${item.progress}%` }}
+                  aria-label={`${item.label} ${item.progress}% complete`}
+                />
+              </div>
             </div>
-            <div className="h-2 rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-slate-950"
-                style={{ width: `${item.progress}%` }}
-                aria-label={`${item.label} ${item.progress}% complete`}
-              />
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )
@@ -322,7 +361,7 @@ function PipelinePanel() {
 
 function DebtTable() {
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
         <div>
           <h2 className="text-base font-bold text-slate-950">Highest-risk modules</h2>
@@ -359,8 +398,8 @@ function DebtTable() {
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="h-2 min-w-0 flex-1 rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-slate-950" style={{ width: `${item.complexity}%` }} />
+                    <div className="h-2 min-w-0 flex-1 rounded-full bg-cyan-100">
+                      <div className="h-full rounded-full bg-cyan-500" style={{ width: `${item.complexity}%` }} />
                     </div>
                     <span className="text-sm font-semibold text-slate-700">{item.complexity}</span>
                   </div>
@@ -414,7 +453,7 @@ function DebtTable() {
 
 function DriftPanel() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-slate-950">Knowledge drift queue</h2>
@@ -447,35 +486,86 @@ function DriftPanel() {
 }
 
 function RiskPanel() {
+  const [showTable, setShowTable] = useState(false)
+  const peak = Math.max(...riskBars.map(day => day.value))
+
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-slate-950">Risk trend</h2>
           <p className="mt-1 text-sm text-slate-500">Composite maintainability risk over the last 7 days.</p>
         </div>
-        <BarChart3 size={18} className="text-slate-500" />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowTable(value => !value)}
+            className="text-xs font-semibold text-slate-500 hover:text-slate-950 hover:underline"
+          >
+            {showTable ? 'View as chart' : 'View as table'}
+          </button>
+          <BarChart3 size={18} className="text-slate-400" />
+        </div>
       </div>
-      <div className="mt-6 flex h-44 items-end gap-3">
-        {riskBars.map(day => (
-          <div key={day.label} className="flex flex-1 flex-col items-center gap-2">
-            <div className="flex h-36 w-full items-end rounded-md bg-slate-100 p-1">
-              <div
-                className="w-full rounded-sm bg-linear-to-t from-slate-950 to-cyan-500"
-                style={{ height: `${day.value}%` }}
-              />
+
+      {showTable ? (
+        <table className="mt-6 w-full text-left text-sm">
+          <thead className="text-xs font-semibold uppercase text-slate-500">
+            <tr>
+              <th className="border-b border-slate-200 py-2">Day</th>
+              <th className="border-b border-slate-200 py-2">Risk score</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {riskBars.map(day => (
+              <tr key={day.label}>
+                <td className="py-2 font-semibold text-slate-700">{day.label}</td>
+                <td className="py-2 font-bold text-slate-950">{day.value}/100</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="mt-6">
+          <div className="relative h-44 border-b border-slate-200">
+            {[25, 50, 75].map(line => (
+              <div key={line} className="absolute inset-x-0 border-t border-slate-100" style={{ bottom: `${line}%` }} />
+            ))}
+            <div className="relative flex h-full items-end gap-3">
+              {riskBars.map(day => (
+                <div key={day.label} className="group relative flex h-full flex-1 flex-col items-center justify-end">
+                  <div
+                    className="pointer-events-none absolute z-10 hidden -translate-x-1/2 -translate-y-2 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-md group-hover:block"
+                    style={{ left: '50%', bottom: `${day.value}%` }}
+                  >
+                    {day.value}/100
+                  </div>
+                  <div
+                    className={`w-full max-w-6 rounded-t-md transition-colors ${
+                      day.value === peak ? 'bg-cyan-600' : 'bg-cyan-500 group-hover:bg-cyan-600'
+                    }`}
+                    style={{ height: `${day.value}%` }}
+                  />
+                </div>
+              ))}
             </div>
-            <span className="text-xs font-semibold text-slate-500">{day.label}</span>
           </div>
-        ))}
-      </div>
+          <div className="mt-2 flex gap-3">
+            {riskBars.map(day => (
+              <span key={day.label} className="flex-1 text-center text-xs font-semibold text-slate-500">
+                {day.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
 
 function RecommendationPanel() {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-slate-950">AI recommendations</h2>
@@ -534,9 +624,42 @@ function MainContent({ activeTab }) {
     return (
       <div className="space-y-5">
         <div className="grid gap-4 md:grid-cols-3">
-          <KpiCard item={{ label: 'Avg complexity', value: '41', unit: 'score', trend: '+3', trendTone: 'bad', icon: Code2, accent: 'amber' }} />
-          <KpiCard item={{ label: 'Duplicated code', value: '8.7', unit: '%', trend: '-1.1%', trendTone: 'good', icon: GitBranch, accent: 'cyan' }} />
-          <KpiCard item={{ label: 'Circular deps', value: '5', unit: 'loops', trend: '2 new', trendTone: 'bad', icon: AlertTriangle, accent: 'rose' }} />
+          <KpiCard
+            item={{
+              label: 'Avg complexity',
+              value: '41',
+              unit: 'score',
+              trend: '+3',
+              trendTone: 'bad',
+              icon: Code2,
+              accent: 'amber',
+              sparkline: [35, 36, 36, 37, 38, 38, 39, 40, 40, 41, 41, 41],
+            }}
+          />
+          <KpiCard
+            item={{
+              label: 'Duplicated code',
+              value: '8.7',
+              unit: '%',
+              trend: '-1.1%',
+              trendTone: 'good',
+              icon: GitBranch,
+              accent: 'cyan',
+              sparkline: [11, 10.8, 10.5, 10.2, 10, 9.7, 9.5, 9.3, 9.1, 9, 8.8, 8.7],
+            }}
+          />
+          <KpiCard
+            item={{
+              label: 'Circular deps',
+              value: '5',
+              unit: 'loops',
+              trend: '2 new',
+              trendTone: 'bad',
+              icon: AlertTriangle,
+              accent: 'rose',
+              sparkline: [2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5],
+            }}
+          />
         </div>
         <DebtTable />
       </div>
@@ -547,7 +670,7 @@ function MainContent({ activeTab }) {
     return (
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <DriftPanel />
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
           <h2 className="text-base font-bold text-slate-950">Documentation coverage</h2>
           <p className="mt-1 text-sm text-slate-500">Coverage by repository area.</p>
           <div className="mt-6 space-y-4">
@@ -562,8 +685,8 @@ function MainContent({ activeTab }) {
                   <span className="font-semibold text-slate-700">{label}</span>
                   <span className="font-bold text-slate-950">{value}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-cyan-600" style={{ width: `${value}%` }} />
+                <div className="h-2 rounded-full bg-cyan-100">
+                  <div className="h-full rounded-full bg-cyan-500" style={{ width: `${value}%` }} />
                 </div>
               </div>
             ))}
@@ -706,9 +829,9 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 <span>Workspace</span>
                 <span>/</span>
                 <span className="text-slate-950">{repository.name}</span>
-                <Badge variant={severityVariant(repository.risk)} className="capitalize">
+                <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${severityClass(repository.risk)}`}>
                   {repository.risk} risk
-                </Badge>
+                </span>
               </div>
               <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Engineering intelligence dashboard</h1>
             </div>
@@ -754,7 +877,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         </header>
 
         <main className="mx-auto min-w-0 max-w-[1600px] px-4 py-5 sm:px-6">
-          <section className="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
             <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(18rem,1fr)_minmax(22rem,1.2fr)_auto] 2xl:items-end">
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-slate-700">Repository</span>
@@ -762,7 +885,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                   <Select
                     value={selectedRepo}
                     onChange={event => setSelectedRepo(event.target.value)}
-                    className="appearance-none pr-10"
+                    className="appearance-none border-slate-200 bg-white pr-10 text-slate-900 focus:border-cyan-400 focus:ring-cyan-100"
                   >
                     {repositories.map(item => (
                       <option key={item.name} value={item.name}>
@@ -782,7 +905,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                     value={repoUrl}
                     onChange={event => setRepoUrl(event.target.value)}
                     placeholder="https://github.com/company/repository"
-                    className="px-10"
+                    className="border-slate-200 bg-white px-10 text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:ring-cyan-100"
                   />
                   <Search size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 </span>
