@@ -10,7 +10,7 @@ export default defineConfig({
   root: frontendRoot,
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: '../dist',
+    outDir: './dist',
     emptyOutDir: true,
   },
   server: {
