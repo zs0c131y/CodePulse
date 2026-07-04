@@ -46,6 +46,11 @@ backend/
     └── app.js                          # Express app setup and middleware wiring
 ```
 
+`backend/dist/` is the built frontend (Vite `outDir`, see
+[frontend/vite.config.js](../../frontend/vite.config.js)). It is
+git-ignored and only produced by `npm run build`; it does not exist in a
+fresh checkout and is never required for local development.
+
 [backend/src/utils/env.js](../../backend/src/utils/env.js) loads `backend/.env`
 via `dotenv`, resolving the path relative to its own file location (not
 `process.cwd()`, which would break when launched from a different working
@@ -109,6 +114,37 @@ unless the fallback webhook is configured.
 * The Vite dev server proxies `/api` and `/auth` requests to the backend.
 * In local development, verification and reset links are logged to the backend
   console and returned in the API response for convenience.
+
+---
+
+## 🚀 Production
+
+`NODE_ENV=production` (`IS_PRODUCTION` in
+[backend/src/config/index.js](../../backend/src/config/index.js)) switches the
+backend from an API-only server into one that also serves the built frontend:
+
+1. Build the frontend from the repo root: `npm run build`. This runs
+   `vite build` with `outDir: '../backend/dist'`
+   (see [frontend/vite.config.js](../../frontend/vite.config.js)), so the
+   compiled HTML/JS/CSS land in `backend/dist/`, next to `index.js`.
+2. Start the backend with `NODE_ENV=production node backend/index.js`.
+   [backend/src/app.js](../../backend/src/app.js) then:
+   * Serves static files (JS, CSS, images) from `backend/dist/` via
+     `express.static`.
+   * Falls back to `backend/dist/index.html` for any unmatched **GET**
+     request whose path does not start with `/api` or `/auth` — this lets
+     the client-side router handle deep links (e.g. a browser refresh on
+     `/dashboard`) instead of 404ing.
+   * Unmatched `/api/*` and `/auth/*` requests still fall through to the
+     JSON `404` handler, so a bad API call never gets the HTML shell back.
+
+This behavior is entirely gated on `IS_PRODUCTION` — in local development
+(`npm run dev`), the Vite dev server on `:5174` serves the frontend and
+proxies `/api`/`/auth` to the backend instead, and `backend/dist/` is never
+read (it doesn't need to exist).
+
+`backend/dist/` is git-ignored; each deploy must run `npm run build` before
+starting the backend in production.
 
 ---
 
