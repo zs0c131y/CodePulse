@@ -83,7 +83,7 @@ const trust = [
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
+    <section className="relative flex min-h-screen items-center overflow-hidden pt-16">
       {/* Background */}
       <div className="absolute inset-0 bg-[#030309]">
         <div className="absolute inset-0 grid-bg opacity-60" />
@@ -92,7 +92,7 @@ export default function Hero() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-200 bg-violet-900/5 rounded-full blur-[200px] pointer-events-none" />
       </div>
 
-      <div className="relative max-w-6xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center w-full">
+      <div className="cp-container relative grid w-full grid-cols-1 items-center gap-12 py-16 sm:py-20 lg:grid-cols-2 lg:gap-16 xl:py-24 2xl:gap-20 2xl:py-28">
 
         {/* Left column — copy */}
         <div className="space-y-8 animate-fade-up">
@@ -104,35 +104,35 @@ export default function Hero() {
 
           {/* Headline */}
           <div className="space-y-2">
-            <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.05] tracking-tight text-white">
+            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl 2xl:text-7xl">
               Your codebase<br />
               has a{' '}
               <span className="gradient-text">pulse.</span>
             </h1>
-            <h2 className="text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.05] tracking-tight text-white/40">
+            <h2 className="text-4xl font-bold leading-[1.05] tracking-tight text-white/40 sm:text-5xl lg:text-6xl 2xl:text-7xl">
               Are you listening?
             </h2>
           </div>
 
           {/* Subtext */}
-          <p className="text-lg text-slate-400 leading-relaxed max-w-lg">
+          <p className="max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg lg:max-w-lg 2xl:max-w-xl">
             CodePulse continuously analyzes your repositories — detecting knowledge drift,
             quantifying technical debt, and generating AI-powered recommendations before
             small problems become engineering crises.
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col gap-3 min-[420px]:flex-row">
             <a
               href="/signup"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white bg-linear-to-r from-violet-600 to-cyan-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-600/25"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-6 py-3 font-semibold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.02] hover:opacity-90 active:scale-[0.98]"
             >
               Get Early Access
               <ArrowRight size={16} />
             </a>
             <a
               href="#how-it-works"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-slate-300 glass hover:text-white hover:border-white/15 transition-all"
+              className="glass inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-medium text-slate-300 transition-all hover:border-white/15 hover:text-white"
             >
               See How It Works
             </a>
@@ -172,7 +172,7 @@ export default function Hero() {
             </div>
 
             {/* Score + ECG */}
-            <div className="flex items-center gap-5">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
               <HealthRing score={87} />
               <div className="flex-1 min-w-0 space-y-2">
                 <p className="text-xs text-slate-500 font-medium">Real-time activity</p>
@@ -182,7 +182,7 @@ export default function Hero() {
             </div>
 
             {/* Metrics row */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
               {metrics.map(m => (
                 <div key={m.label} className={`border rounded-xl p-3 text-center space-y-1 ${m.bg}`}>
                   <p className={`text-base font-bold ${m.color}`}>{m.value}</p>
@@ -205,7 +205,7 @@ export default function Hero() {
             </div>
 
             {/* Bottom row */}
-            <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-white/5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-1 text-xs text-slate-500">
               <span>4 repos connected</span>
               <span className="text-violet-400 hover:text-violet-300 cursor-pointer transition-colors">View full report →</span>
             </div>

@@ -14,8 +14,8 @@ export default function Footer() {
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-150 h-50 bg-violet-900/5 rounded-full blur-[80px]" />
       </div>
 
-      <div className="relative max-w-6xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-10">
+      <div className="cp-container relative py-16">
+        <div className="grid grid-cols-1 gap-10 min-[420px]:grid-cols-2 md:grid-cols-5 2xl:gap-12">
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <a href="#" className="flex items-center gap-2 group">
@@ -68,11 +68,11 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-16 pt-6 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 text-center md:flex-row md:text-left">
           <p className="text-slate-600 text-sm">
             © {new Date().getFullYear()} CodePulse, Inc. All rights reserved.
           </p>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 md:justify-end">
             {['Terms', 'Privacy', 'Cookies', 'Security'].map(item => (
               <a
                 key={item}

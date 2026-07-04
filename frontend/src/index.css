@@ -52,6 +52,67 @@
   .animate-fade-up { animation: fade-up 0.7s ease-out forwards; }
   .animate-glow-pulse { animation: glow-pulse 2.5s ease-in-out infinite; }
 
+  .cp-container {
+    width: min(100% - 2rem, 80rem);
+    margin-inline: auto;
+  }
+
+  .cp-dashboard-main {
+    width: min(100% - 2rem, 100rem);
+    margin-inline: auto;
+  }
+
+  .cp-section {
+    padding-block: 5rem;
+  }
+
+  @media (min-width: 640px) {
+    .cp-container,
+    .cp-dashboard-main {
+      width: min(100% - 3rem, 80rem);
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .cp-container {
+      width: min(100% - 4rem, 88rem);
+    }
+
+    .cp-section {
+      padding-block: 7rem;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    .cp-container {
+      width: min(100% - 5rem, 96rem);
+    }
+
+    .cp-dashboard-main {
+      width: min(100% - 5rem, 112rem);
+    }
+  }
+
+  @media (min-width: 1920px) {
+    .cp-container {
+      width: min(100% - 8rem, 104rem);
+    }
+
+    .cp-dashboard-main {
+      width: min(100% - 8rem, 128rem);
+    }
+  }
+
+  @media (min-width: 2560px) {
+    .cp-container {
+      width: min(100% - 12rem, 112rem);
+    }
+
+    .cp-dashboard-main {
+      width: min(100% - 12rem, 144rem);
+    }
+  }
+
   .gradient-text {
     background: linear-gradient(135deg, #a78bfa 0%, #38bdf8 100%);
     -webkit-background-clip: text;

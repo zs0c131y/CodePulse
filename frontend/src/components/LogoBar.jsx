@@ -11,7 +11,7 @@ const companies = [
 export default function LogoBar() {
   return (
     <section className="py-16 border-y border-white/5 relative overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6 text-center space-y-8">
+      <div className="cp-container text-center space-y-8">
         <p className="text-sm text-slate-500 uppercase tracking-widest font-medium">
           Trusted by engineering teams at forward-thinking companies
         </p>

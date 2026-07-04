@@ -401,7 +401,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
       </div>
 
       <header className="relative z-10">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+        <div className="cp-container flex h-16 items-center justify-between">
           <a href="/" className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/20">
               <Activity size={17} strokeWidth={2.5} className="text-white" />
@@ -437,7 +437,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl grid-cols-1 items-center gap-10 px-6 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
+      <main className="cp-container relative z-10 grid min-h-[calc(100vh-4rem)] grid-cols-1 items-center gap-10 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-16 2xl:gap-14">
         <section className="relative order-2 lg:order-1">
           <div className="absolute -left-8 top-8 hidden h-40 w-40 rotate-12 rounded-4xl border border-cyan-400/20 lg:block" />
           <div className="absolute -bottom-8 right-8 hidden h-32 w-32 -rotate-12 rounded-4xl border border-violet-400/20 lg:block" />
@@ -455,7 +455,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
               </span>
             </div>
 
-            <div className="grid gap-3 py-5 sm:grid-cols-3">
+            <div className="grid gap-3 py-5 min-[420px]:grid-cols-3">
               {insights.map(item => (
                 <div key={item.label} className={`rounded-2xl border p-4 ${chipClass}`}>
                   <p className={`text-2xl font-bold ${item.tone}`}>{item.value}</p>
@@ -476,7 +476,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                 <div className="h-3 overflow-hidden rounded-full bg-current/10">
                   <div className="h-full w-[86%] rounded-full bg-linear-to-r from-violet-500 via-cyan-400 to-emerald-400" />
                 </div>
-                <div className="grid grid-cols-8 gap-1">
+                <div className="grid grid-cols-6 gap-1 sm:grid-cols-8">
                   {Array.from({ length: 24 }).map((_, index) => (
                     <span
                       key={index}
@@ -521,7 +521,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
             {showProviderButtons && (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
                   <a
                     href={`${import.meta.env.VITE_API_BASE_URL || ''}/auth/github`}
                     className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${

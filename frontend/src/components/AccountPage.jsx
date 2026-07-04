@@ -161,7 +161,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
 
   return (
     <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-[#10131a] text-white lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-[#10131a] text-white lg:flex lg:flex-col 2xl:w-72">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-5">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-slate-950">
             <Activity size={18} strokeWidth={2.5} />
@@ -211,10 +211,10 @@ function AccountShell({ mode, user, status, onLogout, children }) {
         </div>
       </aside>
 
-      <div className="min-w-0 lg:pl-64">
+      <div className="min-w-0 lg:pl-64 2xl:pl-72">
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/92 backdrop-blur">
-          <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            <div>
+          <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 2xl:px-8">
+            <div className="min-w-0">
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                 <a href="/dashboard" className="inline-flex items-center gap-1 hover:text-slate-950">
                   <ArrowLeft size={14} />
@@ -228,7 +228,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
               </h1>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <Button
                 href="/profile"
                 asChild
@@ -254,7 +254,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
           </div>
         </header>
 
-        <main className="mx-auto min-w-0 max-w-[1600px] px-4 py-5 sm:px-6">{children}</main>
+        <main className="cp-dashboard-main min-w-0 py-5 sm:py-6 2xl:py-8">{children}</main>
       </div>
     </div>
   )
@@ -267,7 +267,7 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
   }, [name, profile])
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-[112rem] space-y-5">
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         <div className="bg-linear-to-r from-slate-950 via-slate-900 to-cyan-950 px-5 py-8 text-white sm:px-7">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -294,7 +294,7 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr] 2xl:grid-cols-[1.15fr_0.85fr] 2xl:gap-6">
         <form className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md" onSubmit={onSave}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
@@ -406,7 +406,7 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
 
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
             <h2 className="text-base font-bold text-slate-950">Usage snapshot</h2>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
               {[
                 ['3', 'Repositories'],
                 ['12', 'AI actions'],
@@ -428,7 +428,7 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
 
 function SettingsPage({ settings, setSettings, onSave, saving, message, error }) {
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto max-w-[112rem] space-y-5">
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -451,12 +451,12 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr] 2xl:grid-cols-[0.8fr_1.2fr] 2xl:gap-6">
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-bold text-slate-950">Interface</h2>
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             <Field label="Theme" icon={Monitor}>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
                 {[
                   ['system', Monitor, 'System'],
                   ['light', Sun, 'Light'],

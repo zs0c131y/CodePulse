@@ -29,19 +29,19 @@ const problems = [
 
 export default function Problems() {
   return (
-    <section className="py-28 relative overflow-hidden">
+    <section className="cp-section relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-100 bg-rose-900/5 rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative max-w-6xl mx-auto px-6 space-y-16">
+      <div className="cp-container relative space-y-16">
         {/* Heading */}
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-300 text-sm font-medium">
             The Problem
           </div>
-          <h2 className="text-4xl lg:text-5xl font-bold text-white leading-tight tracking-tight">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
             Software repositories get sick.
             <br />
             <span className="text-slate-500">Most teams don't know until it's too late.</span>
@@ -52,7 +52,7 @@ export default function Problems() {
         </div>
 
         {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 2xl:gap-8">
           {problems.map(({ Icon, color, bg, title, body }) => (
             <div
               key={title}
@@ -69,7 +69,7 @@ export default function Problems() {
 
         {/* Divider quote */}
         <div className="text-center max-w-2xl mx-auto">
-          <p className="text-2xl font-medium text-slate-300 leading-relaxed italic">
+          <p className="text-xl font-medium leading-relaxed text-slate-300 sm:text-2xl">
             "CodePulse is to software repositories what a health-monitoring system is to the human body — it continuously analyzes, diagnoses, and recommends actions."
           </p>
         </div>
