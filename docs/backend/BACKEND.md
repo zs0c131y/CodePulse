@@ -61,7 +61,9 @@ and persisting metadata.
 
 Repository analysis shells out to the `git` executable for cloning and commit
 history extraction. Local development requires Git on `PATH`; the production
-Docker image installs Git in the runtime layer.
+Docker image installs Git in the runtime layer. The production image uses the
+Node 24 Alpine image family and installs only backend production dependencies
+in the runtime stage.
 
 [backend/src/utils/env.js](../../backend/src/utils/env.js) loads `backend/.env`
 via `dotenv`, resolving the path relative to its own file location (not
