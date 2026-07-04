@@ -34,18 +34,18 @@ const stars = Array(5).fill('★')
 
 export default function Testimonials() {
   return (
-    <section className="py-28 relative overflow-hidden">
+    <section className="cp-section relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-175 h-125 bg-violet-900/8 rounded-full blur-[150px]" />
       </div>
 
-      <div className="relative max-w-6xl mx-auto px-6 space-y-16">
+      <div className="cp-container relative space-y-16">
         {/* Heading */}
         <div className="text-center max-w-2xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-sm font-medium">
             Testimonials
           </div>
-          <h2 className="text-4xl lg:text-5xl font-bold text-white leading-tight tracking-tight">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
             Engineering teams love CodePulse
           </h2>
           <p className="text-lg text-slate-400">
@@ -54,7 +54,7 @@ export default function Testimonials() {
         </div>
 
         {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 2xl:gap-8">
           {testimonials.map(({ quote, name, role, company, avatar, gradient }) => (
             <div
               key={name}

@@ -20,6 +20,28 @@ wiring for CodePulse.
 
 ---
 
+## Responsive Layout
+
+Shared responsive utilities live in
+[frontend/src/index.css](../../frontend/src/index.css):
+
+* `cp-container` is used by landing and auth screens. It keeps mobile gutters
+  compact, then increases usable width through desktop, ultrawide, and 4K
+  breakpoints without letting marketing copy become too wide to scan.
+* `cp-dashboard-main` is used by authenticated workspace screens. It preserves
+  mobile-safe gutters, then expands dashboard content up to a 4K-friendly
+  maximum so tables, repository scan controls, and settings forms have more
+  working room on large displays.
+* `cp-section` standardizes landing-page vertical rhythm across mobile,
+  desktop, and high-resolution screens.
+
+Landing, auth, dashboard, profile, and settings layouts are mobile-first. Dense
+workspace views switch from one-column layouts to two- or multi-column grids
+only after enough viewport width is available, and small-screen controls wrap
+instead of forcing page-level horizontal scrolling.
+
+---
+
 ## 📂 Frontend Directory Structure
 
 ```text

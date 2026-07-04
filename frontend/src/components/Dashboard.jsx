@@ -1028,7 +1028,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
 
   return (
     <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-[#10131a] text-white lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-[#10131a] text-white lg:flex lg:flex-col 2xl:w-72">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-5">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-slate-950">
             <Activity size={18} strokeWidth={2.5} />
@@ -1094,9 +1094,9 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         </div>
       </aside>
 
-      <div className="min-w-0 lg:pl-64">
+      <div className="min-w-0 lg:pl-64 2xl:pl-72">
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/92 backdrop-blur">
-          <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 2xl:px-8">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                 <span>Workspace</span>
@@ -1109,7 +1109,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Engineering intelligence dashboard</h1>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <span className="group relative inline-flex">
                 <Button
                   type="button"
@@ -1176,9 +1176,9 @@ export default function Dashboard({ user, accessToken, onLogout }) {
           </div>
         </header>
 
-        <main className="mx-auto min-w-0 max-w-[1600px] px-4 py-5 sm:px-6">
+        <main className="cp-dashboard-main min-w-0 py-5 sm:py-6 2xl:py-8">
           <section className="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-            <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(18rem,1fr)_minmax(22rem,1.2fr)_auto] 2xl:items-end">
+            <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(18rem,0.9fr)_minmax(22rem,1.3fr)_auto] xl:items-end 2xl:grid-cols-[minmax(20rem,0.85fr)_minmax(26rem,1.35fr)_auto]">
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-slate-700">Repository</span>
                 <span className="relative block">
@@ -1245,7 +1245,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             )}
 
             {scanSummary && !scanError && (
-              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+              <div className="mt-4 grid gap-3 text-sm min-[420px]:grid-cols-2 lg:grid-cols-5 2xl:gap-4">
                 {[
                   ['Files', scanSummary.totalFiles],
                   ['Docs', scanSummary.totalDocumentation],

@@ -53,7 +53,7 @@ const features = [
 
 export default function Features() {
   return (
-    <section id="features" className="py-28 relative overflow-hidden">
+    <section id="features" className="cp-section relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-200 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-200 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
@@ -61,13 +61,13 @@ export default function Features() {
         <div className="absolute top-1/3 right-1/4 w-75 h-75 bg-cyan-500/5 rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative max-w-6xl mx-auto px-6 space-y-16">
+      <div className="cp-container relative space-y-16">
         {/* Heading */}
         <div className="text-center max-w-2xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-300 text-sm font-medium">
             Features
           </div>
-          <h2 className="text-4xl lg:text-5xl font-bold text-white leading-tight tracking-tight">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
             Everything you need to understand your codebase
           </h2>
           <p className="text-lg text-slate-400 leading-relaxed">
@@ -77,7 +77,7 @@ export default function Features() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 2xl:gap-6">
           {features.map(({ Icon, gradient, glow, title, body, tag }) => (
             <div
               key={title}

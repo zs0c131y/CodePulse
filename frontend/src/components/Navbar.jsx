@@ -26,7 +26,7 @@ export default function Navbar() {
           : 'bg-transparent'
       }`}
     >
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="cp-container h-16 flex items-center justify-between">
         {/* Logo */}
         <a href="#" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-lg bg-linear-to-br from-violet-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-violet-600/20 group-hover:shadow-violet-600/40 transition-shadow">
@@ -82,7 +82,7 @@ export default function Navbar() {
           open ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="bg-[#030309]/95 backdrop-blur-2xl border-b border-white/6 px-6 py-4 flex flex-col gap-1">
+        <div className="bg-[#030309]/95 backdrop-blur-2xl border-b border-white/6 px-4 py-4 flex flex-col gap-1 sm:px-6">
           {links.map(l => (
             <a
               key={l.label}
