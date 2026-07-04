@@ -59,6 +59,10 @@ modules for cloning repositories, parsing files, extracting documentation,
 reading commit history, building a basic dependency graph, orchestrating scans,
 and persisting metadata.
 
+Repository analysis shells out to the `git` executable for cloning and commit
+history extraction. Local development requires Git on `PATH`; the production
+Docker image installs Git in the runtime layer.
+
 [backend/src/utils/env.js](../../backend/src/utils/env.js) loads `backend/.env`
 via `dotenv`, resolving the path relative to its own file location (not
 `process.cwd()`, which would break when launched from a different working

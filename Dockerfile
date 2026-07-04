@@ -14,6 +14,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+RUN apk add --no-cache git
+
 COPY backend/package*.json ./
 RUN npm ci 
 

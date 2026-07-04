@@ -69,6 +69,7 @@ export async function runGit(args, options = {}) {
   try {
     const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: options.cwd,
+      env: options.env || process.env,
       timeout: options.timeoutMs || REPOSITORY_CLONE_TIMEOUT_MS,
       maxBuffer: options.maxBuffer || 10 * 1024 * 1024,
       killSignal: 'SIGKILL',
@@ -77,6 +78,14 @@ export async function runGit(args, options = {}) {
 
     return { stdout, stderr }
   } catch (error) {
+    if (error.code === 'ENOENT') {
+      const wrapped = new Error('Git is not installed or is not available on PATH.')
+      wrapped.statusCode = 503
+      wrapped.code = error.code
+      wrapped.cause = error
+      throw wrapped
+    }
+
     const details = String(error.stderr || error.message || '').trim()
     const wrapped = new Error(details || 'Git command failed.')
     wrapped.code = error.code

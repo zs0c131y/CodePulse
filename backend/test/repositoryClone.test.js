@@ -9,6 +9,7 @@ import {
   assertRepositorySizeAllowed,
   cloneRepository,
   parseGitHubRepositoryUrl,
+  runGit,
   validatePublicGitHubRepositoryUrl,
 } from '../src/features/repositories/services/gitClient.js'
 
@@ -103,5 +104,16 @@ test('allows unlimited repository size when the size limit is zero', async () =>
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('returns a service error when git is unavailable', async () => {
+  await assert.rejects(
+    () => runGit(['--version'], { env: { PATH: '' } }),
+    error => {
+      assert.equal(error.statusCode, 503)
+      assert.match(error.message, /Git is not installed/i)
+      return true
+    },
+  )
 })
 
