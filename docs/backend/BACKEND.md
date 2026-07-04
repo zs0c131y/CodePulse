@@ -46,7 +46,8 @@ backend/
     └── app.js                          # Express app setup and middleware wiring
 ```
 
-`backend/dist/` is the built frontend (Vite `outDir`, see
+`dist/` (project root, alongside `backend/` and `frontend/`) is the built
+frontend (Vite `outDir`, see
 [frontend/vite.config.js](../../frontend/vite.config.js)). It is
 git-ignored and only produced by `npm run build`; it does not exist in a
 fresh checkout and is never required for local development.
@@ -124,14 +125,15 @@ unless the fallback webhook is configured.
 backend from an API-only server into one that also serves the built frontend:
 
 1. Build the frontend from the repo root: `npm run build`. This runs
-   `vite build` with `outDir: '../backend/dist'`
+   `vite build` with `outDir: '../dist'`
    (see [frontend/vite.config.js](../../frontend/vite.config.js)), so the
-   compiled HTML/JS/CSS land in `backend/dist/`, next to `index.js`.
+   compiled HTML/JS/CSS land in `dist/` at the project root, alongside
+   `backend/` and `frontend/`.
 2. Start the backend with `NODE_ENV=production node backend/index.js`.
    [backend/src/app.js](../../backend/src/app.js) then:
-   * Serves static files (JS, CSS, images) from `backend/dist/` via
+   * Serves static files (JS, CSS, images) from `dist/` via
      `express.static`.
-   * Falls back to `backend/dist/index.html` for any unmatched **GET**
+   * Falls back to `dist/index.html` for any unmatched **GET**
      request whose path does not start with `/api` or `/auth` — this lets
      the client-side router handle deep links (e.g. a browser refresh on
      `/dashboard`) instead of 404ing.
@@ -140,10 +142,10 @@ backend from an API-only server into one that also serves the built frontend:
 
 This behavior is entirely gated on `IS_PRODUCTION` — in local development
 (`npm run dev`), the Vite dev server on `:5174` serves the frontend and
-proxies `/api`/`/auth` to the backend instead, and `backend/dist/` is never
+proxies `/api`/`/auth` to the backend instead, and `dist/` is never
 read (it doesn't need to exist).
 
-`backend/dist/` is git-ignored; each deploy must run `npm run build` before
+`dist/` is git-ignored; each deploy must run `npm run build` before
 starting the backend in production.
 
 ---
