@@ -665,6 +665,7 @@ Large repositories are guarded before and during analysis:
 
 Repository Intelligence is implemented. The following services are still
 planned and should remain behind backend API boundaries when implemented:
+
 * **Knowledge Drift Detection Engine**: Compare documentation against current
   source structure and flag drift findings.
 * **Technical Debt Analyzer**: Compute complexity, churn, duplication, and
