@@ -28,6 +28,12 @@ The MongoDB collection schema lives in:
 * [backend/schema/db_schema.js](../../backend/schema/db_schema.js)
 * [docs/database/MONGODB_SCHEMA.md](MONGODB_SCHEMA.md)
 
+Repository Intelligence metadata is written by
+[backend/src/features/repositories/services/repositoryStore.js](../../backend/src/features/repositories/services/repositoryStore.js).
+Repeated scans of the same `user_id` and `repo_url` update the repository
+record and replace the related file, documentation, commit, and dependency
+records for that repository.
+
 ---
 
 ## Entity Relationship Overview
@@ -133,11 +139,16 @@ Stores high-level metadata for tracked repositories.
 
 * `user_id`: Owner reference to `users`.
 * `repo_name`: Repository name.
+* `repo_full_name`: Owner/name identifier when available from GitHub.
 * `repo_url`: Git clone URL.
+* `clone_url`: Normalized Git clone URL used by the analyzer.
 * `default_branch`: Primary scanned branch.
 * `total_files`: Parsed file count.
 * `total_commits`: Parsed commit count.
+* `total_dependencies`: Parsed dependency edge count.
+* `total_documentation`: Parsed documentation file count.
 * `created_at`: Repository registration timestamp.
+* `updated_at`: Most recent scan timestamp.
 
 ### `repo_files`
 
@@ -145,9 +156,12 @@ Stores files analyzed during repository intelligence.
 
 * `repository_id`: Parent repository reference.
 * `file_path`: Repository-relative path.
+* `file_name`: File basename.
+* `extension`: Lowercased file extension.
 * `file_type`: Code, config, documentation, asset, etc.
 * `language`: Detected programming language.
 * `size`: File size in bytes.
+* `depth`: Repository-relative path depth.
 
 ### `commits`
 
@@ -156,8 +170,10 @@ Stores git commit metadata for churn and ownership analysis.
 * `repository_id`: Parent repository reference.
 * `commit_hash`: Git commit hash.
 * `author`: Git author name or email.
+* `author_email`: Git author email.
 * `message`: Commit message.
 * `commit_date`: Commit timestamp.
+* `changed_files`: Repository-relative files changed by the commit.
 
 ### `dependencies`
 
@@ -167,6 +183,8 @@ Stores file-to-file dependency edges.
 * `source_file`: Importing file.
 * `target_file`: Imported file.
 * `dependency_type`: Import, require, package dependency, etc.
+* `import_path`: Raw import specifier found in the source file.
+* `resolved`: Whether the import was resolved to an internal repository file.
 
 ### `documentation`
 
@@ -174,7 +192,12 @@ Stores parsed documentation entries.
 
 * `repository_id`: Parent repository reference.
 * `doc_path`: Documentation file path.
+* `file_name`: Documentation file basename.
+* `documentation_type`: README, changelog, API doc, guide, license, etc.
 * `content_summary`: Summary or semantic representation.
+* `content`: Extracted documentation text, capped for large files.
+* `size`: Source file size in bytes.
+* `truncated`: Whether stored content was capped during extraction.
 
 ### `drift_findings`
 

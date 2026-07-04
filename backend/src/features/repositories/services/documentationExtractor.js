@@ -1,0 +1,92 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
+const documentationDirectories = new Set(['docs', 'doc', 'documentation', 'wiki'])
+const namedDocumentationFiles = [
+  /^readme(?:\.[^.]+)?$/i,
+  /^changelog(?:\.[^.]+)?$/i,
+  /^changes(?:\.[^.]+)?$/i,
+  /^contributing(?:\.[^.]+)?$/i,
+  /^license(?:\.[^.]+)?$/i,
+  /^api(?:\.[^.]+)?$/i,
+]
+const maxContentBytes = 1024 * 1024
+
+function normalizeWhitespace(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim()
+}
+
+function absolutePathFromRepo(repositoryPath, relativePath) {
+  return join(repositoryPath, ...relativePath.split('/'))
+}
+
+export function getDocumentationType(filePath) {
+  const parts = filePath.split('/')
+  const fileName = parts.at(-1) || ''
+  const lowerName = fileName.toLowerCase()
+
+  if (lowerName.startsWith('readme')) return 'readme'
+  if (lowerName.startsWith('changelog') || lowerName.startsWith('changes')) return 'changelog'
+  if (lowerName.startsWith('contributing')) return 'contributing'
+  if (lowerName.startsWith('license')) return 'license'
+  if (lowerName.startsWith('api')) return 'api'
+  if (parts.some(part => documentationDirectories.has(part.toLowerCase()))) return 'guide'
+
+  return 'documentation'
+}
+
+export function isDocumentationCandidate(file) {
+  const pathParts = file.path.split('/')
+  const fileName = pathParts.at(-1) || ''
+
+  return (
+    file.file_type === 'documentation' ||
+    namedDocumentationFiles.some(pattern => pattern.test(fileName)) ||
+    pathParts.some(part => documentationDirectories.has(part.toLowerCase()))
+  )
+}
+
+export function summarizeDocumentation(content) {
+  const lines = String(content || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+
+  const heading = lines.find(line => /^#{1,6}\s+\S/.test(line))
+
+  if (heading) {
+    return normalizeWhitespace(heading.replace(/^#{1,6}\s+/, '')).slice(0, 280)
+  }
+
+  return normalizeWhitespace(lines.join(' ')).slice(0, 280)
+}
+
+export async function extractDocumentation(repositoryPath, files) {
+  const docs = []
+
+  for (const file of files.filter(isDocumentationCandidate)) {
+    const absolutePath = absolutePathFromRepo(repositoryPath, file.path)
+    const buffer = await readFile(absolutePath)
+    const truncated = buffer.length > maxContentBytes
+    const content = buffer.subarray(0, maxContentBytes).toString('utf8')
+
+    docs.push({
+      doc_path: file.path,
+      file_name: file.name,
+      documentation_type: getDocumentationType(file.path),
+      content,
+      content_summary: summarizeDocumentation(content),
+      size: file.size,
+      truncated,
+    })
+  }
+
+  return docs.sort((left, right) => {
+    const a = left.doc_path.toLowerCase()
+    const b = right.doc_path.toLowerCase()
+    if (a < b) return -1
+    if (a > b) return 1
+    return left.doc_path < right.doc_path ? -1 : Number(left.doc_path > right.doc_path)
+  })
+}
+
