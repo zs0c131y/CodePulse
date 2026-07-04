@@ -39,7 +39,7 @@ npm run dev
 ```
 
 The frontend runs through Vite and proxies `/api` and `/auth` calls to the
-backend API on `http://localhost:5000`.
+backend API on `http://localhost:3000`.
 
 ## Documentation
 

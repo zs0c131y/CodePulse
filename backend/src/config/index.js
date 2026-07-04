@@ -11,7 +11,7 @@ export const resetTokenTtlMs = 60 * 60 * 1000
 export const loginLockTtlMs = 15 * 60 * 1000
 export const maxLoginFailures = 5
 export const ALLOWED_ORIGINS = new Set(
-  (process.env.ALLOWED_ORIGINS || 'http://localhost:5174,http://127.0.0.1:5174')
+  (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean),
@@ -85,8 +85,8 @@ configureLocalDns(MONGO_URI)
 
 // --- Public URLs (frontend/backend, used for redirects and OAuth callbacks) ---
 
-export const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5174').replace(/\/+$/, '')
-export const BACKEND_URL = (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '')
+export const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')
+export const BACKEND_URL = (process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '')
 
 // --- OAuth provider credentials (optional — null when not configured) ---
 

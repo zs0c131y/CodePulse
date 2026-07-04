@@ -21,6 +21,6 @@ COPY backend/ ./
 
 COPY --from=frontend /app/dist ./dist
 
-EXPOSE 5000
+EXPOSE 3000
 
 CMD ["node", "index.js"]

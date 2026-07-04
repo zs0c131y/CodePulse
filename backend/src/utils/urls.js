@@ -16,7 +16,7 @@ export const gitlabCallbackUrl = `${BACKEND_URL}/auth/gitlab/callback`
 /**
  * Build a frontend client-side route link with an optional token query
  * parameter. Example: buildFrontendLink('verify-email', 'abc123') →
- *   http://localhost:5174/verify-email?token=abc123
+ *   http://localhost:5173/verify-email?token=abc123
  */
 export function buildFrontendLink(routePath, token) {
   if (token) {

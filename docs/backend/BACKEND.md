@@ -95,9 +95,9 @@ Authentication also reads:
 
 * `JWT_SECRET`: required in production for signed access tokens.
 * `FRONTEND_URL`: public frontend URL used to build verification/reset links
-  and OAuth redirect targets (`http://localhost:5174` local fallback).
+  and OAuth redirect targets (`http://localhost:5173` local fallback).
 * `BACKEND_URL`: public backend URL used to build OAuth callback URLs
-  (`http://localhost:5000` local fallback). See
+  (`http://localhost:3000` local fallback). See
   [backend/src/utils/urls.js](../../backend/src/utils/urls.js) for the derived
   callback/link builders.
 * `EMAIL_KEY`: SMTP2GO API key used to send verification and password reset
@@ -113,7 +113,7 @@ Authentication also reads:
 * `AUTH_EMAIL_WEBHOOK_TOKEN`: optional bearer token for the fallback email
   webhook.
 * `ALLOWED_ORIGINS`: comma-separated browser origins allowed to send
-  credentialed API requests (`http://localhost:5174,http://127.0.0.1:5174`
+  credentialed API requests (`http://localhost:5173,http://127.0.0.1:5173`
   local fallback).
 * `GITHUB_ID` / `GITHUB_SECRET`: GitHub OAuth App credentials. GitHub login is
   disabled (`503`) when unset.
@@ -134,7 +134,7 @@ unless the fallback webhook is configured.
 * Run the backend API only with `npm run dev:backend`.
 * Run backend Repository Intelligence fixture tests with `npm test` from the
   repository root, or `npm test` from `backend/`.
-* The API listens on `http://localhost:5000` (`API_PORT` / `PORT` override).
+* The API listens on `http://localhost:3000` (`API_PORT` / `PORT` override).
 * The Vite dev server proxies `/api` and `/auth` requests to the backend.
 * If `MONGO_URI` uses a Docker hostname such as `mongo`, either set
   `MONGO_LOCAL_HOST` (defaults to `127.0.0.1` on Windows) or make sure the
@@ -171,7 +171,7 @@ backend from an API-only server into one that also serves the built frontend:
      JSON `404` handler, so a bad API call never gets the HTML shell back.
 
 This behavior is entirely gated on `IS_PRODUCTION` — in local development
-(`npm run dev`), the Vite dev server on `:5174` serves the frontend and
+(`npm run dev`), the Vite dev server on `:5173` serves the frontend and
 proxies `/api`/`/auth` to the backend instead, and `dist/` is never
 read (it doesn't need to exist).
 
@@ -189,7 +189,7 @@ global request rate limiting, auth-route rate limiting, and Mongo-backed
 brute-force lockouts for repeated failed sign-in attempts. In production,
 startup fails before `app.listen()` if MongoDB indexes cannot be created,
 including the unique email index and auth token indexes. In local development,
-the API still listens on port `5000` in degraded mode and auth routes return
+the API still listens on port `3000` in degraded mode and auth routes return
 `503` until MongoDB connectivity is fixed.
 
 Verification and password reset emails are delivered by SMTP2GO when

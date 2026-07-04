@@ -102,7 +102,7 @@ routes.
   `GET /auth/gitlab` on the backend (full-page navigation, not `fetch`, so the
   browser follows the provider's OAuth consent redirect).
 * Vite proxies `/api` and `/auth` requests to the backend API on
-  `localhost:5000` during development.
+  `localhost:3000` during development.
 * Successful sign-in stores the short-lived access token in React state only.
   The refresh token is held by the backend as a MongoDB session and sent to the
   browser as an `HttpOnly` cookie.
