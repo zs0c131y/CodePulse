@@ -1,7 +1,7 @@
 import dns from 'node:dns'
 import '../utils/env.js'
 
-export const PORT = Number(process.env.API_PORT || process.env.PORT || 5000)
+export const PORT = Number(process.env.API_PORT || process.env.PORT || 3000)
 export const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 export const refreshCookieName = 'codepulse_refresh'
 export const accessTokenTtlSeconds = 15 * 60
