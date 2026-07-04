@@ -73,6 +73,9 @@ CodePulse/
 └── README.md                  # Project overview
 ```
 
+Current backend feature modules include authentication, health checks, and
+Repository Intelligence under `backend/src/features/repositories`.
+
 ---
 
 ## 🛠️ Instructions for Agents & Developers

@@ -7,6 +7,7 @@ import { cors } from './middleware/cors.js'
 import { createRateLimiter } from './middleware/rateLimiter.js'
 import healthRouter from './features/health/router.js'
 import authRouter from './features/auth/router.js'
+import repositoriesRouter from './features/repositories/router.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -25,6 +26,7 @@ app.use(createRateLimiter({ windowMs: 15 * 60 * 1000, max: 300 }))
 
 app.use(healthRouter)
 app.use(authRouter)
+app.use(repositoriesRouter)
 
 // Serve the built frontend in production only. Local development uses the
 // Vite dev server instead (see `npm run dev`), which is never built to disk.

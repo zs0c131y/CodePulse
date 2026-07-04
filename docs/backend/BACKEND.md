@@ -52,6 +52,13 @@ frontend (Vite `outDir`, see
 git-ignored and only produced by `npm run build`; it does not exist in a
 fresh checkout and is never required for local development.
 
+Repository Intelligence is implemented under
+[backend/src/features/repositories](../../backend/src/features/repositories).
+The feature contains a protected router, a request controller, and service
+modules for cloning repositories, parsing files, extracting documentation,
+reading commit history, building a basic dependency graph, orchestrating scans,
+and persisting metadata.
+
 [backend/src/utils/env.js](../../backend/src/utils/env.js) loads `backend/.env`
 via `dotenv`, resolving the path relative to its own file location (not
 `process.cwd()`, which would break when launched from a different working
@@ -125,6 +132,8 @@ unless the fallback webhook is configured.
   starts the Vite frontend and Express backend concurrently.
 * Run the frontend only with `npm run dev:frontend`.
 * Run the backend API only with `npm run dev:backend`.
+* Run backend Repository Intelligence fixture tests with `npm test` from the
+  repository root, or `npm test` from `backend/`.
 * The API listens on `http://localhost:5000` (`API_PORT` / `PORT` override).
 * The Vite dev server proxies `/api` and `/auth` requests to the backend.
 * If `MONGO_URI` uses a Docker hostname such as `mongo`, either set
@@ -545,13 +554,87 @@ landing on `#dashboard`.
 
 ---
 
+## Repository Intelligence API
+
+Implemented in [backend/src/features/repositories](../../backend/src/features/repositories).
+
+The Repository Intelligence feature is the first analytical backend vertical.
+It is exposed through a protected route and requires
+`Authorization: Bearer <accessToken>`.
+
+### `POST /api/repositories/analyze`
+
+Clones a public GitHub repository, parses repository structure, extracts
+documentation, reads recent commit history, builds a basic dependency graph,
+persists metadata in MongoDB, and returns a scan summary.
+
+Request:
+
+```json
+{
+  "repoUrl": "https://github.com/owner/repository",
+  "commitLimit": 100
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Repository analyzed.",
+  "repositoryId": "mongodb-object-id",
+  "summary": {
+    "repository": {
+      "id": "mongodb-object-id",
+      "name": "repository",
+      "fullName": "owner/repository",
+      "url": "https://github.com/owner/repository",
+      "defaultBranch": "main"
+    },
+    "totalDirectories": 12,
+    "totalFiles": 80,
+    "totalDocumentation": 5,
+    "totalCommits": 100,
+    "totalDependencies": 43,
+    "filesByType": {
+      "code": 50,
+      "documentation": 5,
+      "config": 10,
+      "asset": 15
+    }
+  }
+}
+```
+
+Implementation modules:
+
+* [gitClient.js](../../backend/src/features/repositories/services/gitClient.js):
+  validates public GitHub URLs, clones repositories, detects the current
+  branch, and removes clone workspaces after analysis.
+* [fileParser.js](../../backend/src/features/repositories/services/fileParser.js):
+  walks the repository tree, skips ignored directories, and classifies files.
+* [documentationExtractor.js](../../backend/src/features/repositories/services/documentationExtractor.js):
+  reads README, docs, changelog, contributing, license, and API docs.
+* [commitExtractor.js](../../backend/src/features/repositories/services/commitExtractor.js):
+  extracts recent Git commit metadata and changed files.
+* [dependencyGraph.js](../../backend/src/features/repositories/services/dependencyGraph.js):
+  builds a basic JavaScript/TypeScript/Python dependency edge list.
+* [repositoryStore.js](../../backend/src/features/repositories/services/repositoryStore.js):
+  persists repository, file, documentation, commit, and dependency records in
+  MongoDB.
+* [repositoryAnalyzer.js](../../backend/src/features/repositories/services/repositoryAnalyzer.js):
+  orchestrates the full scan pipeline and cleans up temporary clone folders.
+
+The public API validates `https://github.com/...` URLs only. Local fixture
+repositories are supported only in tests through an internal option, not
+through the public API.
+
+---
+
 ## ⚙️ Planned Analytical Services
 
-The following services are still planned and should remain behind backend API
-boundaries when implemented:
-
-* **Repository Intelligence Service**: Clone repositories and extract file,
-  commit, dependency, and documentation metadata.
+Repository Intelligence is implemented. The following services are still
+planned and should remain behind backend API boundaries when implemented:
 * **Knowledge Drift Detection Engine**: Compare documentation against current
   source structure and flag drift findings.
 * **Technical Debt Analyzer**: Compute complexity, churn, duplication, and

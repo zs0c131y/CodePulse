@@ -46,6 +46,31 @@ export async function getOAuthAccountsCollection() {
   return db.collection('oauth_accounts')
 }
 
+export async function getRepositoriesCollection() {
+  const db = await getDatabase()
+  return db.collection('repositories')
+}
+
+export async function getRepoFilesCollection() {
+  const db = await getDatabase()
+  return db.collection('repo_files')
+}
+
+export async function getCommitsCollection() {
+  const db = await getDatabase()
+  return db.collection('commits')
+}
+
+export async function getDependenciesCollection() {
+  const db = await getDatabase()
+  return db.collection('dependencies')
+}
+
+export async function getDocumentationCollection() {
+  const db = await getDatabase()
+  return db.collection('documentation')
+}
+
 export async function ensureIndexes() {
   const users = await getUsersCollection()
   await users.createIndex({ email: 1 }, { unique: true })
@@ -72,6 +97,24 @@ export async function ensureIndexes() {
   const oauthAccounts = await getOAuthAccountsCollection()
   await oauthAccounts.createIndex({ provider: 1, provider_user_id: 1 }, { unique: true })
   await oauthAccounts.createIndex({ user_id: 1 })
+
+  const repositories = await getRepositoriesCollection()
+  await repositories.createIndex({ user_id: 1 })
+  await repositories.createIndex({ user_id: 1, repo_url: 1 }, { unique: true })
+
+  const repoFiles = await getRepoFilesCollection()
+  await repoFiles.createIndex({ repository_id: 1 })
+
+  const commits = await getCommitsCollection()
+  await commits.createIndex({ repository_id: 1 })
+  await commits.createIndex({ commit_hash: 1 }, { unique: true })
+  await commits.createIndex({ commit_date: -1 })
+
+  const dependencies = await getDependenciesCollection()
+  await dependencies.createIndex({ repository_id: 1 })
+
+  const documentation = await getDocumentationCollection()
+  await documentation.createIndex({ repository_id: 1 })
 }
 
 export async function pingDatabase() {

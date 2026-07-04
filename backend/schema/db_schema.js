@@ -295,7 +295,13 @@ db.createCollection("repositories", {
                 repo_name: {
                     bsonType: "string"
                 },
+                repo_full_name: {
+                    bsonType: "string"
+                },
                 repo_url: {
+                    bsonType: "string"
+                },
+                clone_url: {
                     bsonType: "string"
                 },
                 default_branch: {
@@ -307,7 +313,16 @@ db.createCollection("repositories", {
                 total_commits: {
                     bsonType: "int"
                 },
+                total_dependencies: {
+                    bsonType: "int"
+                },
+                total_documentation: {
+                    bsonType: "int"
+                },
                 created_at: {
+                    bsonType: "date"
+                },
+                updated_at: {
                     bsonType: "date"
                 }
             }
@@ -316,6 +331,7 @@ db.createCollection("repositories", {
 });
 
 db.repositories.createIndex({ user_id: 1 });
+db.repositories.createIndex({ user_id: 1, repo_url: 1 }, { unique: true });
 
 // =========================================
 // REPO FILES
@@ -336,6 +352,12 @@ db.createCollection("repo_files", {
                 file_path: {
                     bsonType: "string"
                 },
+                file_name: {
+                    bsonType: "string"
+                },
+                extension: {
+                    bsonType: "string"
+                },
                 file_type: {
                     bsonType: "string"
                 },
@@ -343,6 +365,9 @@ db.createCollection("repo_files", {
                     bsonType: "string"
                 },
                 size: {
+                    bsonType: "int"
+                },
+                depth: {
                     bsonType: "int"
                 }
             }
@@ -374,11 +399,20 @@ db.createCollection("commits", {
                 author: {
                     bsonType: "string"
                 },
+                author_email: {
+                    bsonType: "string"
+                },
                 message: {
                     bsonType: "string"
                 },
                 commit_date: {
                     bsonType: "date"
+                },
+                changed_files: {
+                    bsonType: "array",
+                    items: {
+                        bsonType: "string"
+                    }
                 }
             }
         }
@@ -414,6 +448,12 @@ db.createCollection("dependencies", {
                 },
                 dependency_type: {
                     bsonType: "string"
+                },
+                import_path: {
+                    bsonType: "string"
+                },
+                resolved: {
+                    bsonType: "bool"
                 }
             }
         }
@@ -441,8 +481,23 @@ db.createCollection("documentation", {
                 doc_path: {
                     bsonType: "string"
                 },
+                file_name: {
+                    bsonType: "string"
+                },
+                documentation_type: {
+                    bsonType: "string"
+                },
                 content_summary: {
                     bsonType: "string"
+                },
+                content: {
+                    bsonType: "string"
+                },
+                size: {
+                    bsonType: "int"
+                },
+                truncated: {
+                    bsonType: "bool"
                 }
             }
         }

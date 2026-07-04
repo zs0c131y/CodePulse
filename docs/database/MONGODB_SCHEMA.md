@@ -17,7 +17,7 @@ persistent storage.
 | `email_verification_tokens` | Stores hashed email verification tokens. | `token_hash` unique, `user_id`, `expires_at` TTL |
 | `password_reset_tokens` | Stores hashed password reset tokens. | `token_hash` unique, `user_id`, `expires_at` TTL |
 | `oauth_accounts` | Links a user to a GitHub/GitLab OAuth identity. | `provider`+`provider_user_id` unique, `user_id` |
-| `repositories` | Stores repositories tracked by a user. | `user_id` |
+| `repositories` | Stores repositories tracked by a user. | `user_id`, `user_id`+`repo_url` unique |
 | `repo_files` | Stores parsed files for a repository. | `repository_id` |
 | `commits` | Stores git commit metadata. | `repository_id`, `commit_hash` unique, `commit_date` descending |
 | `dependencies` | Stores file-to-file dependency edges. | `repository_id` |
@@ -180,14 +180,20 @@ Required fields:
 
 Optional fields:
 
+* `repo_full_name` (`string`): Owner/name identifier when available from GitHub.
+* `clone_url` (`string`): Normalized Git clone URL used by the analyzer.
 * `default_branch` (`string`): Primary branch.
 * `total_files` (`int`): Parsed file count.
 * `total_commits` (`int`): Parsed commit count.
+* `total_dependencies` (`int`): Parsed dependency edge count.
+* `total_documentation` (`int`): Parsed documentation file count.
 * `created_at` (`date`): Repository registration timestamp.
+* `updated_at` (`date`): Most recent scan timestamp.
 
 Indexes:
 
 * `{ user_id: 1 }`.
+* `{ user_id: 1, repo_url: 1 }`, unique.
 
 ### `repo_files`
 
@@ -198,9 +204,12 @@ Required fields:
 
 Optional fields:
 
+* `file_name` (`string`): File basename.
+* `extension` (`string`): Lowercased file extension.
 * `file_type` (`string`): Code, config, text, asset, etc.
 * `language` (`string`): Detected programming language.
 * `size` (`int`): File size.
+* `depth` (`int`): Repository-relative path depth.
 
 Indexes:
 
@@ -216,8 +225,11 @@ Required fields:
 Optional fields:
 
 * `author` (`string`): Git author name or email.
+* `author_email` (`string`): Git author email.
 * `message` (`string`): Commit message.
 * `commit_date` (`date`): Commit timestamp.
+* `changed_files` (`array<string>`): Repository-relative files changed by the
+  commit.
 
 Indexes:
 
@@ -236,6 +248,9 @@ Required fields:
 Optional fields:
 
 * `dependency_type` (`string`): Import, require, package dependency, etc.
+* `import_path` (`string`): Raw import specifier found in the source file.
+* `resolved` (`bool`): Whether the import was resolved to an internal
+  repository file.
 
 Indexes:
 
@@ -250,7 +265,13 @@ Required fields:
 
 Optional fields:
 
+* `file_name` (`string`): Documentation file basename.
+* `documentation_type` (`string`): README, changelog, API doc, guide, license,
+  etc.
 * `content_summary` (`string`): Summary or semantic representation.
+* `content` (`string`): Extracted documentation text, capped for large files.
+* `size` (`int`): Source file size.
+* `truncated` (`bool`): Whether stored content was capped during extraction.
 
 Indexes:
 

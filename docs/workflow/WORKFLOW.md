@@ -79,6 +79,19 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * Generate dependency graphs showing module connections.
   * Identify distinct modules, services, and libraries.
 * **Output**: A structured repository model stored in MongoDB collections: `repositories`, `repo_files`, `commits`, `dependencies`, and `documentation`.
+* **Implemented API**: `POST /api/repositories/analyze` runs the initial
+  Repository Intelligence pipeline for authenticated users.
+* **Current Implementation Notes**:
+  * GitHub URLs are validated as public `https://github.com/owner/repo`
+    repository URLs.
+  * Repositories are cloned into a temporary workspace and removed after the
+    scan completes.
+  * File parsing skips common generated or dependency directories such as
+    `.git`, `node_modules`, `dist`, `build`, and cache folders.
+  * Dependency graph generation is basic and currently targets
+    JavaScript/TypeScript imports, JavaScript `require`, and Python imports.
+  * The pipeline stores metadata only; it does not store a cloned repository
+    after analysis.
 
 ### Vertical 2 — Knowledge Drift Detection
 

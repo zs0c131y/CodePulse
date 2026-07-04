@@ -1,0 +1,101 @@
+import { execFile } from 'node:child_process'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { promisify } from 'node:util'
+import { analyzeRepositorySource } from '../src/features/repositories/services/repositoryAnalyzer.js'
+import { persistRepositoryAnalysisWithCollections } from '../src/features/repositories/services/repositoryStoreCore.js'
+
+const execFileAsync = promisify(execFile)
+
+class FakeCollection {
+  constructor() {
+    this.records = []
+    this.nextId = 1
+  }
+
+  matches(record, filter) {
+    return Object.entries(filter).every(([key, value]) => record[key] === value)
+  }
+
+  async findOne(filter) {
+    return this.records.find(record => this.matches(record, filter)) || null
+  }
+
+  async insertOne(record) {
+    const inserted = { _id: `fake-${this.nextId++}`, ...record }
+    this.records.push(inserted)
+    return { insertedId: inserted._id }
+  }
+
+  async updateOne(filter, update) {
+    const record = await this.findOne(filter)
+    if (record && update.$set) Object.assign(record, update.$set)
+    return { matchedCount: record ? 1 : 0 }
+  }
+
+  async deleteMany(filter) {
+    this.records = this.records.filter(record => !this.matches(record, filter))
+  }
+
+  async insertMany(records) {
+    for (const record of records) await this.insertOne(record)
+  }
+}
+
+function createCollections() {
+  return {
+    repositories: new FakeCollection(),
+    repoFiles: new FakeCollection(),
+    commits: new FakeCollection(),
+    dependencies: new FakeCollection(),
+    documentation: new FakeCollection(),
+  }
+}
+
+async function git(args, cwd) {
+  await execFileAsync('git', args, { cwd, windowsHide: true })
+}
+
+test('runs the repository intelligence pipeline against a local fixture repository', async () => {
+  const root = join(tmpdir(), `codepulse-analyzer-${Date.now()}`)
+  const source = join(root, 'source')
+  const workspace = join(root, 'workspace')
+  const collections = createCollections()
+
+  try {
+    await mkdir(join(source, 'src'), { recursive: true })
+    await git(['init', '-b', 'main'], source)
+    await git(['config', 'user.email', 'test@example.com'], source)
+    await git(['config', 'user.name', 'CodePulse Test'], source)
+    await writeFile(join(source, 'README.md'), '# Demo Repository\n', 'utf8')
+    await writeFile(join(source, 'src', 'util.js'), 'export const value = 1\n', 'utf8')
+    await writeFile(join(source, 'src', 'index.js'), 'import { value } from "./util.js"\nconsole.log(value)\n', 'utf8')
+    await git(['add', '.'], source)
+    await git(['commit', '-m', 'Initial repository'], source)
+
+    const result = await analyzeRepositorySource({
+      sourceUrl: source,
+      userId: 'user-1',
+      cloneOptions: {
+        allowLocalPath: true,
+        workspaceRoot: workspace,
+      },
+      persistAnalysis: analysis => persistRepositoryAnalysisWithCollections(analysis, collections),
+    })
+
+    assert.equal(result.summary.repository.name, 'source')
+    assert.equal(result.summary.totalFiles, 3)
+    assert.equal(result.summary.totalDocumentation, 1)
+    assert.equal(result.summary.totalCommits, 1)
+    assert.equal(result.summary.totalDependencies, 1)
+    assert.equal(collections.repositories.records.length, 1)
+    assert.equal(collections.repoFiles.records.length, 3)
+    assert.equal(collections.dependencies.records[0].target_file, 'src/util.js')
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 3 })
+  }
+})
+
