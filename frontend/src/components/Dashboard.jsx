@@ -13,6 +13,7 @@ import {
   CircleAlert,
   Clock3,
   Code2,
+  Database,
   FileWarning,
   GitBranch,
   GitPullRequest,
@@ -241,14 +242,154 @@ function severityClass(severity) {
   return 'bg-emerald-50 text-emerald-700 border-emerald-200'
 }
 
-function initials(name, email) {
-  const source = name || email || 'CodePulse'
-  return source
-    .split(/\s|@/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(part => part[0]?.toUpperCase())
-    .join('')
+function clamp(value, min = 0, max = 100) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function getCount(summary, key) {
+  return Number(summary?.[key] || 0)
+}
+
+function getDocumentationCoverage(summary) {
+  const files = getCount(summary, 'totalFiles')
+  if (!files) return 0
+  return Math.round((getCount(summary, 'totalDocumentation') / files) * 100)
+}
+
+function inferLiveRisk(summary) {
+  if (!summary) return 'Low'
+
+  const files = getCount(summary, 'totalFiles')
+  const dependencies = getCount(summary, 'totalDependencies')
+  const documentationCoverage = getDocumentationCoverage(summary)
+  const dependencyDensity = files ? dependencies / files : 0
+
+  if (files > 500 || dependencyDensity > 1.5 || documentationCoverage < 5) return 'High'
+  if (files > 100 || dependencyDensity > 0.6 || documentationCoverage < 15) return 'Medium'
+  return 'Low'
+}
+
+function buildLiveRepository(summary) {
+  const repository = summary?.repository
+
+  return {
+    name: repository?.fullName || repository?.name || 'No repository scanned',
+    branch: repository?.defaultBranch || 'No branch',
+    language: summary ? 'Mixed' : 'No scan',
+    lastScan: summary ? 'just now' : 'not scanned',
+    health: summary ? clamp(55 + getDocumentationCoverage(summary) - Math.round(getCount(summary, 'totalDependencies') / Math.max(getCount(summary, 'totalFiles'), 1) * 10)) : 0,
+    risk: inferLiveRisk(summary),
+  }
+}
+
+function buildLiveKpis(summary) {
+  const documentationCoverage = getDocumentationCoverage(summary)
+
+  return [
+    {
+      label: 'Files indexed',
+      value: String(getCount(summary, 'totalFiles')),
+      unit: 'files',
+      trend: `${getCount(summary, 'totalDirectories')} dirs`,
+      trendTone: 'neutral',
+      deltaKind: 'meta',
+      icon: Code2,
+      accent: 'cyan',
+    },
+    {
+      label: 'Documentation',
+      value: String(getCount(summary, 'totalDocumentation')),
+      unit: 'docs',
+      trend: `${documentationCoverage}% coverage`,
+      trendTone: documentationCoverage >= 15 ? 'good' : 'bad',
+      icon: BookOpenCheck,
+      accent: 'emerald',
+    },
+    {
+      label: 'Commit history',
+      value: String(getCount(summary, 'totalCommits')),
+      unit: 'commits',
+      trend: summary ? 'latest scan' : 'no scan',
+      trendTone: 'neutral',
+      deltaKind: 'meta',
+      icon: GitBranch,
+      accent: 'amber',
+    },
+    {
+      label: 'Dependency edges',
+      value: String(getCount(summary, 'totalDependencies')),
+      unit: 'edges',
+      trend: inferLiveRisk(summary),
+      trendTone: inferLiveRisk(summary) === 'High' ? 'bad' : inferLiveRisk(summary) === 'Medium' ? 'neutral' : 'good',
+      icon: GitPullRequest,
+      accent: 'rose',
+    },
+  ]
+}
+
+function buildLivePipeline(summary, scanLoading) {
+  if (scanLoading) {
+    return [
+      { label: 'Repository clone', status: 'Running', detail: 'Cloning public GitHub repository', progress: 35 },
+      { label: 'File inventory', status: 'Queued', detail: 'Waiting for clone output', progress: 0 },
+      { label: 'Commit history', status: 'Queued', detail: 'Waiting for repository metadata', progress: 0 },
+      { label: 'Dependency graph', status: 'Queued', detail: 'Waiting for parsed files', progress: 0 },
+    ]
+  }
+
+  if (!summary) {
+    return [
+      { label: 'Repository clone', status: 'Queued', detail: 'Start a scan to clone a repository', progress: 0 },
+      { label: 'File inventory', status: 'Queued', detail: 'No live file data yet', progress: 0 },
+      { label: 'Commit history', status: 'Queued', detail: 'No live commit data yet', progress: 0 },
+      { label: 'Dependency graph', status: 'Queued', detail: 'No live dependency data yet', progress: 0 },
+    ]
+  }
+
+  return [
+    { label: 'Repository indexed', status: 'Complete', detail: `${getCount(summary, 'totalFiles')} files parsed`, progress: 100 },
+    { label: 'Documentation extracted', status: 'Complete', detail: `${getCount(summary, 'totalDocumentation')} docs detected`, progress: 100 },
+    { label: 'Commit history', status: 'Complete', detail: `${getCount(summary, 'totalCommits')} commits scanned`, progress: 100 },
+    { label: 'Dependency graph', status: 'Complete', detail: `${getCount(summary, 'totalDependencies')} edges mapped`, progress: 100 },
+  ]
+}
+
+function buildLiveRiskBars(summary) {
+  const values = [
+    ['Files', getCount(summary, 'totalFiles')],
+    ['Docs', getCount(summary, 'totalDocumentation')],
+    ['Commits', getCount(summary, 'totalCommits')],
+    ['Deps', getCount(summary, 'totalDependencies')],
+  ]
+  const maxValue = Math.max(...values.map(([, value]) => value), 1)
+
+  return values.map(([label, value]) => ({
+    label,
+    value: Math.round((value / maxValue) * 100),
+  }))
+}
+
+function buildLiveDebtItems(summary) {
+  if (!summary) return []
+
+  return [
+    {
+      module: summary.repository?.fullName || summary.repository?.name || 'Latest repository scan',
+      owner: `${getCount(summary, 'totalDirectories')} dirs`,
+      complexity: clamp(getCount(summary, 'totalFiles')),
+      churn: `${getCount(summary, 'totalCommits')} commits`,
+      duplication: `${getCount(summary, 'totalDependencies')} edges`,
+      risk: inferLiveRisk(summary),
+    },
+  ]
+}
+
+function Tooltip({ label }) {
+  return (
+    <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden whitespace-nowrap rounded-md border border-slate-200 bg-slate-950 px-2 py-1 text-xs font-semibold text-white shadow-lg group-hover:block group-focus-within:block">
+      {label}
+    </span>
+  )
 }
 
 function Sparkline({ points, tone }) {
@@ -317,7 +458,7 @@ function pipelineStatusMeta(status) {
   return { icon: Clock3, badgeClass: 'text-slate-600 bg-slate-50 border-slate-200', track: 'bg-slate-100', fill: 'bg-slate-300' }
 }
 
-function PipelinePanel() {
+function PipelinePanel({ items = pipeline }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
@@ -328,7 +469,7 @@ function PipelinePanel() {
         <RefreshCw size={18} className="text-slate-400" />
       </div>
       <div className="mt-5 space-y-4">
-        {pipeline.map(item => {
+        {items.map(item => {
           const meta = pipelineStatusMeta(item.status)
           const StatusIcon = meta.icon
 
@@ -359,13 +500,37 @@ function PipelinePanel() {
   )
 }
 
-function DebtTable() {
+function EmptyPanel({ title, description, icon: Icon = CircleAlert }) {
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex gap-3 text-slate-600">
+        <Icon size={18} className="mt-0.5 shrink-0 text-slate-400" />
+        <div>
+          <h2 className="text-base font-bold text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function DebtTable({ items = debtModules, title = 'Highest-risk modules', description = 'Ranked by complexity, churn, duplication, and drift adjacency.' }) {
+  if (items.length === 0) {
+    return (
+      <EmptyPanel
+        title="No live module risk yet"
+        description="Start a live repository scan to populate repository-level file, commit, and dependency signals."
+        icon={Code2}
+      />
+    )
+  }
+
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
         <div>
-          <h2 className="text-base font-bold text-slate-950">Highest-risk modules</h2>
-          <p className="mt-1 text-sm text-slate-500">Ranked by complexity, churn, duplication, and drift adjacency.</p>
+          <h2 className="text-base font-bold text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm text-slate-500">{description}</p>
         </div>
         <Button type="button" variant="outline" size="sm">
           <ListFilter size={16} />
@@ -385,7 +550,7 @@ function DebtTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {debtModules.map(item => (
+            {items.map(item => (
               <tr key={item.module} className="hover:bg-slate-50/80">
                 <td className="min-w-0 px-5 py-4">
                   <p className="truncate font-semibold text-slate-900" title={item.module}>
@@ -417,7 +582,7 @@ function DebtTable() {
         </table>
       </div>
       <div className="grid gap-3 p-4 lg:hidden">
-        {debtModules.map(item => (
+        {items.map(item => (
           <article key={item.module} className="rounded-lg border border-slate-200 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -451,7 +616,17 @@ function DebtTable() {
   )
 }
 
-function DriftPanel() {
+function DriftPanel({ items = driftFindings }) {
+  if (items.length === 0) {
+    return (
+      <EmptyPanel
+        title="No live drift findings yet"
+        description="Repository Intelligence has live file, documentation, commit, and dependency metadata. Knowledge drift analysis is a later pipeline step."
+        icon={FileWarning}
+      />
+    )
+  }
+
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
@@ -462,7 +637,7 @@ function DriftPanel() {
         <FileWarning size={18} className="text-amber-600" />
       </div>
       <div className="mt-5 space-y-3">
-        {driftFindings.map(item => (
+        {items.map(item => (
           <article key={item.title} className="rounded-lg border border-slate-200 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -485,16 +660,16 @@ function DriftPanel() {
   )
 }
 
-function RiskPanel() {
+function RiskPanel({ bars = riskBars, title = 'Risk trend', description = 'Composite maintainability risk over the last 7 days.' }) {
   const [showTable, setShowTable] = useState(false)
-  const peak = Math.max(...riskBars.map(day => day.value))
+  const peak = Math.max(...bars.map(day => day.value), 1)
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-slate-950">Risk trend</h2>
-          <p className="mt-1 text-sm text-slate-500">Composite maintainability risk over the last 7 days.</p>
+          <h2 className="text-base font-bold text-slate-950">{title}</h2>
+          <p className="mt-1 text-sm text-slate-500">{description}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -517,7 +692,7 @@ function RiskPanel() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {riskBars.map(day => (
+            {bars.map(day => (
               <tr key={day.label}>
                 <td className="py-2 font-semibold text-slate-700">{day.label}</td>
                 <td className="py-2 font-bold text-slate-950">{day.value}/100</td>
@@ -532,7 +707,7 @@ function RiskPanel() {
               <div key={line} className="absolute inset-x-0 border-t border-slate-100" style={{ bottom: `${line}%` }} />
             ))}
             <div className="relative flex h-full items-end gap-3">
-              {riskBars.map(day => (
+              {bars.map(day => (
                 <div key={day.label} className="group relative flex h-full flex-1 flex-col items-center justify-end">
                   <div
                     className="pointer-events-none absolute z-10 hidden -translate-x-1/2 -translate-y-2 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-md group-hover:block"
@@ -551,7 +726,7 @@ function RiskPanel() {
             </div>
           </div>
           <div className="mt-2 flex gap-3">
-            {riskBars.map(day => (
+            {bars.map(day => (
               <span key={day.label} className="flex-1 text-center text-xs font-semibold text-slate-500">
                 {day.label}
               </span>
@@ -563,7 +738,17 @@ function RiskPanel() {
   )
 }
 
-function RecommendationPanel() {
+function RecommendationPanel({ items = recommendations }) {
+  if (items.length === 0) {
+    return (
+      <EmptyPanel
+        title="No live AI recommendations yet"
+        description="AI recommendations need risk and drift outputs. The current live scan provides repository metadata for those later engines."
+        icon={Sparkles}
+      />
+    )
+  }
+
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between gap-3">
@@ -574,7 +759,7 @@ function RecommendationPanel() {
         <Sparkles size={18} className="text-cyan-700" />
       </div>
       <div className="mt-5 grid gap-4 xl:grid-cols-3">
-        {recommendations.map(item => (
+        {items.map(item => (
           <article key={item.title} className="rounded-lg border border-slate-200 p-4">
             <div className="flex items-start justify-between gap-3">
               <h3 className="font-bold text-slate-950">{item.title}</h3>
@@ -599,87 +784,110 @@ function RecommendationPanel() {
   )
 }
 
-function OverviewContent() {
+function OverviewContent({ dashboardKpis, pipelineItems, riskTrend, debtItems, driftItems, liveMode }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {kpis.map(item => (
+        {dashboardKpis.map(item => (
           <KpiCard key={item.label} item={item} />
         ))}
       </div>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <PipelinePanel />
-        <RiskPanel />
+        <PipelinePanel items={pipelineItems} />
+        <RiskPanel
+          bars={riskTrend}
+          title={liveMode ? 'Scan composition' : 'Risk trend'}
+          description={liveMode ? 'Normalized live counts from the latest repository analysis.' : 'Composite maintainability risk over the last 7 days.'}
+        />
       </div>
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
-        <DebtTable />
-        <DriftPanel />
+        <DebtTable
+          items={debtItems}
+          title={liveMode ? 'Live repository aggregate' : 'Highest-risk modules'}
+          description={liveMode ? 'Derived from the latest file, commit, documentation, and dependency scan.' : 'Ranked by complexity, churn, duplication, and drift adjacency.'}
+        />
+        <DriftPanel items={driftItems} />
       </div>
     </div>
   )
 }
 
-function MainContent({ activeTab }) {
+function MainContent({ activeTab, dashboardKpis, pipelineItems, riskTrend, debtItems, driftItems, recommendationsItems, liveMode, scanSummary }) {
   if (activeTab === 'Technical Debt') {
     return (
       <div className="space-y-5">
         <div className="grid gap-4 md:grid-cols-3">
-          <KpiCard
-            item={{
-              label: 'Avg complexity',
-              value: '41',
-              unit: 'score',
-              trend: '+3',
-              trendTone: 'bad',
-              icon: Code2,
-              accent: 'amber',
-              sparkline: [35, 36, 36, 37, 38, 38, 39, 40, 40, 41, 41, 41],
-            }}
-          />
-          <KpiCard
-            item={{
-              label: 'Duplicated code',
-              value: '8.7',
-              unit: '%',
-              trend: '-1.1%',
-              trendTone: 'good',
-              icon: GitBranch,
-              accent: 'cyan',
-              sparkline: [11, 10.8, 10.5, 10.2, 10, 9.7, 9.5, 9.3, 9.1, 9, 8.8, 8.7],
-            }}
-          />
-          <KpiCard
-            item={{
-              label: 'Circular deps',
-              value: '5',
-              unit: 'loops',
-              trend: '2 new',
-              trendTone: 'bad',
-              icon: AlertTriangle,
-              accent: 'rose',
-              sparkline: [2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5],
-            }}
-          />
+          {(liveMode
+            ? dashboardKpis.slice(0, 3)
+            : [
+                {
+                  label: 'Avg complexity',
+                  value: '41',
+                  unit: 'score',
+                  trend: '+3',
+                  trendTone: 'bad',
+                  icon: Code2,
+                  accent: 'amber',
+                  sparkline: [35, 36, 36, 37, 38, 38, 39, 40, 40, 41, 41, 41],
+                },
+                {
+                  label: 'Duplicated code',
+                  value: '8.7',
+                  unit: '%',
+                  trend: '-1.1%',
+                  trendTone: 'good',
+                  icon: GitBranch,
+                  accent: 'cyan',
+                  sparkline: [11, 10.8, 10.5, 10.2, 10, 9.7, 9.5, 9.3, 9.1, 9, 8.8, 8.7],
+                },
+                {
+                  label: 'Circular deps',
+                  value: '5',
+                  unit: 'loops',
+                  trend: '2 new',
+                  trendTone: 'bad',
+                  icon: AlertTriangle,
+                  accent: 'rose',
+                  sparkline: [2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5],
+                },
+              ]
+          ).map(item => (
+            <KpiCard key={item.label} item={item} />
+          ))}
         </div>
-        <DebtTable />
+        <DebtTable
+          items={debtItems}
+          title={liveMode ? 'Live repository aggregate' : 'Highest-risk modules'}
+          description={liveMode ? 'Derived from the latest Repository Intelligence scan.' : 'Ranked by complexity, churn, duplication, and drift adjacency.'}
+        />
       </div>
     )
   }
 
   if (activeTab === 'Knowledge Drift') {
+    const coverage = getDocumentationCoverage(scanSummary)
+
     return (
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <DriftPanel />
+        <DriftPanel items={driftItems} />
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
           <h2 className="text-base font-bold text-slate-950">Documentation coverage</h2>
-          <p className="mt-1 text-sm text-slate-500">Coverage by repository area.</p>
+          <p className="mt-1 text-sm text-slate-500">{liveMode ? 'Coverage from the latest repository scan.' : 'Coverage by repository area.'}</p>
           <div className="mt-6 space-y-4">
-            {[
-              ['API routes', 84],
-              ['Domain modules', 63],
-              ['Architecture docs', 71],
-              ['Runbooks', 48],
-            ].map(([label, value]) => (
+            {(liveMode
+              ? [
+                  ['Documentation files', coverage],
+                  ['Code files indexed', scanSummary ? clamp(getCount(scanSummary, 'totalFiles')) : 0],
+                  ['Dependency edges', scanSummary ? clamp(getCount(scanSummary, 'totalDependencies')) : 0],
+                  ['Commit history', scanSummary ? clamp(getCount(scanSummary, 'totalCommits')) : 0],
+                ]
+              : [
+                  ['API routes', 84],
+                  ['Domain modules', 63],
+                  ['Architecture docs', 71],
+                  ['Runbooks', 48],
+                ]
+            ).map(([label, value]) => (
               <div key={label}>
                 <div className="mb-2 flex justify-between text-sm">
                   <span className="font-semibold text-slate-700">{label}</span>
@@ -700,15 +908,28 @@ function MainContent({ activeTab }) {
     return (
       <div className="space-y-5">
         <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-          <RiskPanel />
-          <PipelinePanel />
+          <RiskPanel
+            bars={riskTrend}
+            title={liveMode ? 'Scan composition' : 'Risk trend'}
+            description={liveMode ? 'Normalized live counts from the latest repository analysis.' : 'Composite maintainability risk over the last 7 days.'}
+          />
+          <PipelinePanel items={pipelineItems} />
         </div>
-        <RecommendationPanel />
+        <RecommendationPanel items={recommendationsItems} />
       </div>
     )
   }
 
-  return <OverviewContent />
+  return (
+    <OverviewContent
+      dashboardKpis={dashboardKpis}
+      pipelineItems={pipelineItems}
+      riskTrend={riskTrend}
+      debtItems={debtItems}
+      driftItems={driftItems}
+      liveMode={liveMode}
+    />
+  )
 }
 
 export default function Dashboard({ user, accessToken, onLogout }) {
@@ -716,10 +937,24 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const [status, setStatus] = useState('Verifying session...')
   const [selectedRepo, setSelectedRepo] = useState(repositories[0].name)
   const [repoUrl, setRepoUrl] = useState('')
+  const [demoMode, setDemoMode] = useState(true)
+  const [scanLoading, setScanLoading] = useState(false)
+  const [scanMessage, setScanMessage] = useState('')
+  const [scanError, setScanError] = useState('')
+  const [scanSummary, setScanSummary] = useState(null)
   const repository = useMemo(
     () => repositories.find(item => item.name === selectedRepo) || repositories[0],
     [selectedRepo],
   )
+  const liveRepository = useMemo(() => buildLiveRepository(scanSummary), [scanSummary])
+  const displayedRepository = demoMode ? repository : liveRepository
+  const dashboardKpis = demoMode ? kpis : buildLiveKpis(scanSummary)
+  const pipelineItems = demoMode ? pipeline : buildLivePipeline(scanSummary, scanLoading)
+  const riskTrend = demoMode ? riskBars : buildLiveRiskBars(scanSummary)
+  const debtItems = demoMode ? debtModules : buildLiveDebtItems(scanSummary)
+  const driftItems = demoMode ? driftFindings : []
+  const recommendationsItems = demoMode ? recommendations : []
+  const liveMode = !demoMode
 
   useEffect(() => {
     let cancelled = false
@@ -752,6 +987,44 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       cancelled = true
     }
   }, [accessToken])
+
+  async function handleStartScan() {
+    const trimmedRepoUrl = repoUrl.trim()
+
+    if (!trimmedRepoUrl || scanLoading) return
+
+    setScanLoading(true)
+    setScanMessage('')
+    setScanError('')
+
+    try {
+      const response = await fetch(apiUrl('/api/repositories/analyze'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          repoUrl: trimmedRepoUrl,
+          commitLimit: 100,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Repository scan failed.')
+      }
+
+      setScanSummary(data.summary || null)
+      setScanMessage(data.message || 'Repository analyzed.')
+      setRepoUrl('')
+    } catch (error) {
+      setScanError(error instanceof Error ? error.message : 'Repository scan failed.')
+    } finally {
+      setScanLoading(false)
+    }
+  }
 
   return (
     <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
@@ -828,50 +1101,77 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                 <span>Workspace</span>
                 <span>/</span>
-                <span className="text-slate-950">{repository.name}</span>
-                <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${severityClass(repository.risk)}`}>
-                  {repository.risk} risk
+                <span className="text-slate-950">{displayedRepository.name}</span>
+                <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${severityClass(displayedRepository.risk)}`}>
+                  {displayedRepository.risk} risk
                 </span>
               </div>
               <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Engineering intelligence dashboard</h1>
             </div>
 
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="icon" aria-label="Notifications">
-                <Bell size={18} />
-              </Button>
-              <Button
-                href="/settings"
-                asChild
-                variant="outline"
-                size="icon"
-                aria-label="Settings"
-              >
-                <a href="/settings">
-                  <Settings size={18} />
-                </a>
-              </Button>
-              <Button
-                href="/profile"
-                asChild
-                variant="outline"
-                className="hidden md:inline-flex"
-              >
-                <a href="/profile">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-cyan-400 text-xs font-bold text-slate-950">
-                    {initials(user.name, user.email)}
-                  </span>
-                  Profile
-                </a>
-              </Button>
-              <Button
-                type="button"
-                onClick={onLogout}
-                variant="outline"
-              >
-                <LogOut size={16} />
-                Sign out
-              </Button>
+              <span className="group relative inline-flex">
+                <Button
+                  type="button"
+                  variant={demoMode ? 'default' : 'outline'}
+                  size="icon"
+                  aria-label={demoMode ? 'Demo mode is on' : 'Live mode is on'}
+                  title={demoMode ? 'Demo mode is on' : 'Live mode is on'}
+                  onClick={() => setDemoMode(value => !value)}
+                >
+                  <Database size={18} />
+                </Button>
+                <Tooltip label={demoMode ? 'Demo mode on' : 'Live mode on'} />
+              </span>
+              <span className="group relative inline-flex">
+                <Button type="button" variant="outline" size="icon" aria-label="Notifications" title="Notifications">
+                  <Bell size={18} />
+                </Button>
+                <Tooltip label="Notifications" />
+              </span>
+              <span className="group relative inline-flex">
+                <Button
+                  href="/settings"
+                  asChild
+                  variant="outline"
+                  size="icon"
+                  aria-label="Settings"
+                  title="Settings"
+                >
+                  <a href="/settings">
+                    <Settings size={18} />
+                  </a>
+                </Button>
+                <Tooltip label="Settings" />
+              </span>
+              <span className="group relative inline-flex">
+                <Button
+                  href="/profile"
+                  asChild
+                  variant="outline"
+                  size="icon"
+                  aria-label="Profile"
+                  title="Profile"
+                >
+                  <a href="/profile">
+                    <User size={18} />
+                  </a>
+                </Button>
+                <Tooltip label="Profile" />
+              </span>
+              <span className="group relative inline-flex">
+                <Button
+                  type="button"
+                  onClick={onLogout}
+                  variant="outline"
+                  size="icon"
+                  aria-label="Sign out"
+                  title="Sign out"
+                >
+                  <LogOut size={18} />
+                </Button>
+                <Tooltip label="Sign out" />
+              </span>
             </div>
           </div>
         </header>
@@ -914,25 +1214,65 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <Button
                 type="button"
                 size="lg"
-                disabled={!repoUrl.trim()}
+                onClick={handleStartScan}
+                disabled={!repoUrl.trim() || scanLoading}
               >
-                <Play size={16} />
-                Start scan
+                {scanLoading ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} />}
+                {scanLoading ? 'Scanning...' : 'Start scan'}
               </Button>
             </div>
+
+            {(scanMessage || scanError) && (
+              <div
+                className={`mt-4 flex gap-2 rounded-lg border px-4 py-3 text-sm ${
+                  scanError
+                    ? 'border-rose-200 bg-rose-50 text-rose-700'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}
+                role="status"
+              >
+                {scanError ? <AlertTriangle size={17} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={17} className="mt-0.5 shrink-0" />}
+                <div className="min-w-0">
+                  <p className="font-semibold">{scanError || scanMessage}</p>
+                  {scanSummary?.repository && (
+                    <p className="mt-1 truncate text-xs">
+                      {scanSummary.repository.fullName || scanSummary.repository.name} on{' '}
+                      {scanSummary.repository.defaultBranch || 'default branch'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {scanSummary && !scanError && (
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                {[
+                  ['Files', scanSummary.totalFiles],
+                  ['Docs', scanSummary.totalDocumentation],
+                  ['Commits', scanSummary.totalCommits],
+                  ['Dependencies', scanSummary.totalDependencies],
+                  ['Directories', scanSummary.totalDirectories],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-950">{value ?? 0}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4 flex min-w-0 flex-wrap gap-3 text-sm text-slate-600">
               <span className="inline-flex items-center gap-2">
                 <GitBranch size={15} />
-                {repository.branch}
+                {displayedRepository.branch}
               </span>
               <span className="inline-flex items-center gap-2">
                 <Code2 size={15} />
-                {repository.language}
+                {displayedRepository.language}
               </span>
               <span className="inline-flex items-center gap-2">
                 <Clock3 size={15} />
-                Last scan {repository.lastScan}
+                Last scan {displayedRepository.lastScan}
               </span>
               <span className="inline-flex min-w-0 items-center gap-2">
                 <Users size={15} />
@@ -965,13 +1305,24 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             <div className="flex gap-2">
               <CircleAlert size={17} className="mt-0.5 shrink-0" />
               <p>
-                Repository intelligence preview. Connect analysis services to populate this workspace with live
-                repository signals.
+                {demoMode
+                  ? 'Demo mode is showing sample dashboard analytics. Toggle live mode to use the latest repository scan.'
+                  : 'Live mode is using the latest Repository Intelligence scan available in this session.'}
               </p>
             </div>
           </div>
 
-          <MainContent activeTab={activeTab} />
+          <MainContent
+            activeTab={activeTab}
+            dashboardKpis={dashboardKpis}
+            pipelineItems={pipelineItems}
+            riskTrend={riskTrend}
+            debtItems={debtItems}
+            driftItems={driftItems}
+            recommendationsItems={recommendationsItems}
+            liveMode={liveMode}
+            scanSummary={scanSummary}
+          />
         </main>
       </div>
     </div>

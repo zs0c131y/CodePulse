@@ -3,7 +3,6 @@ import { GITHUB_ID, GITHUB_SECRET, IS_PRODUCTION, FRONTEND_URL } from '../../../
 import { getUsersCollection, getOAuthAccountsCollection } from '../../../db/index.js'
 import { githubCallbackUrl } from '../../../utils/urls.js'
 import { createSession } from '../../../utils/session.js'
-import { toPublicUser } from '../../../utils/validators.js'
 
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize'
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token'
