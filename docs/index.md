@@ -25,6 +25,7 @@ Use these focused documentation files instead of scanning the repository:
 | **Data Model** | [docs/database/DATABASE.md](database/DATABASE.md) | Runtime data store and domain schema overview. |
 | **MongoDB Schema Reference** | [docs/database/MONGODB_SCHEMA.md](database/MONGODB_SCHEMA.md) | Collection-level schema converted from the draft schema script. |
 | **AI Engine** | [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) | AI explainability pipelines, prompt templates, and context construction. |
+| **Implementation Roadmap** | [docs/implementation.md](implementation.md) | Feature-based implementation phases and delivery guidance. |
 
 ---
 
@@ -67,6 +68,7 @@ CodePulse/
 │   ├── database/
 │   ├── frontend/
 │   ├── workflow/
+│   ├── implementation.md
 │   └── index.md
 ├── package.json               # Root scripts and shared dependencies
 ├── package-lock.json          # Root lockfile
