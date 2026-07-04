@@ -127,8 +127,11 @@ preserves the protected-session check against `GET /api/auth/me`, supports
 sign-out, and shows sample report data until repository-analysis APIs are
 implemented.
 
-Users can select a repository, enter a repository URL for a future scan flow,
-and access four dashboard tabs:
+Users can select a repository, enter a public GitHub repository URL, and start
+a Repository Intelligence scan through `POST /api/repositories/analyze`. The
+scan action sends the current bearer access token, shows loading/error/success
+states, and renders the returned file, documentation, commit, dependency, and
+directory counts. Users can also access four dashboard tabs:
 
 * **Overview**: Repository health score, technical debt grade, drift count, and
   critical risk count, plus analysis pipeline and risk trend panels.

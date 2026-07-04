@@ -716,6 +716,10 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const [status, setStatus] = useState('Verifying session...')
   const [selectedRepo, setSelectedRepo] = useState(repositories[0].name)
   const [repoUrl, setRepoUrl] = useState('')
+  const [scanLoading, setScanLoading] = useState(false)
+  const [scanMessage, setScanMessage] = useState('')
+  const [scanError, setScanError] = useState('')
+  const [scanSummary, setScanSummary] = useState(null)
   const repository = useMemo(
     () => repositories.find(item => item.name === selectedRepo) || repositories[0],
     [selectedRepo],
@@ -752,6 +756,44 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       cancelled = true
     }
   }, [accessToken])
+
+  async function handleStartScan() {
+    const trimmedRepoUrl = repoUrl.trim()
+
+    if (!trimmedRepoUrl || scanLoading) return
+
+    setScanLoading(true)
+    setScanMessage('')
+    setScanError('')
+
+    try {
+      const response = await fetch(apiUrl('/api/repositories/analyze'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          repoUrl: trimmedRepoUrl,
+          commitLimit: 100,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Repository scan failed.')
+      }
+
+      setScanSummary(data.summary || null)
+      setScanMessage(data.message || 'Repository analyzed.')
+      setRepoUrl('')
+    } catch (error) {
+      setScanError(error instanceof Error ? error.message : 'Repository scan failed.')
+    } finally {
+      setScanLoading(false)
+    }
+  }
 
   return (
     <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
@@ -914,12 +956,52 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <Button
                 type="button"
                 size="lg"
-                disabled={!repoUrl.trim()}
+                onClick={handleStartScan}
+                disabled={!repoUrl.trim() || scanLoading}
               >
-                <Play size={16} />
-                Start scan
+                {scanLoading ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} />}
+                {scanLoading ? 'Scanning...' : 'Start scan'}
               </Button>
             </div>
+
+            {(scanMessage || scanError) && (
+              <div
+                className={`mt-4 flex gap-2 rounded-lg border px-4 py-3 text-sm ${
+                  scanError
+                    ? 'border-rose-200 bg-rose-50 text-rose-700'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}
+                role="status"
+              >
+                {scanError ? <AlertTriangle size={17} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={17} className="mt-0.5 shrink-0" />}
+                <div className="min-w-0">
+                  <p className="font-semibold">{scanError || scanMessage}</p>
+                  {scanSummary?.repository && (
+                    <p className="mt-1 truncate text-xs">
+                      {scanSummary.repository.fullName || scanSummary.repository.name} on{' '}
+                      {scanSummary.repository.defaultBranch || 'default branch'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {scanSummary && !scanError && (
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                {[
+                  ['Files', scanSummary.totalFiles],
+                  ['Docs', scanSummary.totalDocumentation],
+                  ['Commits', scanSummary.totalCommits],
+                  ['Dependencies', scanSummary.totalDependencies],
+                  ['Directories', scanSummary.totalDirectories],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-950">{value ?? 0}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4 flex min-w-0 flex-wrap gap-3 text-sm text-slate-600">
               <span className="inline-flex items-center gap-2">
