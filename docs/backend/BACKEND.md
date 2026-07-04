@@ -70,8 +70,20 @@ re-exported under the same `UPPER_CASE` name as the variable itself (e.g.
 instead, so a reader can always tell an env-sourced value from an internal
 constant by its casing.
 
-The backend uses Express and MongoDB. Runtime configuration is read from
-`MONGO_URI`, with `mongodb://127.0.0.1:27017/codepulse` as the local fallback.
+The backend uses Express and MongoDB. Runtime configuration is read from:
+
+* `MONGO_URI`: MongoDB connection string, with
+  `mongodb://127.0.0.1:27017/codepulse` as the local fallback.
+* `MONGO_DB_NAME`: optional database-name override. When omitted, the backend
+  uses the database name from the `MONGO_URI` path.
+* `MONGO_LOCAL_HOST`: optional local-development hostname override for MongoDB.
+  On Windows local runs, a `MONGO_URI` host of `mongo` is automatically mapped
+  to `127.0.0.1` because `mongo` is a Docker-network hostname.
+* `MONGO_DNS_SERVERS`: optional comma-separated DNS server list for local
+  `mongodb+srv://` Atlas connections. Defaults to `1.1.1.1,8.8.8.8` outside
+  production because Node's SRV resolver can fail when a local network resolver
+  refuses MongoDB Atlas SRV lookups.
+
 Authentication also reads:
 
 * `JWT_SECRET`: required in production for signed access tokens.
@@ -85,7 +97,7 @@ Authentication also reads:
   emails through `POST https://api.smtp2go.com/v3/email/send`.
 * `VERIFICATION_EMAIL`: verified SMTP2GO sender address used for email
   verification messages. SMTP2GO requires the sender domain or address to be
-  verified.
+  verified. Emails are sent with the display name `CodePulse Account Team`.
 * `PASSWORD_RESET_EMAIL`: optional verified SMTP2GO sender address used for
   password reset messages. If omitted, password reset emails use
   `VERIFICATION_EMAIL`.
@@ -109,12 +121,21 @@ unless the fallback webhook is configured.
 
 ## 🔌 Local Development
 
-* Run the frontend with `npm run dev`.
-* Run the backend API with `npm run dev:backend`.
+* Run the full local stack with `npm run dev` from the repository root. This
+  starts the Vite frontend and Express backend concurrently.
+* Run the frontend only with `npm run dev:frontend`.
+* Run the backend API only with `npm run dev:backend`.
 * The API listens on `http://localhost:5000` (`API_PORT` / `PORT` override).
 * The Vite dev server proxies `/api` and `/auth` requests to the backend.
+* If `MONGO_URI` uses a Docker hostname such as `mongo`, either set
+  `MONGO_LOCAL_HOST` (defaults to `127.0.0.1` on Windows) or make sure the
+  MongoDB container publishes port `27017` to the host when running the
+  backend through local `npm` scripts.
+* If `MONGO_URI` uses a MongoDB Atlas `mongodb+srv://` URI, local development
+  sets Node's DNS servers to `1.1.1.1,8.8.8.8` by default. Override with
+  `MONGO_DNS_SERVERS` if your network requires different resolvers.
 * In local development, verification and reset links are logged to the backend
-  console and returned in the API response for convenience.
+  console only. Tokenized links are never returned in API responses.
 
 ---
 
@@ -156,14 +177,18 @@ Implemented in [backend/src/features/auth/controler/credentials.controller.js](.
 
 The backend applies security headers, credentialed CORS for configured origins,
 global request rate limiting, auth-route rate limiting, and Mongo-backed
-brute-force lockouts for repeated failed sign-in attempts. Startup fails before
-`app.listen()` if MongoDB indexes cannot be created, including the unique email
-index and auth token indexes.
+brute-force lockouts for repeated failed sign-in attempts. In production,
+startup fails before `app.listen()` if MongoDB indexes cannot be created,
+including the unique email index and auth token indexes. In local development,
+the API still listens on port `5000` in degraded mode and auth routes return
+`503` until MongoDB connectivity is fixed.
 
 Verification and password reset emails are delivered by SMTP2GO when
 `EMAIL_KEY` and the context sender email are present. Each email uses the
 SMTP2GO standard email API with `sender`, a single-recipient `to` array,
-`subject`, `text_body`, and `html_body`.
+`subject`, `text_body`, and `html_body`. The HTML bodies use branded
+responsive, table-based templates with inline CSS for broad email-client
+compatibility. Plain-text fallbacks are always sent.
 
 ### `GET /api/health`
 
@@ -175,6 +200,17 @@ Returns API health and MongoDB user-count metadata.
   "status": "ok",
   "store": "mongodb",
   "users": 0
+}
+```
+
+When local MongoDB startup fails, the same endpoint returns `503`:
+
+```json
+{
+  "status": "degraded",
+  "store": "mongodb",
+  "message": "Database is unavailable.",
+  "error": "connection error details"
 }
 ```
 
@@ -205,6 +241,28 @@ Response:
     "email_verified": false,
     "created_at": "2026-07-01T07:30:00.000Z"
   }
+}
+```
+
+### `POST /api/auth/resend-verification`
+
+Sends a fresh verification link for an unverified account. The response is
+generic to avoid exposing whether an arbitrary email belongs to an unverified
+account.
+
+Request:
+
+```json
+{
+  "email": "ada@example.com"
+}
+```
+
+Response:
+
+```json
+{
+  "message": "If an unverified account exists for that email, a new verification link has been sent."
 }
 ```
 
@@ -260,6 +318,16 @@ Response:
 
 The response sets an `HttpOnly`, `SameSite=Lax` refresh cookie scoped to
 `/api/auth`. In production the cookie is also marked `Secure`.
+
+If the credentials are valid but the account has not verified its email, the
+backend returns `403` with:
+
+```json
+{
+  "message": "Verify your email before signing in.",
+  "canResendVerification": true
+}
+```
 
 ### `POST /api/auth/refresh`
 

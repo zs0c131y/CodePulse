@@ -41,7 +41,7 @@ export default function FinalCTA() {
             {/* CTAs */}
             <div className="flex flex-wrap gap-4 justify-center">
               <a
-                href="#signup"
+                href="/signup"
                 className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-linear-to-r from-violet-600 to-cyan-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-violet-600/30 text-base"
               >
                 Get Early Access — It's Free

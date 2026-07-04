@@ -40,7 +40,7 @@ CodePulse/
 │   ├── src/                   # Frontend source code
 │   │   ├── assets/            # Images, fonts, and static SVGs
 │   │   ├── components/        # Reusable UI components
-│   │   ├── App.jsx            # Hash route controller
+│   │   ├── App.jsx            # Client-side route controller
 │   │   ├── App.css            # Component and layout styling
 │   │   ├── index.css          # Global CSS and Tailwind imports
 │   │   └── main.jsx           # React entry point

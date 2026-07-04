@@ -1,3 +1,4 @@
+import dns from 'node:dns'
 import '../utils/env.js'
 
 export const PORT = Number(process.env.API_PORT || process.env.PORT || 5000)
@@ -30,8 +31,57 @@ export const JWT_SECRET = getJwtSecret()
 
 // --- MongoDB connection ---
 
-export const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/codepulse'
-export const MONGO_DB_NAME = process.env.MONGO_DB_NAME || 'codepulse'
+function getDatabaseNameFromUri(uri) {
+  try {
+    const parsed = new URL(uri)
+    return decodeURIComponent(parsed.pathname.replace(/^\//, '')) || ''
+  } catch {
+    return ''
+  }
+}
+
+// Outside production, `MONGO_URI` may still point at a docker-compose service
+// name (e.g. `mongo`) that only resolves inside the compose network. Rewrite
+// it to a host reachable from wherever the backend is actually running.
+function getRuntimeMongoUri(uri) {
+  if (IS_PRODUCTION) return uri
+
+  const localMongoHost = process.env.MONGO_LOCAL_HOST || (process.platform === 'win32' ? '127.0.0.1' : '')
+  if (!localMongoHost) return uri
+
+  try {
+    const parsed = new URL(uri)
+    if (parsed.hostname === 'mongo') {
+      parsed.hostname = localMongoHost
+      return parsed.toString()
+    }
+  } catch {
+    return uri
+  }
+
+  return uri
+}
+
+// `mongodb+srv://` lookups need SRV/TXT records, which some local network
+// resolvers don't forward correctly — pin known-good DNS servers outside
+// production.
+function configureLocalDns(uri) {
+  if (IS_PRODUCTION || !uri.startsWith('mongodb+srv://')) return
+
+  const dnsServers = (process.env.MONGO_DNS_SERVERS || '1.1.1.1,8.8.8.8')
+    .split(',')
+    .map(server => server.trim())
+    .filter(Boolean)
+
+  if (dnsServers.length > 0) {
+    dns.setServers(dnsServers)
+  }
+}
+
+export const MONGO_URI = getRuntimeMongoUri(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/codepulse')
+export const MONGO_DB_NAME = process.env.MONGO_DB_NAME || getDatabaseNameFromUri(MONGO_URI) || 'codepulse'
+
+configureLocalDns(MONGO_URI)
 
 // --- Public URLs (frontend/backend, used for redirects and OAuth callbacks) ---
 

@@ -53,13 +53,13 @@ export default function Navbar() {
         {/* Actions */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="#signin"
+            href="/signin"
             className="px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors"
           >
             Sign in
           </a>
           <a
-            href="#signup"
+            href="/signup"
             className="px-4 py-2 text-sm font-semibold text-white rounded-lg bg-linear-to-r from-violet-600 to-cyan-500 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-violet-600/20"
           >
             Get Early Access
@@ -95,13 +95,13 @@ export default function Navbar() {
           ))}
           <div className="h-px bg-white/6 my-2" />
           <a
-            href="#signin"
+            href="/signin"
             className="px-3 py-2.5 text-sm text-slate-400 hover:text-white rounded-lg hover:bg-white/4 transition-all"
           >
             Sign in
           </a>
           <a
-            href="#signup"
+            href="/signup"
             className="px-3 py-2.5 text-sm font-semibold text-white rounded-lg bg-linear-to-r from-violet-600 to-cyan-500 text-center"
           >
             Get Early Access

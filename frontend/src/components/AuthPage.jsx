@@ -13,6 +13,7 @@ import {
   Sparkles,
   Sun,
   User,
+  X,
 } from 'lucide-react'
 
 const fieldBase =
@@ -77,6 +78,9 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
   const [authError, setAuthError] = useState('')
+  const [successDialog, setSuccessDialog] = useState(null)
+  const [canResendVerification, setCanResendVerification] = useState(false)
+  const [isResendingVerification, setIsResendingVerification] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem('codepulse-auth-theme', theme)
@@ -98,6 +102,8 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
   useEffect(() => {
     setAuthError(oauthError || '')
     setAuthMessage('')
+    setSuccessDialog(null)
+    setCanResendVerification(false)
     setPassword('')
     setShowPassword(false)
 
@@ -139,7 +145,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
         }
       } catch (error) {
         if (!cancelled) {
-          setAuthError(error instanceof Error ? error.message : 'Email verification failed.')
+          setAuthError(error instanceof Error ? error.message : 'Email verification could not be completed.')
         }
       } finally {
         if (!cancelled) {
@@ -164,7 +170,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
           subtitle: 'This verification link unlocks protected CodePulse access for your account.',
           cta: 'Verifying...',
           swapText: 'Ready to continue?',
-          swapHref: '#signin',
+          swapHref: '/signin',
           swapLabel: 'Sign in',
         }
       }
@@ -176,7 +182,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
           subtitle: 'Enter your account email and we will send a short-lived reset link.',
           cta: 'Send reset link',
           swapText: 'Remember your password?',
-          swapHref: '#signin',
+          swapHref: '/signin',
           swapLabel: 'Sign in',
         }
       }
@@ -188,7 +194,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
           subtitle: 'Choose a replacement password before the reset link expires.',
           cta: 'Update password',
           swapText: 'Already reset it?',
-          swapHref: '#signin',
+          swapHref: '/signin',
           swapLabel: 'Sign in',
         }
       }
@@ -201,7 +207,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
               'Connect your repositories, invite your team, and see the first health report in minutes.',
             cta: 'Create account',
             swapText: 'Already have an account?',
-            swapHref: '#signin',
+            swapHref: '/signin',
             swapLabel: 'Sign in',
           }
         : {
@@ -211,7 +217,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
               'Jump back into repository health, drift alerts, and AI recommendations for your team.',
             cta: 'Sign in',
             swapText: 'New to CodePulse?',
-            swapHref: '#signup',
+            swapHref: '/signup',
             swapLabel: 'Create account',
           }
     },
@@ -257,6 +263,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
     event.preventDefault()
     setAuthError('')
     setAuthMessage('')
+    setCanResendVerification(false)
 
     if (!canSubmit) {
       setAuthError(
@@ -294,6 +301,10 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
+        if (!isSignup && response.status === 403 && data.canResendVerification) {
+          setCanResendVerification(true)
+        }
+
         throw new Error(data.message || 'Authentication request failed.')
       }
 
@@ -301,21 +312,79 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
         onAuthSuccess?.(data)
       }
 
-      setAuthMessage(
-        data.verificationUrl || data.resetUrl
-          ? `${data.message} Development link: ${data.verificationUrl || data.resetUrl}`
-          : data.message ||
-              (isSignup
-                ? 'Account created. Check your email to verify it before signing in.'
-                : isResetFlow
-                  ? 'Request completed.'
-                  : 'Signed in successfully.'),
-      )
+      if (isSignup) {
+        setSuccessDialog({
+          title: 'Check your email',
+          message: `A verification link has been sent to ${email.trim()}. Complete verification before signing in.`,
+          actionHref: '/signin',
+          actionLabel: 'Continue to sign in',
+        })
+        setAuthMessage('')
+      } else if (isResetRequest) {
+        setSuccessDialog({
+          title: 'Reset link sent',
+          message:
+            'Password reset instructions have been sent if an account matches that email.',
+          actionHref: '/signin',
+          actionLabel: 'Continue to sign in',
+        })
+        setAuthMessage('')
+      } else if (isPasswordReset) {
+        setSuccessDialog({
+          title: 'Password updated',
+          message: 'Your password has been updated. Sign in with your new password.',
+          actionHref: '/signin',
+          actionLabel: 'Sign in',
+        })
+        setAuthMessage('')
+      } else {
+        setAuthMessage(data.message || 'Signed in successfully.')
+      }
       setPassword('')
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Authentication request failed.')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleResendVerification() {
+    const targetEmail = email.trim()
+
+    if (!targetEmail) {
+      setAuthError('Enter the email address for the unverified account.')
+      return
+    }
+
+    setIsResendingVerification(true)
+    setAuthError('')
+    setAuthMessage('')
+
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
+      const response = await fetch(`${apiBaseUrl}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: targetEmail }),
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Verification resend failed.')
+      }
+
+      setCanResendVerification(false)
+      setSuccessDialog({
+        title: 'Verification email sent',
+        message: `A new verification link has been sent to ${targetEmail} if the account is awaiting verification.`,
+        actionHref: '/signin',
+        actionLabel: 'Continue to sign in',
+      })
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Verification resend failed.')
+    } finally {
+      setIsResendingVerification(false)
     }
   }
 
@@ -333,7 +402,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
       <header className="relative z-10">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <a href="#" className="flex items-center gap-2.5">
+          <a href="/" className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/20">
               <Activity size={17} strokeWidth={2.5} className="text-white" />
             </span>
@@ -344,7 +413,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
           <div className="flex items-center gap-2">
             <a
-              href="#"
+              href="/"
               className={`hidden items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors sm:flex ${
                 isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-950'
               }`}
@@ -584,7 +653,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                     </span>
                     Remember me
                   </button>
-                  <a href="#reset-password" className="text-sm font-semibold text-cyan-500 hover:text-cyan-400">
+                  <a href="/reset-password" className="text-sm font-semibold text-cyan-500 hover:text-cyan-400">
                     Forgot password?
                   </a>
                 </div>
@@ -592,7 +661,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
               {isEmailVerify && !token && (
                 <div className={`rounded-xl border px-4 py-3 text-sm ${chipClass}`} role="status">
-                  Verification token is missing.
+                  This verification link is invalid or incomplete.
                 </div>
               )}
 
@@ -610,13 +679,29 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                 </div>
               )}
 
+              {canResendVerification && (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={isResendingVerification}
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-5 py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                    isDark
+                      ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15'
+                      : 'border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100'
+                  }`}
+                >
+                  <Mail size={16} />
+                  {isResendingVerification ? 'Sending verification email...' : 'Resend verification email'}
+                </button>
+              )}
+
               {!isEmailVerify && (
                 <button
                   type="submit"
                   disabled={!canSubmit}
                   className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
                 >
-                  {isSubmitting ? 'Working...' : copy.cta}
+                  {isSubmitting ? 'Please wait...' : copy.cta}
                   <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
                 </button>
               )}
@@ -631,6 +716,62 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
           </div>
         </section>
       </main>
+
+      {successDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auth-success-title"
+        >
+          <div
+            className={`w-full max-w-md rounded-3xl border p-6 shadow-2xl ${
+              isDark
+                ? 'border-white/10 bg-[#0b1020] text-slate-100'
+                : 'border-slate-200 bg-white text-slate-950'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-500">
+                <ShieldCheck size={24} />
+              </span>
+              <button
+                type="button"
+                onClick={() => setSuccessDialog(null)}
+                className={`rounded-xl p-2 transition-colors ${
+                  isDark ? 'text-slate-400 hover:bg-white/8 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-950'
+                }`}
+                aria-label="Close confirmation"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <h2 id="auth-success-title" className="mt-5 text-2xl font-bold tracking-tight">
+              {successDialog.title}
+            </h2>
+            <p className={`mt-3 text-sm leading-6 ${mutedText}`}>{successDialog.message}</p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={successDialog.actionHref}
+                className="inline-flex flex-1 items-center justify-center rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-violet-600/20"
+              >
+                {successDialog.actionLabel}
+              </a>
+              <button
+                type="button"
+                onClick={() => setSuccessDialog(null)}
+                className={`inline-flex flex-1 items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold ${
+                  isDark
+                    ? 'border-white/10 text-slate-300 hover:bg-white/8 hover:text-white'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

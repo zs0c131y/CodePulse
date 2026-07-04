@@ -14,14 +14,14 @@ export const githubCallbackUrl = `${BACKEND_URL}/auth/github/callback`
 export const gitlabCallbackUrl = `${BACKEND_URL}/auth/gitlab/callback`
 
 /**
- * Build a frontend hash link with an optional token query parameter.
- * Example: buildFrontendLink('verify-email', 'abc123') →
- *   http://localhost:5174/#verify-email?token=abc123
+ * Build a frontend client-side route link with an optional token query
+ * parameter. Example: buildFrontendLink('verify-email', 'abc123') →
+ *   http://localhost:5174/verify-email?token=abc123
  */
-export function buildFrontendLink(hashPath, token) {
+export function buildFrontendLink(routePath, token) {
   if (token) {
-    return `${FRONTEND_URL}/#${hashPath}?token=${encodeURIComponent(token)}`
+    return `${FRONTEND_URL}/${routePath}?token=${encodeURIComponent(token)}`
   }
 
-  return `${FRONTEND_URL}/#${hashPath}`
+  return `${FRONTEND_URL}/${routePath}`
 }

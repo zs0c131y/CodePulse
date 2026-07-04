@@ -143,3 +143,135 @@ body {
   background: rgba(139, 92, 246, 0.4);
   border-radius: 3px;
 }
+
+.product-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: clip;
+  background:
+    radial-gradient(ellipse at top left, rgba(124, 58, 237, 0.22), transparent 34rem),
+    radial-gradient(ellipse at top right, rgba(34, 211, 238, 0.16), transparent 32rem),
+    #030309;
+}
+
+.product-shell *,
+.product-shell *::before,
+.product-shell *::after {
+  min-width: 0;
+}
+
+.product-shell main,
+.product-shell header,
+.product-shell section,
+.product-shell article {
+  max-width: 100%;
+}
+
+.product-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 86%);
+}
+
+.product-shell aside {
+  background: rgba(5, 8, 22, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 24px 0 80px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(22px);
+}
+
+.product-shell header {
+  background: rgba(5, 8, 22, 0.74) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(22px);
+}
+
+.product-shell .bg-white,
+.product-shell .bg-white\/92 {
+  background: rgba(10, 10, 22, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(18px);
+}
+
+.product-shell .bg-slate-50,
+.product-shell .bg-slate-100 {
+  background: rgba(255, 255, 255, 0.045) !important;
+}
+
+.product-shell .border-slate-100,
+.product-shell .border-slate-200,
+.product-shell .border-slate-300 {
+  border-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+.product-shell .text-slate-950,
+.product-shell .text-slate-900,
+.product-shell .text-slate-800 {
+  color: #f8fafc !important;
+}
+
+.product-shell .text-slate-700,
+.product-shell .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.product-shell .text-slate-500,
+.product-shell .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+.product-shell input,
+.product-shell select,
+.product-shell textarea {
+  background: rgba(2, 6, 23, 0.62) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+}
+
+.product-shell input::placeholder,
+.product-shell textarea::placeholder {
+  color: #64748b !important;
+}
+
+.product-shell option {
+  background: #0b1020;
+  color: #f8fafc;
+}
+
+.product-shell table thead {
+  background: rgba(255, 255, 255, 0.045) !important;
+}
+
+.product-shell table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.045) !important;
+}
+
+.product-shell .shadow-sm {
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.22) !important;
+}
+
+.product-shell aside nav .bg-white {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(8, 145, 178, 0.95)) !important;
+  color: #ffffff !important;
+}
+
+.product-shell .bg-slate-950 {
+  background: linear-gradient(135deg, #7c3aed, #0891b2) !important;
+}
+
+.product-shell .bg-cyan-50,
+.product-shell .bg-emerald-50,
+.product-shell .bg-amber-50,
+.product-shell .bg-orange-50,
+.product-shell .bg-rose-50 {
+  background: rgba(255, 255, 255, 0.07) !important;
+}

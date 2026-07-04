@@ -3,6 +3,7 @@ import { authRateLimiter } from '../../middleware/rateLimiter.js'
 import { requireAccessToken } from '../../middleware/requireAccessToken.js'
 import {
   signup,
+  resendVerification,
   verifyEmail,
   signin,
   refresh,
@@ -19,6 +20,7 @@ import { redirectToGitlab, gitlabCallback } from './controler/gitlab.controller.
 const router = Router()
 
 router.post('/api/auth/signup', authRateLimiter, signup)
+router.post('/api/auth/resend-verification', authRateLimiter, resendVerification)
 router.post('/api/auth/verify-email', authRateLimiter, verifyEmail)
 router.post('/api/auth/signin', authRateLimiter, signin)
 router.post('/api/auth/refresh', authRateLimiter, refresh)

@@ -32,6 +32,12 @@ Run the backend API:
 npm run dev:backend
 ```
 
+Run both together from the repository root:
+
+```powershell
+npm run dev
+```
+
 The frontend runs through Vite and proxies `/api` and `/auth` calls to the
 backend API on `http://localhost:5000`.
 

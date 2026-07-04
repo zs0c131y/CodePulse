@@ -79,6 +79,32 @@ export async function signup(request, response, next) {
   }
 }
 
+export async function resendVerification(request, response, next) {
+  try {
+    const email = normalizeEmail(request.body.email)
+
+    if (!validateEmail(email)) {
+      response.status(400).json({ message: 'A valid email is required.' })
+      return
+    }
+
+    const users = await getUsersCollection()
+    const user = await users.findOne({ email })
+
+    if (user && !user.email_verified) {
+      const verificationToken = await createVerificationToken(user._id, email)
+      const verificationUrl = buildAppLink('verify-email', verificationToken)
+      await deliverAuthLink('email verification', email, verificationUrl)
+    }
+
+    response.json({
+      message: 'If an unverified account exists for that email, a new verification link has been sent.',
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export async function verifyEmail(request, response, next) {
   try {
     const token = String(request.body.token || '')
@@ -137,7 +163,10 @@ export async function signin(request, response, next) {
     }
 
     if (!user.email_verified) {
-      response.status(403).json({ message: 'Verify your email before signing in.' })
+      response.status(403).json({
+        message: 'Verify your email before signing in.',
+        canResendVerification: true,
+      })
       return
     }
 

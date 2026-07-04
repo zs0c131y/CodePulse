@@ -25,6 +25,9 @@ import {
   Sun,
   User,
 } from 'lucide-react'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Select } from './ui/select'
 
 function apiUrl(path) {
   return `${import.meta.env.VITE_API_BASE_URL || ''}${path}`
@@ -52,9 +55,9 @@ const defaultSettings = {
 const timezones = ['UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Calcutta']
 
 const navItems = [
-  { label: 'Dashboard', href: '#dashboard', icon: LayoutDashboard },
-  { label: 'Profile', href: '#profile', icon: User },
-  { label: 'Settings', href: '#settings', icon: Settings },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Profile', href: '/profile', icon: User },
+  { label: 'Settings', href: '/settings', icon: Settings },
 ]
 
 function initials(name, email) {
@@ -88,21 +91,11 @@ function Field({ label, icon: Icon, children }) {
 }
 
 function TextInput(props) {
-  return (
-    <input
-      {...props}
-      className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100"
-    />
-  )
+  return <Input {...props} />
 }
 
 function SelectInput(props) {
-  return (
-    <select
-      {...props}
-      className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100"
-    />
-  )
+  return <Select {...props} />
 }
 
 function Toggle({ checked, onChange, title, description, icon: Icon }) {
@@ -144,7 +137,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
   const isProfile = mode === 'profile'
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] text-slate-950">
+    <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-[#10131a] text-white lg:flex lg:flex-col">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-5">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-slate-950">
@@ -183,17 +176,24 @@ function AccountShell({ mode, user, status, onLogout, children }) {
               <LockKeyhole size={16} className="text-emerald-300" />
               Protected session
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-400">{status}</p>
+            <div className="mt-3 flex min-w-0 items-center justify-between gap-2">
+              <span className="truncate text-xs font-medium text-slate-400" title={user.email}>
+                {user.email}
+              </span>
+              <span className="shrink-0 rounded-md border border-emerald-300/25 bg-emerald-300/10 px-2 py-0.5 text-[11px] font-bold text-emerald-200">
+                {status === 'Session verified' ? 'Verified' : 'Checking'}
+              </span>
+            </div>
           </div>
         </div>
       </aside>
 
-      <div className="lg:pl-64">
+      <div className="min-w-0 lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/92 backdrop-blur">
           <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                <a href="#dashboard" className="inline-flex items-center gap-1 hover:text-slate-950">
+                <a href="/dashboard" className="inline-flex items-center gap-1 hover:text-slate-950">
                   <ArrowLeft size={14} />
                   Dashboard
                 </a>
@@ -206,28 +206,32 @@ function AccountShell({ mode, user, status, onLogout, children }) {
             </div>
 
             <div className="flex items-center gap-2">
-              <a
-                href="#profile"
-                className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"
+              <Button
+                href="/profile"
+                asChild
+                variant="outline"
+                className="hidden sm:inline-flex"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-950 text-xs font-bold text-white">
-                  {initials(user.name, user.email)}
-                </span>
-                {user.name}
-              </a>
-              <button
+                <a href="/profile">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-cyan-400 text-xs font-bold text-slate-950">
+                    {initials(user.name, user.email)}
+                  </span>
+                  <span className="max-w-32 truncate">{user.name}</span>
+                </a>
+              </Button>
+              <Button
                 type="button"
                 onClick={onLogout}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                variant="outline"
               >
                 <LogOut size={16} />
                 Sign out
-              </button>
+              </Button>
             </div>
           </div>
         </header>
 
-        <main className="px-4 py-5 sm:px-6">{children}</main>
+        <main className="mx-auto min-w-0 max-w-[1600px] px-4 py-5 sm:px-6">{children}</main>
       </div>
     </div>
   )
@@ -274,14 +278,13 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
               <h2 className="text-base font-bold text-slate-950">Personal details</h2>
               <p className="mt-1 text-sm text-slate-500">Keep your workspace identity clear for reports and ownership views.</p>
             </div>
-            <button
+            <Button
               type="submit"
               disabled={saving}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50"
             >
               <Save size={16} />
               {saving ? 'Saving...' : 'Save profile'}
-            </button>
+            </Button>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -322,7 +325,7 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
               />
             </Field>
             <Field label="Email" icon={Mail}>
-              <TextInput value={user.email} disabled className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500" />
+              <TextInput value={user.email} disabled />
             </Field>
           </div>
 
@@ -331,7 +334,7 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
               value={profile.bio}
               onChange={event => setProfile(current => ({ ...current, bio: event.target.value }))}
               placeholder="Tell teammates what systems you own and how CodePulse should support your review flow."
-              className="min-h-28 w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-950 outline-none transition focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100"
+            className="min-h-28 w-full rounded-lg border border-white/10 bg-slate-950/45 px-3 py-3 text-sm leading-6 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60 focus:ring-4 focus:ring-cyan-300/10"
             />
           </Field>
 
@@ -353,8 +356,8 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
             <div className="mt-4 space-y-3">
               {[
                 ['Email verified', user.email_verified ? 'Complete' : 'Pending', ShieldCheck],
-                ['Session storage', 'HttpOnly refresh cookie', LockKeyhole],
-                ['Workspace access', 'Protected by bearer token', KeyRound],
+                ['Session storage', 'Secure workspace session', LockKeyhole],
+                ['Workspace access', 'Verified account session', KeyRound],
               ].map(([label, value, Icon]) => (
                 <div key={label} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
@@ -404,15 +407,15 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
               delivery for your signed-in account.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={onSave}
             disabled={saving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+            size="lg"
           >
             <Save size={16} />
             {saving ? 'Saving...' : 'Save settings'}
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -522,16 +525,19 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
           <div>
             <h2 className="text-base font-bold text-slate-950">Security</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Password changes use the verified reset-email flow so refresh sessions can be revoked cleanly.
+              Reset your password through a verified email flow.
             </p>
           </div>
-          <a
-            href="#reset-password"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
+          <Button
+            href="/reset-password"
+            asChild
+            variant="outline"
           >
-            <KeyRound size={16} />
-            Reset password
-          </a>
+            <a href="/reset-password">
+              <KeyRound size={16} />
+              Reset password
+            </a>
+          </Button>
         </div>
       </section>
 
@@ -553,7 +559,7 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
   const [name, setName] = useState(user.name || '')
   const [profile, setProfile] = useState(() => mergeProfile(user))
   const [settings, setSettings] = useState(() => mergeSettings(user))
-  const [status, setStatus] = useState('Checking protected API access...')
+  const [status, setStatus] = useState('Verifying session...')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -576,15 +582,15 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
         const data = await response.json().catch(() => ({}))
 
         if (!response.ok) {
-          throw new Error(data.message || 'Protected API check failed.')
+          throw new Error(data.message || 'Session verification failed.')
         }
 
         if (!cancelled) {
-          setStatus(`Authorized as ${data.user.email}`)
+          setStatus('Session verified')
         }
       } catch (sessionError) {
         if (!cancelled) {
-          setStatus(sessionError instanceof Error ? sessionError.message : 'Protected API check failed.')
+          setStatus(sessionError instanceof Error ? sessionError.message : 'Session verification failed.')
         }
       }
     }
