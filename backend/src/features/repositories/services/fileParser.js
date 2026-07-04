@@ -1,5 +1,6 @@
 import { readdir, stat } from 'node:fs/promises'
 import { extname, join, relative, sep } from 'node:path'
+import { REPOSITORY_MAX_FILES } from '../../../config/index.js'
 
 export const ignoredDirectoryNames = new Set([
   '.git',
@@ -151,7 +152,17 @@ export function classifyFile(relativePath) {
   return 'unknown'
 }
 
-async function walkDirectory(rootPath, currentPath, output) {
+function assertWithinFileLimit(output, maxFiles) {
+  if (!maxFiles || output.files.length <= maxFiles) return
+
+  const error = new Error(
+    `Repository has more than ${maxFiles} analyzable files. Increase REPOSITORY_MAX_FILES or analyze a smaller repository.`,
+  )
+  error.statusCode = 413
+  throw error
+}
+
+async function walkDirectory(rootPath, currentPath, output, options) {
   const entries = await readdir(currentPath, { withFileTypes: true })
 
   for (const entry of entries) {
@@ -166,7 +177,7 @@ async function walkDirectory(rootPath, currentPath, output) {
         name: entry.name,
         depth: depthOf(relativePath),
       })
-      await walkDirectory(rootPath, absolutePath, output)
+      await walkDirectory(rootPath, absolutePath, output, options)
       continue
     }
 
@@ -184,16 +195,19 @@ async function walkDirectory(rootPath, currentPath, output) {
       size: stats.size,
       depth: depthOf(relativePath),
     })
+    assertWithinFileLimit(output, options.maxFiles)
   }
 }
 
-export async function parseRepositoryStructure(repositoryPath) {
+export async function parseRepositoryStructure(repositoryPath, options = {}) {
   const output = {
     directories: [],
     files: [],
   }
 
-  await walkDirectory(repositoryPath, repositoryPath, output)
+  await walkDirectory(repositoryPath, repositoryPath, output, {
+    maxFiles: options.maxFiles || REPOSITORY_MAX_FILES,
+  })
 
   output.directories.sort(comparePaths)
   output.files.sort(comparePaths)

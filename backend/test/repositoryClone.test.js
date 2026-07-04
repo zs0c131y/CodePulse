@@ -6,6 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { promisify } from 'node:util'
 import {
+  assertRepositorySizeAllowed,
   cloneRepository,
   parseGitHubRepositoryUrl,
   validatePublicGitHubRepositoryUrl,
@@ -56,6 +57,51 @@ test('clones a repository into a controlled workspace', async () => {
     assert.match(cloned.localPath, /source-repo-/)
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 3 })
+  }
+})
+
+test('rejects repositories above the configured size limit', async () => {
+  const originalFetch = globalThis.fetch
+
+  try {
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { size: 2048 }
+      },
+    })
+
+    await assert.rejects(
+      () => assertRepositorySizeAllowed({ owner: 'large', name: 'repo' }, { maxSizeKb: 1024 }),
+      error => {
+        assert.equal(error.statusCode, 413)
+        assert.match(error.message, /too large/i)
+        return true
+      },
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('allows unlimited repository size when the size limit is zero', async () => {
+  const originalFetch = globalThis.fetch
+
+  try {
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { size: 10 * 1024 * 1024 }
+      },
+    })
+
+    await assert.doesNotReject(
+      () => assertRepositorySizeAllowed({ owner: 'large', name: 'repo' }, { maxSizeKb: 0 }),
+    )
+  } finally {
+    globalThis.fetch = originalFetch
   }
 })
 

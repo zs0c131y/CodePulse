@@ -1,14 +1,21 @@
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
+import {
+  REPOSITORY_CLONE_DEPTH,
+  REPOSITORY_CLONE_TIMEOUT_MS,
+  REPOSITORY_MAX_SIZE_KB,
+} from '../../../config/index.js'
 
 const execFileAsync = promisify(execFile)
 const githubRepoPattern = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/
 
 export const defaultRepositoryWorkspace = join(tmpdir(), 'codepulse', 'repositories')
+const cleanupRetryDelayMs = 500
+const cleanupMaxRetries = 12
 
 function cleanRepoName(value) {
   return String(value || 'repository')
@@ -62,8 +69,9 @@ export async function runGit(args, options = {}) {
   try {
     const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: options.cwd,
-      timeout: options.timeoutMs || 120000,
+      timeout: options.timeoutMs || REPOSITORY_CLONE_TIMEOUT_MS,
       maxBuffer: options.maxBuffer || 10 * 1024 * 1024,
+      killSignal: 'SIGKILL',
       windowsHide: true,
     })
 
@@ -75,6 +83,50 @@ export async function runGit(args, options = {}) {
     wrapped.cause = error
     throw wrapped
   }
+}
+
+async function fetchGitHubRepositoryMetadata(repositoryInfo) {
+  const response = await fetch(`https://api.github.com/repos/${repositoryInfo.owner}/${repositoryInfo.name}`, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'CodePulse repository analyzer',
+    },
+    signal: AbortSignal.timeout(10000),
+  })
+
+  if (response.status === 404) {
+    const error = new Error('Repository was not found or is not public.')
+    error.statusCode = 404
+    throw error
+  }
+
+  if (!response.ok) return null
+
+  return response.json()
+}
+
+export async function assertRepositorySizeAllowed(repositoryInfo, options = {}) {
+  const maxSizeKb = options.maxSizeKb ?? REPOSITORY_MAX_SIZE_KB
+  if (!repositoryInfo?.owner || !repositoryInfo?.name || !maxSizeKb) return
+
+  let metadata
+
+  try {
+    metadata = await fetchGitHubRepositoryMetadata(repositoryInfo)
+  } catch (error) {
+    if (error.statusCode) throw error
+    return
+  }
+
+  const sizeKb = Number(metadata?.size)
+  if (!Number.isFinite(sizeKb) || sizeKb <= maxSizeKb) return
+
+  const error = new Error(
+    `Repository is too large for interactive analysis (${Math.round(sizeKb / 1024)} MB). ` +
+      `Current limit is ${Math.round(maxSizeKb / 1024)} MB.`,
+  )
+  error.statusCode = 413
+  throw error
 }
 
 export async function getCurrentBranch(repositoryPath) {
@@ -99,11 +151,17 @@ export async function cloneRepository(sourceUrl, options = {}) {
 
   const workspaceRoot = options.workspaceRoot || defaultRepositoryWorkspace
   const targetPath = join(workspaceRoot, `${cleanRepoName(repositoryInfo.name)}-${randomUUID()}`)
+  const cloneDepth = options.depth || REPOSITORY_CLONE_DEPTH
 
   await mkdir(workspaceRoot, { recursive: true })
+
+  if (!options.allowLocalPath) {
+    await assertRepositorySizeAllowed(repositoryInfo, { maxSizeKb: options.maxSizeKb })
+  }
+
   try {
-    await runGit(['clone', '--no-tags', repositoryInfo.cloneUrl, targetPath], {
-      timeoutMs: options.timeoutMs || 120000,
+    await runGit(['clone', '--no-tags', '--single-branch', '--depth', String(cloneDepth), repositoryInfo.cloneUrl, targetPath], {
+      timeoutMs: options.timeoutMs || REPOSITORY_CLONE_TIMEOUT_MS,
     })
   } catch (error) {
     await removeRepositoryWorkspace(targetPath)
@@ -120,7 +178,30 @@ export async function cloneRepository(sourceUrl, options = {}) {
   }
 }
 
-export async function removeRepositoryWorkspace(repositoryPath) {
+export async function removeRepositoryWorkspace(repositoryPath, options = {}) {
   if (!repositoryPath) return
-  await rm(repositoryPath, { recursive: true, force: true, maxRetries: 3 })
+
+  try {
+    await rm(repositoryPath, {
+      recursive: true,
+      force: true,
+      maxRetries: options.maxRetries || cleanupMaxRetries,
+      retryDelay: options.retryDelayMs || cleanupRetryDelayMs,
+    })
+  } catch {
+    const pendingPath = `${repositoryPath}.delete-${Date.now()}`
+
+    try {
+      await rename(repositoryPath, pendingPath)
+      await rm(pendingPath, {
+        recursive: true,
+        force: true,
+        maxRetries: options.maxRetries || cleanupMaxRetries,
+        retryDelay: options.retryDelayMs || cleanupRetryDelayMs,
+      })
+    } catch (renameOrRemoveError) {
+      if (options.throwOnError) throw renameOrRemoveError
+      console.warn(`CodePulse could not remove repository workspace ${repositoryPath}:`, renameOrRemoveError.message)
+    }
+  }
 }

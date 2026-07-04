@@ -55,3 +55,24 @@ test('parses repository directories and files while skipping ignored folders', a
     await rm(root, { recursive: true, force: true, maxRetries: 3 })
   }
 })
+
+test('stops parsing when a repository exceeds the configured file limit', async () => {
+  const root = join(tmpdir(), `codepulse-file-limit-${Date.now()}`)
+
+  try {
+    await mkdir(root, { recursive: true })
+    await writeFile(join(root, 'one.js'), 'export const one = 1\n', 'utf8')
+    await writeFile(join(root, 'two.js'), 'export const two = 2\n', 'utf8')
+
+    await assert.rejects(
+      () => parseRepositoryStructure(root, { maxFiles: 1 }),
+      error => {
+        assert.equal(error.statusCode, 413)
+        assert.match(error.message, /more than 1 analyzable files/i)
+        return true
+      },
+    )
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 3 })
+  }
+})

@@ -86,6 +86,10 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
     repository URLs.
   * Repositories are cloned into a temporary workspace and removed after the
     scan completes.
+  * Interactive analysis is intentionally capped for large repositories:
+    public GitHub metadata is checked before cloning, shallow clones are used,
+    file parsing has a maximum file count, and dependency extraction caps the
+    number and size of files it reads.
   * File parsing skips common generated or dependency directories such as
     `.git`, `node_modules`, `dist`, `build`, and cache folders.
   * Dependency graph generation is basic and currently targets

@@ -3,6 +3,11 @@ import { parseRepositoryStructure } from './fileParser.js'
 import { extractDocumentation } from './documentationExtractor.js'
 import { extractCommitHistory } from './commitExtractor.js'
 import { generateDependencyGraph } from './dependencyGraph.js'
+import {
+  REPOSITORY_MAX_DEPENDENCY_FILE_BYTES,
+  REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES,
+  REPOSITORY_MAX_FILES,
+} from '../../../config/index.js'
 
 export async function analyzeRepositorySource({
   sourceUrl,
@@ -15,10 +20,15 @@ export async function analyzeRepositorySource({
 
   try {
     clonedRepository = await cloneRepository(sourceUrl, cloneOptions)
-    const structure = await parseRepositoryStructure(clonedRepository.localPath)
+    const structure = await parseRepositoryStructure(clonedRepository.localPath, {
+      maxFiles: cloneOptions.maxFiles || REPOSITORY_MAX_FILES,
+    })
     const documentation = await extractDocumentation(clonedRepository.localPath, structure.files)
     const commits = await extractCommitHistory(clonedRepository.localPath, { limit: commitLimit })
-    const dependencies = await generateDependencyGraph(clonedRepository.localPath, structure.files)
+    const dependencies = await generateDependencyGraph(clonedRepository.localPath, structure.files, {
+      maxSourceFiles: cloneOptions.maxDependencySourceFiles || REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES,
+      maxFileBytes: cloneOptions.maxDependencyFileBytes || REPOSITORY_MAX_DEPENDENCY_FILE_BYTES,
+    })
     const analysis = {
       userId,
       repository: clonedRepository,

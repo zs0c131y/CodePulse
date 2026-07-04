@@ -120,6 +120,21 @@ Authentication also reads:
 * `GITLAB_ID` / `GITLAB_SECRET`: GitLab OAuth Application credentials. GitLab
   login is disabled (`503`) when unset.
 
+Repository Intelligence also reads:
+
+* `REPOSITORY_CLONE_TIMEOUT_MS`: git clone timeout in milliseconds. Defaults
+  to `600000` for local analysis.
+* `REPOSITORY_CLONE_DEPTH`: shallow clone depth. Defaults to `1`.
+* `REPOSITORY_MAX_SIZE_KB`: maximum GitHub repository size allowed for
+  interactive analysis. Defaults to `1048576` KB (1 GB) in local development
+  and `0` in production/cloud, where `0` means unlimited.
+* `REPOSITORY_MAX_FILES`: maximum parsed file count before analysis stops with
+  `413`. Defaults to `10000`.
+* `REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES`: maximum source files read for
+  dependency extraction. Defaults to `2000`.
+* `REPOSITORY_MAX_DEPENDENCY_FILE_BYTES`: maximum individual source-file size
+  read for dependency extraction. Defaults to `1048576`.
+
 If `EMAIL_KEY` or any context sender email is set, the matching sender email is
 also required. In production, auth email delivery requires SMTP2GO configuration
 unless the fallback webhook is configured.
@@ -145,6 +160,8 @@ unless the fallback webhook is configured.
   `MONGO_DNS_SERVERS` if your network requires different resolvers.
 * In local development, verification and reset links are logged to the backend
   console only. Tokenized links are never returned in API responses.
+* The Vite dev server uses a strict `5173` port. If that port is already in
+  use, Vite exits instead of silently switching to another port.
 
 ---
 
@@ -628,6 +645,19 @@ Implementation modules:
 The public API validates `https://github.com/...` URLs only. Local fixture
 repositories are supported only in tests through an internal option, not
 through the public API.
+
+Large repositories are guarded before and during analysis:
+
+* GitHub repository size is checked before cloning when public metadata is
+  available. Repositories above `REPOSITORY_MAX_SIZE_KB` return `413`. A value
+  of `0` disables this size check, which is the production/cloud default.
+* Clones are shallow by default (`REPOSITORY_CLONE_DEPTH=1`) and skip tags.
+* File parsing stops with `413` above `REPOSITORY_MAX_FILES`.
+* Dependency extraction skips oversized files and only scans up to
+  `REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES` source files.
+* Temporary clone cleanup is best-effort with retries. On Windows, locked git
+  pack files can briefly survive cleanup; those failures are logged without
+  crashing an otherwise completed analysis.
 
 ---
 

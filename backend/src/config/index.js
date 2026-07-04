@@ -88,6 +88,32 @@ configureLocalDns(MONGO_URI)
 export const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')
 export const BACKEND_URL = (process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '')
 
+function readPositiveIntegerEnv(name, fallback) {
+  const value = Number(process.env[name])
+  return Number.isInteger(value) && value > 0 ? value : fallback
+}
+
+function readNonNegativeIntegerEnv(name, fallback) {
+  const value = Number(process.env[name])
+  return Number.isInteger(value) && value >= 0 ? value : fallback
+}
+
+export const REPOSITORY_CLONE_TIMEOUT_MS = readPositiveIntegerEnv('REPOSITORY_CLONE_TIMEOUT_MS', 10 * 60 * 1000)
+export const REPOSITORY_CLONE_DEPTH = readPositiveIntegerEnv('REPOSITORY_CLONE_DEPTH', 1)
+export const REPOSITORY_MAX_SIZE_KB = readNonNegativeIntegerEnv(
+  'REPOSITORY_MAX_SIZE_KB',
+  IS_PRODUCTION ? 0 : 1024 * 1024,
+)
+export const REPOSITORY_MAX_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_FILES', 10000)
+export const REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES = readPositiveIntegerEnv(
+  'REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES',
+  2000,
+)
+export const REPOSITORY_MAX_DEPENDENCY_FILE_BYTES = readPositiveIntegerEnv(
+  'REPOSITORY_MAX_DEPENDENCY_FILE_BYTES',
+  1024 * 1024,
+)
+
 // --- OAuth provider credentials (optional — null when not configured) ---
 
 export const GITHUB_ID = process.env.GITHUB_ID || null

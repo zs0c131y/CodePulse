@@ -1,5 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join, posix } from 'node:path'
+import {
+  REPOSITORY_MAX_DEPENDENCY_FILE_BYTES,
+  REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES,
+} from '../../../config/index.js'
 
 const jsExtensions = ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.json']
 const pythonExtensions = ['.py']
@@ -124,11 +128,17 @@ function isDependencySource(file) {
   return ['code', 'test'].includes(file.file_type) && ['JavaScript', 'JavaScript JSX', 'TypeScript', 'TypeScript JSX', 'Python'].includes(file.language)
 }
 
-export async function generateDependencyGraph(repositoryPath, files) {
+export async function generateDependencyGraph(repositoryPath, files, options = {}) {
+  const maxSourceFiles = options.maxSourceFiles || REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES
+  const maxFileBytes = options.maxFileBytes || REPOSITORY_MAX_DEPENDENCY_FILE_BYTES
   const fileIndex = createFileIndex(files)
   const edges = []
+  const sourceFiles = files
+    .filter(isDependencySource)
+    .filter(file => !maxFileBytes || file.size <= maxFileBytes)
+    .slice(0, maxSourceFiles)
 
-  for (const file of files.filter(isDependencySource)) {
+  for (const file of sourceFiles) {
     const content = await readFile(absolutePathFromRepo(repositoryPath, file.path), 'utf8')
 
     if (file.language.startsWith('JavaScript') || file.language.startsWith('TypeScript')) {

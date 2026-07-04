@@ -63,3 +63,22 @@ test('generates basic dependency edges for JavaScript and Python files', async (
     await rm(root, { recursive: true, force: true, maxRetries: 3 })
   }
 })
+
+test('caps dependency scanning to the configured source-file limit', async () => {
+  const root = join(tmpdir(), `codepulse-dependency-limit-${Date.now()}`)
+
+  try {
+    await mkdir(join(root, 'src'), { recursive: true })
+    await writeFile(join(root, 'src', 'first.js'), 'import "./shared.js"\n', 'utf8')
+    await writeFile(join(root, 'src', 'second.js'), 'import "./shared.js"\n', 'utf8')
+    await writeFile(join(root, 'src', 'shared.js'), 'export default 1\n', 'utf8')
+
+    const parsed = await parseRepositoryStructure(root)
+    const edges = await generateDependencyGraph(root, parsed.files, { maxSourceFiles: 1 })
+
+    assert.equal(edges.length, 1)
+    assert.equal(edges[0].source_file, 'src/first.js')
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 3 })
+  }
+})
