@@ -14,9 +14,13 @@ wiring for CodePulse.
   merging in [frontend/src/lib/utils.js](../../frontend/src/lib/utils.js), and
   project CSS in [frontend/src/index.css](../../frontend/src/index.css) and
   [frontend/src/App.css](../../frontend/src/App.css).
+* **Charts**: recharts (area charts, bar charts) inside the dashboard panels
+  under [frontend/src/components/dashboard](../../frontend/src/components/dashboard).
 * **Routing**: Lightweight client-side path routing in
   [frontend/src/App.jsx](../../frontend/src/App.jsx). Legacy hash routes are
-  normalized for backward compatibility.
+  normalized for backward compatibility. Authenticated screens (`Dashboard`,
+  `AccountPage`) are lazy-loaded with `React.lazy` so the marketing bundle
+  stays free of the chart stack.
 
 ---
 
@@ -49,9 +53,24 @@ frontend/
 ├── public/
 │   └── favicon.svg
 ├── src/
+│   ├── api/                    # Backend API client modules
+│   │   ├── client.js           # apiUrl + authenticated apiFetch (ApiError carries HTTP status)
+│   │   ├── repositories.js     # Repository analyze + read/analytics endpoints
+│   │   └── usage.js            # Account usage snapshot endpoint
 │   ├── assets/
 │   │   └── hero.png
 │   ├── components/
+│   │   ├── dashboard/          # Dashboard panels (presentational)
+│   │   │   ├── CoveragePanel.jsx    # recharts horizontal documentation-coverage bars
+│   │   │   ├── DebtCharts.jsx       # recharts complexity + churn/duplication charts
+│   │   │   ├── DebtTable.jsx        # Ranked module debt table (cards on small screens)
+│   │   │   ├── DriftPanel.jsx       # Knowledge drift findings queue
+│   │   │   ├── KpiCard.jsx          # KPI stat card with sparkline
+│   │   │   ├── PipelinePanel.jsx    # Analysis pipeline status list
+│   │   │   ├── RecommendationPanel.jsx # AI recommendation cards
+│   │   │   ├── RiskTrendPanel.jsx   # recharts risk-trend area chart + table toggle
+│   │   │   ├── shared.jsx           # Tooltip, Sparkline, EmptyPanel components
+│   │   │   └── utils.js             # severity/status classes, clamp, formatRelativeTime
 │   │   ├── ui/
 │   │   │   ├── badge.jsx
 │   │   │   ├── button.jsx
@@ -60,7 +79,7 @@ frontend/
 │   │   │   └── select.jsx
 │   │   ├── AuthPage.jsx
 │   │   ├── AccountPage.jsx
-│   │   ├── Dashboard.jsx
+│   │   ├── Dashboard.jsx        # Dashboard shell + data orchestration
 │   │   ├── Features.jsx
 │   │   ├── FinalCTA.jsx
 │   │   ├── Footer.jsx
@@ -71,6 +90,8 @@ frontend/
 │   │   ├── Problems.jsx
 │   │   ├── Stats.jsx
 │   │   └── Testimonials.jsx
+│   ├── demo/
+│   │   └── dashboardDemoData.js  # Demo-mode fallback data (never used in live mode)
 │   ├── lib/
 │   │   └── utils.js
 │   ├── App.css
@@ -146,27 +167,62 @@ routes.
 After sign-in, `/dashboard` renders
 [Dashboard.jsx](../../frontend/src/components/Dashboard.jsx). The dashboard
 preserves the protected-session check against `GET /api/auth/me`, supports
-sign-out, and shows sample report data until repository-analysis APIs are
-implemented.
+sign-out, and runs in **live mode** by default with a **demo mode** toggle as a
+fallback.
 
-Users can select a repository, enter a public GitHub repository URL, and start
-a Repository Intelligence scan through `POST /api/repositories/analyze`. The
-scan action sends the current bearer access token, shows loading/error/success
-states, and renders the returned file, documentation, commit, dependency, and
-directory counts. The dashboard header includes a demo/live mode toggle: demo
-mode keeps the sample analytics visible, while live mode replaces the
-hardcoded analytics with the latest scan summary available in the current
-session. Header notification, settings, profile, and sign-out actions are
-icon-only controls with hover tooltips. Users can also access four dashboard
-tabs:
+### Live mode (default)
 
-* **Overview**: Repository health score, technical debt grade, drift count, and
-  critical risk count, plus analysis pipeline and risk trend panels.
-* **Technical Debt**: Complexity heatmaps, duplication lists, circular
-  dependencies, and churn hotspots in a ranked module table.
-* **Knowledge Drift & Debt**: Drift findings and documentation coverage.
-* **Risk & AI Recommendations**: Ranked modules with AI-generated remediation
-  guidance.
+Live mode is wired entirely to backend APIs — it never fabricates analytics.
+All repository reads go through
+[frontend/src/api/repositories.js](../../frontend/src/api/repositories.js),
+which implements the contract documented in
+[docs/backend/BACKEND.md](../backend/BACKEND.md) ("Repository Read & Analytics
+API"):
+
+* On load, the dashboard fetches `GET /api/repositories`, selects the most
+  recently updated repository, and renders its persisted totals — so the
+  last-scan view survives page refreshes (nothing is session-only).
+* The repository dropdown lists the user's real repositories from the API.
+* Each tab fetches its own analytics endpoint for the selected repository
+  (`GET /api/repositories/:id/scores`, `/debt`, `/drift`,
+  `/recommendations`). Every request settles independently: an endpoint that
+  returns `404` (engine not rolled out yet) empties only its own panels, which
+  render honest "not available yet" empty states instead of sample data.
+* While the selected repository's analysis `status` is `queued` or `running`,
+  the dashboard polls `GET /api/repositories/:id/status` every 4 seconds and
+  refreshes data when the run reaches `completed` or `failed`. Polling resumes
+  automatically after a page refresh mid-scan.
+* The scan form validates the GitHub URL client-side before posting to
+  `POST /api/repositories/analyze`. A successful scan switches the dashboard
+  to live mode, selects the new repository, and reloads list + analytics.
+* Until the read API ships on the backend, live mode degrades gracefully: it
+  shows the current session's scan summary and marks the remaining panels as
+  unavailable.
+
+Four dashboard tabs:
+
+* **Overview**: Score KPIs (health, critical risks, drift findings, AI
+  actions) when the scores engine responds, otherwise real scan totals (files,
+  docs, commits, dependency edges); analysis pipeline driven by the real
+  analysis status; risk-trend area chart; top debt modules and drift findings.
+* **Technical Debt**: Debt-metric KPIs, recharts complexity and
+  churn/duplication bar charts, and the ranked module table from
+  `GET /api/repositories/:id/debt`.
+* **Knowledge Drift & Debt**: Drift findings queue and recharts documentation
+  coverage bars from `GET /api/repositories/:id/drift`.
+* **Risk & AI Recommendations**: Risk trend, pipeline state, and AI
+  recommendation cards from `GET /api/repositories/:id/recommendations`.
+
+Repositories with no completed analysis render a dedicated empty state
+prompting the user to start a scan.
+
+### Demo mode (toggle fallback)
+
+The header demo toggle switches the whole dashboard to the sample data in
+[frontend/src/demo/dashboardDemoData.js](../../frontend/src/demo/dashboardDemoData.js)
+(repositories, KPIs, pipeline, debt modules, drift findings, coverage,
+recommendations, risk trend). Demo data never leaves this module, and live
+mode never reads it.
 
 Authenticated screens share a fixed sidebar, sticky header, responsive content
 width, and shadcn-style buttons, badges, inputs, and selects. Dashboard grids use
@@ -183,7 +239,9 @@ page-level horizontal scrolling.
 reuse the protected-session flow and shared account layout.
 
 * **Profile**: Edits display name and profile metadata, then persists through
-  `PATCH /api/auth/profile`.
+  `PATCH /api/auth/profile`. The "Usage snapshot" card fetches
+  `GET /api/auth/usage` (planned contract) and shows placeholder dashes until
+  the endpoint is available.
 * **Settings**: Edits theme, density, scan cadence, AI summary detail, and
   notification preferences, then persists through `PATCH /api/auth/settings`.
 * The dashboard links to both routes from the sidebar and header controls.

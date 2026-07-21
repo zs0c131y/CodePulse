@@ -2,9 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
-  BarChart3,
   Bell,
   BookOpenCheck,
   Brain,
@@ -18,7 +15,6 @@ import {
   GitBranch,
   GitPullRequest,
   LayoutDashboard,
-  ListFilter,
   LockKeyhole,
   LogOut,
   Play,
@@ -34,37 +30,41 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
+import { ApiError, apiFetch } from '../api/client'
+import {
+  analyzeRepository,
+  getRepositoryDebt,
+  getRepositoryDrift,
+  getRepositoryRecommendations,
+  getRepositoryScores,
+  getRepositoryStatus,
+  listRepositories,
+} from '../api/repositories'
+import {
+  demoCoverage,
+  demoDebtKpis,
+  demoDebtModules,
+  demoDriftFindings,
+  demoKpis,
+  demoPipeline,
+  demoRecommendations,
+  demoRepositories,
+  demoRiskTrend,
+} from '../demo/dashboardDemoData'
+import CoveragePanel from './dashboard/CoveragePanel'
+import DebtCharts from './dashboard/DebtCharts'
+import DebtTable from './dashboard/DebtTable'
+import DriftPanel from './dashboard/DriftPanel'
+import KpiCard from './dashboard/KpiCard'
+import PipelinePanel from './dashboard/PipelinePanel'
+import RecommendationPanel from './dashboard/RecommendationPanel'
+import RiskTrendPanel from './dashboard/RiskTrendPanel'
+import { EmptyPanel, Tooltip } from './dashboard/shared'
+import { ANALYSIS_STATUS_META, analysisStatusClass, formatRelativeTime, severityClass } from './dashboard/utils'
 
-function apiUrl(path) {
-  return `${import.meta.env.VITE_API_BASE_URL || ''}${path}`
-}
+const STATUS_POLL_INTERVAL_MS = 4000
 
-const repositories = [
-  {
-    name: 'acme/platform',
-    branch: 'main',
-    language: 'TypeScript',
-    lastScan: '12 min ago',
-    health: 86,
-    risk: 'Medium',
-  },
-  {
-    name: 'acme/billing-service',
-    branch: 'release/2.8',
-    language: 'Node.js',
-    lastScan: '38 min ago',
-    health: 72,
-    risk: 'High',
-  },
-  {
-    name: 'acme/mobile-api',
-    branch: 'main',
-    language: 'Python',
-    lastScan: '1 hr ago',
-    health: 91,
-    risk: 'Low',
-  },
-]
+const GITHUB_REPO_URL_PATTERN = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/
 
 const navItems = [
   { label: 'Overview', icon: LayoutDashboard },
@@ -78,219 +78,109 @@ const accountNavItems = [
   { label: 'Settings', href: '/settings', icon: Settings },
 ]
 
-const kpis = [
-  {
-    label: 'Repository health',
-    value: '86',
-    unit: '/100',
-    trend: '+4.2%',
-    trendTone: 'good',
-    icon: ShieldCheck,
-    accent: 'emerald',
-    sparkline: [78, 79, 80, 79, 81, 82, 83, 84, 83, 85, 86, 86],
-  },
-  {
-    label: 'Critical risks',
-    value: '7',
-    unit: 'modules',
-    trend: '-2 today',
-    trendTone: 'good',
-    icon: ShieldAlert,
-    accent: 'rose',
-    sparkline: [11, 10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7],
-  },
-  {
-    label: 'Documentation drift',
-    value: '19',
-    unit: 'findings',
-    trend: '+5 this week',
-    trendTone: 'bad',
-    icon: BookOpenCheck,
-    accent: 'amber',
-    sparkline: [12, 13, 13, 14, 15, 15, 16, 17, 17, 18, 19, 19],
-  },
-  {
-    label: 'AI actions ready',
-    value: '12',
-    unit: 'recommendations',
-    trend: '4 high impact',
-    trendTone: 'neutral',
-    deltaKind: 'meta',
-    icon: Sparkles,
-    accent: 'cyan',
-  },
-]
+const EMPTY_ANALYTICS = { scores: null, debt: null, drift: null, recommendations: [] }
+const EMPTY_ANALYTICS_ERRORS = { scores: null, debt: null, drift: null, recommendations: null }
 
-const pipeline = [
-  { label: 'Repository indexed', status: 'Complete', detail: '14,286 files parsed', progress: 100 },
-  { label: 'Dependency graph', status: 'Complete', detail: '812 edges mapped', progress: 100 },
-  { label: 'Debt analysis', status: 'Running', detail: 'Complexity and churn scan', progress: 76 },
-  { label: 'AI explanations', status: 'Queued', detail: 'Waiting on risk scoring', progress: 28 },
-]
-
-const debtModules = [
-  {
-    module: 'src/billing/InvoicePipeline.ts',
-    owner: 'Payments',
-    complexity: 91,
-    churn: '84%',
-    duplication: '18%',
-    risk: 'Critical',
-  },
-  {
-    module: 'src/auth/sessionStore.ts',
-    owner: 'Platform',
-    complexity: 73,
-    churn: '61%',
-    duplication: '9%',
-    risk: 'High',
-  },
-  {
-    module: 'src/docs/markdownParser.ts',
-    owner: 'DX',
-    complexity: 64,
-    churn: '44%',
-    duplication: '12%',
-    risk: 'High',
-  },
-  {
-    module: 'src/api/reportRoutes.ts',
-    owner: 'Insights',
-    complexity: 52,
-    churn: '38%',
-    duplication: '6%',
-    risk: 'Medium',
-  },
-]
-
-const driftFindings = [
-  {
-    title: 'README references removed webhook flow',
-    file: 'docs/auth/README.md',
-    severity: 'High',
-    age: '18 days',
-    evidence: 'Payment webhook handler was removed in commit b91a4f2.',
-  },
-  {
-    title: 'Authentication guide needs an update',
-    file: 'docs/api/authentication.md',
-    severity: 'Medium',
-    age: '9 days',
-    evidence: 'Recent sign-in changes are not reflected in the onboarding guide.',
-  },
-  {
-    title: 'Architecture diagram missing risk engine',
-    file: 'docs/architecture/system.md',
-    severity: 'Medium',
-    age: '27 days',
-    evidence: 'Risk scoring service now depends on churn and ownership signals.',
-  },
-]
-
-const recommendations = [
-  {
-    title: 'Split InvoicePipeline into orchestration and calculation units',
-    impact: 'High',
-    effort: '2-3 days',
-    reason:
-      'The module combines retry orchestration, tax calculation, and notification side effects, which explains the high complexity and churn correlation.',
-    steps: ['Extract pure invoice calculator', 'Move retry policy into queue worker', 'Add contract tests for tax boundaries'],
-  },
-  {
-    title: 'Refresh authentication documentation',
-    impact: 'Medium',
-    effort: '4 hours',
-    reason:
-      'Authentication behavior changed recently. Update the docs so onboarding, support, and incident response stay accurate.',
-    steps: ['Update sequence diagram', 'Document session lifecycle', 'Add reset link expiry notes'],
-  },
-  {
-    title: 'Assign secondary owners to billing hotspots',
-    impact: 'High',
-    effort: '1 sprint',
-    reason:
-      'Billing files show concentrated authorship and frequent bug-fix commits, increasing operational risk during incident response.',
-    steps: ['Pair-review next three billing PRs', 'Create ownership rotation', 'Capture runbook gaps as docs tasks'],
-  },
-]
-
-const riskBars = [
-  { label: 'Mon', value: 62 },
-  { label: 'Tue', value: 58 },
-  { label: 'Wed', value: 64 },
-  { label: 'Thu', value: 71 },
-  { label: 'Fri', value: 67 },
-  { label: 'Sat', value: 54 },
-  { label: 'Sun', value: 49 },
-]
-
-function accentClasses(accent) {
-  const map = {
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    rose: 'bg-rose-50 text-rose-700 border-rose-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-    cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-  }
-
-  return map[accent] || map.cyan
-}
-
-function severityClass(severity) {
-  if (severity === 'Critical') return 'bg-rose-50 text-rose-700 border-rose-200'
-  if (severity === 'High') return 'bg-orange-50 text-orange-700 border-orange-200'
-  if (severity === 'Medium') return 'bg-amber-50 text-amber-700 border-amber-200'
-  return 'bg-emerald-50 text-emerald-700 border-emerald-200'
-}
-
-function clamp(value, min = 0, max = 100) {
-  return Math.min(max, Math.max(min, value))
-}
-
-function getCount(summary, key) {
-  return Number(summary?.[key] || 0)
-}
-
-function getDocumentationCoverage(summary) {
-  const files = getCount(summary, 'totalFiles')
+function getDocumentationCoverage(repository) {
+  const files = Number(repository?.totalFiles || 0)
   if (!files) return 0
-  return Math.round((getCount(summary, 'totalDocumentation') / files) * 100)
+  return Math.round((Number(repository?.totalDocumentation || 0) / files) * 100)
 }
 
-function inferLiveRisk(summary) {
-  if (!summary) return 'Low'
-
-  const files = getCount(summary, 'totalFiles')
-  const dependencies = getCount(summary, 'totalDependencies')
-  const documentationCoverage = getDocumentationCoverage(summary)
-  const dependencyDensity = files ? dependencies / files : 0
-
-  if (files > 500 || dependencyDensity > 1.5 || documentationCoverage < 5) return 'High'
-  if (files > 100 || dependencyDensity > 0.6 || documentationCoverage < 15) return 'Medium'
-  return 'Low'
-}
-
-function buildLiveRepository(summary) {
-  const repository = summary?.repository
+function summaryToRepository(summary, repositoryId) {
+  const repository = summary?.repository || {}
 
   return {
-    name: repository?.fullName || repository?.name || 'No repository scanned',
-    branch: repository?.defaultBranch || 'No branch',
-    language: summary ? 'Mixed' : 'No scan',
-    lastScan: summary ? 'just now' : 'not scanned',
-    health: summary ? clamp(55 + getDocumentationCoverage(summary) - Math.round(getCount(summary, 'totalDependencies') / Math.max(getCount(summary, 'totalFiles'), 1) * 10)) : 0,
-    risk: inferLiveRisk(summary),
+    id: repositoryId,
+    name: repository.name || 'repository',
+    fullName: repository.fullName || repository.name || 'repository',
+    url: repository.url || '',
+    defaultBranch: repository.defaultBranch || 'main',
+    status: 'completed',
+    totalFiles: summary?.totalFiles || 0,
+    totalDirectories: summary?.totalDirectories || 0,
+    totalDocumentation: summary?.totalDocumentation || 0,
+    totalCommits: summary?.totalCommits || 0,
+    totalDependencies: summary?.totalDependencies || 0,
+    updatedAt: null,
   }
 }
 
-function buildLiveKpis(summary) {
-  const documentationCoverage = getDocumentationCoverage(summary)
+function settledValue(result, fallback = null) {
+  return result.status === 'fulfilled' ? result.value : fallback
+}
+
+function settledError(result) {
+  if (result.status === 'fulfilled') return null
+  const reason = result.reason
+  return { status: reason instanceof ApiError ? reason.status : 0, message: reason instanceof Error ? reason.message : 'Request failed.' }
+}
+
+function availabilityMessage(error, fallback) {
+  if (error?.status === 404) {
+    return 'This data is published by the analysis engines, which have not produced results for this repository yet.'
+  }
+  if (error) {
+    return `Could not load this data: ${error.message}`
+  }
+  return fallback
+}
+
+function buildScoreKpis(scores) {
+  return [
+    {
+      label: 'Repository health',
+      value: String(scores.healthScore ?? '—'),
+      unit: '/100',
+      trend: `Debt grade ${scores.technicalDebt?.grade || '—'}`,
+      trendTone: 'neutral',
+      deltaKind: 'meta',
+      icon: ShieldCheck,
+      accent: 'emerald',
+      sparkline: Array.isArray(scores.healthTrend) ? scores.healthTrend : null,
+    },
+    {
+      label: 'Critical risks',
+      value: String(scores.risk?.criticalModules ?? 0),
+      unit: 'modules',
+      trend: `${scores.drift?.critical ?? 0} critical drift`,
+      trendTone: (scores.risk?.criticalModules ?? 0) > 0 ? 'bad' : 'good',
+      deltaKind: 'meta',
+      icon: ShieldAlert,
+      accent: 'rose',
+    },
+    {
+      label: 'Documentation drift',
+      value: String(scores.drift?.total ?? 0),
+      unit: 'findings',
+      trend: `${scores.drift?.high ?? 0} high severity`,
+      trendTone: (scores.drift?.total ?? 0) > 0 ? 'bad' : 'good',
+      deltaKind: 'meta',
+      icon: BookOpenCheck,
+      accent: 'amber',
+    },
+    {
+      label: 'AI actions ready',
+      value: String(scores.recommendationsReady ?? 0),
+      unit: 'recommendations',
+      trend: 'From risk engine',
+      trendTone: 'neutral',
+      deltaKind: 'meta',
+      icon: Sparkles,
+      accent: 'cyan',
+    },
+  ]
+}
+
+function buildTotalKpis(repository) {
+  const coverage = getDocumentationCoverage(repository)
 
   return [
     {
       label: 'Files indexed',
-      value: String(getCount(summary, 'totalFiles')),
+      value: String(repository.totalFiles ?? 0),
       unit: 'files',
-      trend: `${getCount(summary, 'totalDirectories')} dirs`,
+      trend: `${repository.totalDirectories ?? 0} dirs`,
       trendTone: 'neutral',
       deltaKind: 'meta',
       icon: Code2,
@@ -298,18 +188,19 @@ function buildLiveKpis(summary) {
     },
     {
       label: 'Documentation',
-      value: String(getCount(summary, 'totalDocumentation')),
+      value: String(repository.totalDocumentation ?? 0),
       unit: 'docs',
-      trend: `${documentationCoverage}% coverage`,
-      trendTone: documentationCoverage >= 15 ? 'good' : 'bad',
+      trend: `${coverage}% coverage`,
+      trendTone: coverage >= 15 ? 'good' : 'bad',
+      deltaKind: 'meta',
       icon: BookOpenCheck,
       accent: 'emerald',
     },
     {
       label: 'Commit history',
-      value: String(getCount(summary, 'totalCommits')),
+      value: String(repository.totalCommits ?? 0),
       unit: 'commits',
-      trend: summary ? 'latest scan' : 'no scan',
+      trend: 'Latest scan',
       trendTone: 'neutral',
       deltaKind: 'meta',
       icon: GitBranch,
@@ -317,17 +208,18 @@ function buildLiveKpis(summary) {
     },
     {
       label: 'Dependency edges',
-      value: String(getCount(summary, 'totalDependencies')),
+      value: String(repository.totalDependencies ?? 0),
       unit: 'edges',
-      trend: inferLiveRisk(summary),
-      trendTone: inferLiveRisk(summary) === 'High' ? 'bad' : inferLiveRisk(summary) === 'Medium' ? 'neutral' : 'good',
+      trend: 'Mapped imports',
+      trendTone: 'neutral',
+      deltaKind: 'meta',
       icon: GitPullRequest,
       accent: 'rose',
     },
   ]
 }
 
-function buildLivePipeline(summary, scanLoading) {
+function buildStatusPipeline(repository, scanLoading) {
   if (scanLoading) {
     return [
       { label: 'Repository clone', status: 'Running', detail: 'Cloning public GitHub repository', progress: 35 },
@@ -337,569 +229,192 @@ function buildLivePipeline(summary, scanLoading) {
     ]
   }
 
-  if (!summary) {
+  if (!repository) return []
+
+  if (repository.status === 'failed') {
     return [
-      { label: 'Repository clone', status: 'Queued', detail: 'Start a scan to clone a repository', progress: 0 },
-      { label: 'File inventory', status: 'Queued', detail: 'No live file data yet', progress: 0 },
-      { label: 'Commit history', status: 'Queued', detail: 'No live commit data yet', progress: 0 },
-      { label: 'Dependency graph', status: 'Queued', detail: 'No live dependency data yet', progress: 0 },
+      { label: 'Repository analysis', status: 'Failed', detail: 'The latest analysis run did not complete', progress: 100 },
+      { label: 'Debt scoring', status: 'Queued', detail: 'Waiting for a successful analysis run', progress: 0 },
+      { label: 'Drift detection', status: 'Queued', detail: 'Waiting for a successful analysis run', progress: 0 },
+      { label: 'Risk intelligence', status: 'Queued', detail: 'Waiting for a successful analysis run', progress: 0 },
+    ]
+  }
+
+  if (repository.status === 'running') {
+    return [
+      { label: 'Repository clone', status: 'Complete', detail: 'Clone workspace ready', progress: 100 },
+      { label: 'Repository analysis', status: 'Running', detail: 'Extracting files, commits, documentation, and dependencies', progress: 60 },
+      { label: 'Debt scoring', status: 'Queued', detail: 'Waiting for repository analysis', progress: 0 },
+      { label: 'Drift detection', status: 'Queued', detail: 'Waiting for repository analysis', progress: 0 },
+    ]
+  }
+
+  if (repository.status === 'queued') {
+    return [
+      { label: 'Repository clone', status: 'Queued', detail: 'Analysis run is queued', progress: 0 },
+      { label: 'File inventory', status: 'Queued', detail: 'Waiting for clone output', progress: 0 },
+      { label: 'Commit history', status: 'Queued', detail: 'Waiting for repository metadata', progress: 0 },
+      { label: 'Dependency graph', status: 'Queued', detail: 'Waiting for parsed files', progress: 0 },
     ]
   }
 
   return [
-    { label: 'Repository indexed', status: 'Complete', detail: `${getCount(summary, 'totalFiles')} files parsed`, progress: 100 },
-    { label: 'Documentation extracted', status: 'Complete', detail: `${getCount(summary, 'totalDocumentation')} docs detected`, progress: 100 },
-    { label: 'Commit history', status: 'Complete', detail: `${getCount(summary, 'totalCommits')} commits scanned`, progress: 100 },
-    { label: 'Dependency graph', status: 'Complete', detail: `${getCount(summary, 'totalDependencies')} edges mapped`, progress: 100 },
+    { label: 'Repository indexed', status: 'Complete', detail: `${repository.totalFiles ?? 0} files parsed`, progress: 100 },
+    { label: 'Documentation extracted', status: 'Complete', detail: `${repository.totalDocumentation ?? 0} docs detected`, progress: 100 },
+    { label: 'Commit history', status: 'Complete', detail: `${repository.totalCommits ?? 0} commits scanned`, progress: 100 },
+    { label: 'Dependency graph', status: 'Complete', detail: `${repository.totalDependencies ?? 0} edges mapped`, progress: 100 },
   ]
 }
 
-function buildLiveRiskBars(summary) {
-  const values = [
-    ['Files', getCount(summary, 'totalFiles')],
-    ['Docs', getCount(summary, 'totalDocumentation')],
-    ['Commits', getCount(summary, 'totalCommits')],
-    ['Deps', getCount(summary, 'totalDependencies')],
-  ]
-  const maxValue = Math.max(...values.map(([, value]) => value), 1)
-
-  return values.map(([label, value]) => ({
-    label,
-    value: Math.round((value / maxValue) * 100),
-  }))
-}
-
-function buildLiveDebtItems(summary) {
-  if (!summary) return []
-
+function buildDebtKpis(metrics) {
   return [
     {
-      module: summary.repository?.fullName || summary.repository?.name || 'Latest repository scan',
-      owner: `${getCount(summary, 'totalDirectories')} dirs`,
-      complexity: clamp(getCount(summary, 'totalFiles')),
-      churn: `${getCount(summary, 'totalCommits')} commits`,
-      duplication: `${getCount(summary, 'totalDependencies')} edges`,
-      risk: inferLiveRisk(summary),
+      label: 'Avg complexity',
+      value: String(metrics.averageComplexity ?? '—'),
+      unit: 'score',
+      trend: `Grade ${metrics.grade || '—'}`,
+      trendTone: 'neutral',
+      deltaKind: 'meta',
+      icon: Code2,
+      accent: 'amber',
+    },
+    {
+      label: 'Duplicated code',
+      value: String(metrics.duplicationPercent ?? '—'),
+      unit: '%',
+      trend: 'Debt engine',
+      trendTone: 'neutral',
+      deltaKind: 'meta',
+      icon: GitBranch,
+      accent: 'cyan',
+    },
+    {
+      label: 'Circular deps',
+      value: String(metrics.circularDependencies ?? '—'),
+      unit: 'loops',
+      trend: 'Debt engine',
+      trendTone: (metrics.circularDependencies ?? 0) > 0 ? 'bad' : 'good',
+      deltaKind: 'meta',
+      icon: AlertTriangle,
+      accent: 'rose',
     },
   ]
 }
 
-function Tooltip({ label }) {
-  return (
-    <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden whitespace-nowrap rounded-md border border-slate-200 bg-slate-950 px-2 py-1 text-xs font-semibold text-white shadow-lg group-hover:block group-focus-within:block">
-      {label}
-    </span>
-  )
+function mapDebtModules(debt) {
+  return (debt?.modules || []).map(module => ({
+    module: module.path || 'unknown',
+    owner: module.owner || 'Unassigned',
+    complexity: Math.round(Number(module.complexity) || 0),
+    churn: `${Math.round(Number(module.churnPercent) || 0)}%`,
+    duplication: `${Math.round(Number(module.duplicationPercent) || 0)}%`,
+    risk: module.risk || 'Low',
+  }))
 }
 
-function Sparkline({ points, tone }) {
-  if (!points || points.length < 2) return null
-
-  const width = 64
-  const height = 22
-  const min = Math.min(...points)
-  const max = Math.max(...points)
-  const range = max - min || 1
-  const stepX = width / (points.length - 1)
-  const coords = points.map((point, index) => [index * stepX, height - ((point - min) / range) * height])
-  const path = coords.map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
-  const [lastX, lastY] = coords[coords.length - 1]
-  const dotClass = tone === 'bad' ? 'fill-rose-500' : tone === 'good' ? 'fill-emerald-500' : 'fill-cyan-500'
-
-  return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="shrink-0 overflow-visible" aria-hidden="true">
-      <path d={path} fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="2.5" className={dotClass} />
-    </svg>
-  )
+function mapDriftFindings(drift) {
+  return (drift?.findings || []).map(finding => ({
+    id: finding.id,
+    title: finding.title || 'Documentation drift',
+    file: finding.filePath || 'unknown file',
+    severity: finding.severity || 'Low',
+    age: finding.age || 'recently',
+    evidence: finding.evidence || '',
+  }))
 }
 
-function KpiCard({ item }) {
-  const Icon = item.icon
-  const isMeta = item.deltaKind === 'meta'
-  const TrendIcon = item.trendTone === 'bad' ? ArrowUpRight : ArrowDownRight
-  const trendClass =
-    item.trendTone === 'bad'
-      ? 'text-rose-700 bg-rose-50 border-rose-200'
-      : item.trendTone === 'good'
-        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-        : 'text-slate-600 bg-slate-50 border-slate-200'
-
-  return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${accentClasses(item.accent)}`}>
-          <Icon size={18} />
-        </div>
-        <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${trendClass}`}>
-          {!isMeta && <TrendIcon size={13} />}
-          {item.trend}
-        </span>
-      </div>
-      <p className="mt-4 text-sm font-medium text-slate-500">{item.label}</p>
-      <div className="mt-1 flex items-end justify-between gap-2">
-        <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-bold text-slate-950">{item.value}</span>
-          <span className="text-sm font-semibold text-slate-500">{item.unit}</span>
-        </div>
-        <Sparkline points={item.sparkline} tone={item.trendTone} />
-      </div>
-    </article>
-  )
+function mapRecommendations(recommendations) {
+  return (recommendations || []).map(item => ({
+    id: item.id,
+    title: item.title || 'Recommendation',
+    impact: item.impact || 'Medium',
+    effort: item.effort || '—',
+    reason: item.reason || '',
+    steps: Array.isArray(item.steps) ? item.steps : [],
+  }))
 }
 
-function pipelineStatusMeta(status) {
-  if (status === 'Complete') {
-    return { icon: CheckCircle2, badgeClass: 'text-emerald-700 bg-emerald-50 border-emerald-200', track: 'bg-emerald-100', fill: 'bg-emerald-500' }
-  }
-  if (status === 'Running') {
-    return { icon: RefreshCw, badgeClass: 'text-cyan-700 bg-cyan-50 border-cyan-200', track: 'bg-cyan-100', fill: 'bg-cyan-500', spin: true }
-  }
-  return { icon: Clock3, badgeClass: 'text-slate-600 bg-slate-50 border-slate-200', track: 'bg-slate-100', fill: 'bg-slate-300' }
-}
-
-function PipelinePanel({ items = pipeline }) {
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold text-slate-950">Analysis pipeline</h2>
-          <p className="mt-1 text-sm text-slate-500">Current processing state for the selected repository.</p>
-        </div>
-        <RefreshCw size={18} className="text-slate-400" />
-      </div>
-      <div className="mt-5 space-y-4">
-        {items.map(item => {
-          const meta = pipelineStatusMeta(item.status)
-          const StatusIcon = meta.icon
-
-          return (
-            <div key={item.label}>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-                  <p className="text-xs text-slate-500">{item.detail}</p>
-                </div>
-                <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-bold ${meta.badgeClass}`}>
-                  <StatusIcon size={12} className={meta.spin ? 'animate-spin' : ''} />
-                  {item.status}
-                </span>
-              </div>
-              <div className={`h-2 rounded-full ${meta.track}`}>
-                <div
-                  className={`h-full rounded-full ${meta.fill}`}
-                  style={{ width: `${item.progress}%` }}
-                  aria-label={`${item.label} ${item.progress}% complete`}
-                />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-function EmptyPanel({ title, description, icon: Icon = CircleAlert }) {
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex gap-3 text-slate-600">
-        <Icon size={18} className="mt-0.5 shrink-0 text-slate-400" />
-        <div>
-          <h2 className="text-base font-bold text-slate-950">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function DebtTable({ items = debtModules, title = 'Highest-risk modules', description = 'Ranked by complexity, churn, duplication, and drift adjacency.' }) {
-  if (items.length === 0) {
-    return (
-      <EmptyPanel
-        title="No live module risk yet"
-        description="Start a live repository scan to populate repository-level file, commit, and dependency signals."
-        icon={Code2}
-      />
-    )
-  }
-
-  return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
-        <div>
-          <h2 className="text-base font-bold text-slate-950">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
-        </div>
-        <Button type="button" variant="outline" size="sm">
-          <ListFilter size={16} />
-          Filter
-        </Button>
-      </div>
-      <div className="hidden lg:block">
-        <table className="w-full table-fixed text-left">
-          <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-            <tr>
-              <th className="w-[34%] px-5 py-3">Module</th>
-              <th className="w-[14%] px-5 py-3">Owner</th>
-              <th className="w-[20%] px-5 py-3">Complexity</th>
-              <th className="w-[10%] px-5 py-3">Churn</th>
-              <th className="w-[12%] px-5 py-3">Duplication</th>
-              <th className="w-[10%] px-5 py-3">Risk</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {items.map(item => (
-              <tr key={item.module} className="hover:bg-slate-50/80">
-                <td className="min-w-0 px-5 py-4">
-                  <p className="truncate font-semibold text-slate-900" title={item.module}>
-                    {item.module}
-                  </p>
-                  <p className="text-xs text-slate-500">Last touched in recent scan window</p>
-                </td>
-                <td className="px-5 py-4 text-sm text-slate-600">
-                  <span className="block truncate">{item.owner}</span>
-                </td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 min-w-0 flex-1 rounded-full bg-cyan-100">
-                      <div className="h-full rounded-full bg-cyan-500" style={{ width: `${item.complexity}%` }} />
-                    </div>
-                    <span className="text-sm font-semibold text-slate-700">{item.complexity}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-4 text-sm font-semibold text-slate-700">{item.churn}</td>
-                <td className="px-5 py-4 text-sm font-semibold text-slate-700">{item.duplication}</td>
-                <td className="px-5 py-4">
-                  <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-bold ${severityClass(item.risk)}`}>
-                    {item.risk}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="grid gap-3 p-4 lg:hidden">
-        {items.map(item => (
-          <article key={item.module} className="rounded-lg border border-slate-200 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="truncate font-semibold text-slate-900" title={item.module}>
-                  {item.module}
-                </h3>
-                <p className="mt-1 text-xs text-slate-500">{item.owner}</p>
-              </div>
-              <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-bold ${severityClass(item.risk)}`}>
-                {item.risk}
-              </span>
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-              <div>
-                <p className="text-xs font-semibold uppercase text-slate-500">Complexity</p>
-                <p className="mt-1 font-bold text-slate-950">{item.complexity}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase text-slate-500">Churn</p>
-                <p className="mt-1 font-bold text-slate-950">{item.churn}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase text-slate-500">Duplication</p>
-                <p className="mt-1 font-bold text-slate-950">{item.duplication}</p>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function DriftPanel({ items = driftFindings }) {
-  if (items.length === 0) {
-    return (
-      <EmptyPanel
-        title="No live drift findings yet"
-        description="Repository Intelligence has live file, documentation, commit, and dependency metadata. Knowledge drift analysis is a later pipeline step."
-        icon={FileWarning}
-      />
-    )
-  }
-
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold text-slate-950">Knowledge drift queue</h2>
-          <p className="mt-1 text-sm text-slate-500">Documentation conflicts that need owner review.</p>
-        </div>
-        <FileWarning size={18} className="text-amber-600" />
-      </div>
-      <div className="mt-5 space-y-3">
-        {items.map(item => (
-          <article key={item.title} className="rounded-lg border border-slate-200 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="font-semibold text-slate-950">{item.title}</h3>
-                <p className="mt-1 text-sm text-slate-500">{item.file}</p>
-              </div>
-              <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-bold ${severityClass(item.severity)}`}>
-                {item.severity}
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-slate-600">{item.evidence}</p>
-            <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-500">
-              <Clock3 size={13} />
-              Open for {item.age}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function RiskPanel({ bars = riskBars, title = 'Risk trend', description = 'Composite maintainability risk over the last 7 days.' }) {
-  const [showTable, setShowTable] = useState(false)
-  const peak = Math.max(...bars.map(day => day.value), 1)
-
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold text-slate-950">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setShowTable(value => !value)}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-950 hover:underline"
-          >
-            {showTable ? 'View as chart' : 'View as table'}
-          </button>
-          <BarChart3 size={18} className="text-slate-400" />
-        </div>
-      </div>
-
-      {showTable ? (
-        <table className="mt-6 w-full text-left text-sm">
-          <thead className="text-xs font-semibold uppercase text-slate-500">
-            <tr>
-              <th className="border-b border-slate-200 py-2">Day</th>
-              <th className="border-b border-slate-200 py-2">Risk score</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {bars.map(day => (
-              <tr key={day.label}>
-                <td className="py-2 font-semibold text-slate-700">{day.label}</td>
-                <td className="py-2 font-bold text-slate-950">{day.value}/100</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="mt-6">
-          <div className="relative h-44 border-b border-slate-200">
-            {[25, 50, 75].map(line => (
-              <div key={line} className="absolute inset-x-0 border-t border-slate-100" style={{ bottom: `${line}%` }} />
-            ))}
-            <div className="relative flex h-full items-end gap-3">
-              {bars.map(day => (
-                <div key={day.label} className="group relative flex h-full flex-1 flex-col items-center justify-end">
-                  <div
-                    className="pointer-events-none absolute z-10 hidden -translate-x-1/2 -translate-y-2 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-md group-hover:block"
-                    style={{ left: '50%', bottom: `${day.value}%` }}
-                  >
-                    {day.value}/100
-                  </div>
-                  <div
-                    className={`w-full max-w-6 rounded-t-md transition-colors ${
-                      day.value === peak ? 'bg-cyan-600' : 'bg-cyan-500 group-hover:bg-cyan-600'
-                    }`}
-                    style={{ height: `${day.value}%` }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="mt-2 flex gap-3">
-            {bars.map(day => (
-              <span key={day.label} className="flex-1 text-center text-xs font-semibold text-slate-500">
-                {day.label}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
-
-function RecommendationPanel({ items = recommendations }) {
-  if (items.length === 0) {
-    return (
-      <EmptyPanel
-        title="No live AI recommendations yet"
-        description="AI recommendations need risk and drift outputs. The current live scan provides repository metadata for those later engines."
-        icon={Sparkles}
-      />
-    )
-  }
-
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold text-slate-950">AI recommendations</h2>
-          <p className="mt-1 text-sm text-slate-500">Prioritized remediation work with explainable evidence.</p>
-        </div>
-        <Sparkles size={18} className="text-cyan-700" />
-      </div>
-      <div className="mt-5 grid gap-4 xl:grid-cols-3">
-        {items.map(item => (
-          <article key={item.title} className="rounded-lg border border-slate-200 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-bold text-slate-950">{item.title}</h3>
-              <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-bold ${severityClass(item.impact)}`}>
-                {item.impact}
-              </span>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-slate-600">{item.reason}</p>
-            <p className="mt-3 text-xs font-bold text-slate-500">Estimated effort: {item.effort}</p>
-            <ul className="mt-3 space-y-2">
-              {item.steps.map(step => (
-                <li key={step} className="flex gap-2 text-sm text-slate-700">
-                  <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-600" />
-                  <span>{step}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function OverviewContent({ dashboardKpis, pipelineItems, riskTrend, debtItems, driftItems, liveMode }) {
+function OverviewContent({ view, liveMode }) {
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {dashboardKpis.map(item => (
-          <KpiCard key={item.label} item={item} />
-        ))}
-      </div>
+      {view.kpis.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {view.kpis.map(item => (
+            <KpiCard key={item.label} item={item} />
+          ))}
+        </div>
+      ) : (
+        <EmptyPanel
+          title="No repository metrics yet"
+          description="Repository metrics appear here after a scan completes for the selected repository."
+          icon={LayoutDashboard}
+        />
+      )}
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <PipelinePanel items={pipelineItems} />
-        <RiskPanel
-          bars={riskTrend}
-          title={liveMode ? 'Scan composition' : 'Risk trend'}
-          description={liveMode ? 'Normalized live counts from the latest repository analysis.' : 'Composite maintainability risk over the last 7 days.'}
+        <PipelinePanel items={view.pipelineItems} />
+        <RiskTrendPanel
+          bars={view.riskTrend}
+          title="Risk trend"
+          description={liveMode ? 'Composite maintainability risk from the Risk Intelligence engine.' : 'Composite maintainability risk over the last 7 days.'}
+          emptyTitle={view.riskEmptyTitle}
+          emptyDescription={view.riskEmptyDescription}
         />
       </div>
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
         <DebtTable
-          items={debtItems}
-          title={liveMode ? 'Live repository aggregate' : 'Highest-risk modules'}
-          description={liveMode ? 'Derived from the latest file, commit, documentation, and dependency scan.' : 'Ranked by complexity, churn, duplication, and drift adjacency.'}
+          items={view.debtItems}
+          title="Highest-risk modules"
+          description="Ranked by complexity, churn, duplication, and drift adjacency."
+          emptyTitle={view.debtEmptyTitle}
+          emptyDescription={view.debtEmptyDescription}
         />
-        <DriftPanel items={driftItems} />
+        <DriftPanel items={view.driftItems} emptyTitle={view.driftEmptyTitle} emptyDescription={view.driftEmptyDescription} />
       </div>
     </div>
   )
 }
 
-function MainContent({ activeTab, dashboardKpis, pipelineItems, riskTrend, debtItems, driftItems, recommendationsItems, liveMode, scanSummary }) {
+function MainContent({ activeTab, view, liveMode }) {
   if (activeTab === 'Technical Debt') {
+    if (liveMode && view.debtUnavailable) {
+      return (
+        <EmptyPanel
+          title="Technical debt scoring is not available yet"
+          description={view.debtEmptyDescription}
+          icon={Code2}
+        />
+      )
+    }
+
     return (
       <div className="space-y-5">
-        <div className="grid gap-4 md:grid-cols-3">
-          {(liveMode
-            ? dashboardKpis.slice(0, 3)
-            : [
-                {
-                  label: 'Avg complexity',
-                  value: '41',
-                  unit: 'score',
-                  trend: '+3',
-                  trendTone: 'bad',
-                  icon: Code2,
-                  accent: 'amber',
-                  sparkline: [35, 36, 36, 37, 38, 38, 39, 40, 40, 41, 41, 41],
-                },
-                {
-                  label: 'Duplicated code',
-                  value: '8.7',
-                  unit: '%',
-                  trend: '-1.1%',
-                  trendTone: 'good',
-                  icon: GitBranch,
-                  accent: 'cyan',
-                  sparkline: [11, 10.8, 10.5, 10.2, 10, 9.7, 9.5, 9.3, 9.1, 9, 8.8, 8.7],
-                },
-                {
-                  label: 'Circular deps',
-                  value: '5',
-                  unit: 'loops',
-                  trend: '2 new',
-                  trendTone: 'bad',
-                  icon: AlertTriangle,
-                  accent: 'rose',
-                  sparkline: [2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5],
-                },
-              ]
-          ).map(item => (
-            <KpiCard key={item.label} item={item} />
-          ))}
-        </div>
+        {view.debtKpis.length > 0 && (
+          <div className="grid gap-4 md:grid-cols-3">
+            {view.debtKpis.map(item => (
+              <KpiCard key={item.label} item={item} />
+            ))}
+          </div>
+        )}
+        <DebtCharts items={view.debtItems} emptyTitle={view.debtEmptyTitle} emptyDescription={view.debtEmptyDescription} />
         <DebtTable
-          items={debtItems}
-          title={liveMode ? 'Live repository aggregate' : 'Highest-risk modules'}
-          description={liveMode ? 'Derived from the latest Repository Intelligence scan.' : 'Ranked by complexity, churn, duplication, and drift adjacency.'}
+          items={view.debtItems}
+          emptyTitle={view.debtEmptyTitle}
+          emptyDescription={view.debtEmptyDescription}
         />
       </div>
     )
   }
 
   if (activeTab === 'Knowledge Drift') {
-    const coverage = getDocumentationCoverage(scanSummary)
-
     return (
       <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <DriftPanel items={driftItems} />
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-          <h2 className="text-base font-bold text-slate-950">Documentation coverage</h2>
-          <p className="mt-1 text-sm text-slate-500">{liveMode ? 'Coverage from the latest repository scan.' : 'Coverage by repository area.'}</p>
-          <div className="mt-6 space-y-4">
-            {(liveMode
-              ? [
-                  ['Documentation files', coverage],
-                  ['Code files indexed', scanSummary ? clamp(getCount(scanSummary, 'totalFiles')) : 0],
-                  ['Dependency edges', scanSummary ? clamp(getCount(scanSummary, 'totalDependencies')) : 0],
-                  ['Commit history', scanSummary ? clamp(getCount(scanSummary, 'totalCommits')) : 0],
-                ]
-              : [
-                  ['API routes', 84],
-                  ['Domain modules', 63],
-                  ['Architecture docs', 71],
-                  ['Runbooks', 48],
-                ]
-            ).map(([label, value]) => (
-              <div key={label}>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="font-semibold text-slate-700">{label}</span>
-                  <span className="font-bold text-slate-950">{value}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-cyan-100">
-                  <div className="h-full rounded-full bg-cyan-500" style={{ width: `${value}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <DriftPanel items={view.driftItems} emptyTitle={view.driftEmptyTitle} emptyDescription={view.driftEmptyDescription} />
+        <CoveragePanel
+          items={view.coverageItems}
+          description={liveMode ? 'Measured documentation coverage for this repository.' : 'Coverage by repository area.'}
+          emptyTitle={view.coverageEmptyTitle}
+          emptyDescription={view.coverageEmptyDescription}
+        />
       </div>
     )
   }
@@ -908,52 +423,59 @@ function MainContent({ activeTab, dashboardKpis, pipelineItems, riskTrend, debtI
     return (
       <div className="space-y-5">
         <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-          <RiskPanel
-            bars={riskTrend}
-            title={liveMode ? 'Scan composition' : 'Risk trend'}
-            description={liveMode ? 'Normalized live counts from the latest repository analysis.' : 'Composite maintainability risk over the last 7 days.'}
+          <RiskTrendPanel
+            bars={view.riskTrend}
+            title="Risk trend"
+            description={liveMode ? 'Composite maintainability risk from the Risk Intelligence engine.' : 'Composite maintainability risk over the last 7 days.'}
+            emptyTitle={view.riskEmptyTitle}
+            emptyDescription={view.riskEmptyDescription}
           />
-          <PipelinePanel items={pipelineItems} />
+          <PipelinePanel items={view.pipelineItems} />
         </div>
-        <RecommendationPanel items={recommendationsItems} />
+        <RecommendationPanel items={view.recommendations} emptyTitle={view.recommendationsEmptyTitle} emptyDescription={view.recommendationsEmptyDescription} />
       </div>
     )
   }
 
-  return (
-    <OverviewContent
-      dashboardKpis={dashboardKpis}
-      pipelineItems={pipelineItems}
-      riskTrend={riskTrend}
-      debtItems={debtItems}
-      driftItems={driftItems}
-      liveMode={liveMode}
-    />
-  )
+  return <OverviewContent view={view} liveMode={liveMode} />
 }
 
 export default function Dashboard({ user, accessToken, onLogout }) {
   const [activeTab, setActiveTab] = useState('Overview')
   const [status, setStatus] = useState('Verifying session...')
-  const [selectedRepo, setSelectedRepo] = useState(repositories[0].name)
+  const [demoMode, setDemoMode] = useState(false)
+  const [demoRepoName, setDemoRepoName] = useState(demoRepositories[0].name)
   const [repoUrl, setRepoUrl] = useState('')
-  const [demoMode, setDemoMode] = useState(true)
   const [scanLoading, setScanLoading] = useState(false)
   const [scanMessage, setScanMessage] = useState('')
   const [scanError, setScanError] = useState('')
   const [scanSummary, setScanSummary] = useState(null)
-  const repository = useMemo(
-    () => repositories.find(item => item.name === selectedRepo) || repositories[0],
-    [selectedRepo],
+  const [scannedRepositoryId, setScannedRepositoryId] = useState('')
+  const [repoList, setRepoList] = useState([])
+  const [repoListState, setRepoListState] = useState('loading')
+  const [repoListError, setRepoListError] = useState('')
+  const [selectedRepoId, setSelectedRepoId] = useState('')
+  const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS)
+  const [analyticsErrors, setAnalyticsErrors] = useState(EMPTY_ANALYTICS_ERRORS)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [dataVersion, setDataVersion] = useState(0)
+
+  // The repositories the dropdown can offer in live mode: the API list when it
+  // is available, otherwise the repository scanned in this session (the read
+  // API contract is still rolling out on the backend).
+  const liveRepoOptions = useMemo(() => {
+    if (repoListState === 'ready') return repoList
+    if (scanSummary && scannedRepositoryId) {
+      return [summaryToRepository(scanSummary, scannedRepositoryId)]
+    }
+    return []
+  }, [repoList, repoListState, scanSummary, scannedRepositoryId])
+
+  const selectedRepo = useMemo(
+    () => liveRepoOptions.find(item => item.id === selectedRepoId) || null,
+    [liveRepoOptions, selectedRepoId],
   )
-  const liveRepository = useMemo(() => buildLiveRepository(scanSummary), [scanSummary])
-  const displayedRepository = demoMode ? repository : liveRepository
-  const dashboardKpis = demoMode ? kpis : buildLiveKpis(scanSummary)
-  const pipelineItems = demoMode ? pipeline : buildLivePipeline(scanSummary, scanLoading)
-  const riskTrend = demoMode ? riskBars : buildLiveRiskBars(scanSummary)
-  const debtItems = demoMode ? debtModules : buildLiveDebtItems(scanSummary)
-  const driftItems = demoMode ? driftFindings : []
-  const recommendationsItems = demoMode ? recommendations : []
+  const selectedRepoStatus = selectedRepo?.status || ''
   const liveMode = !demoMode
 
   useEffect(() => {
@@ -961,15 +483,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
 
     async function loadProtectedUser() {
       try {
-        const response = await fetch(apiUrl('/api/auth/me'), {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          credentials: 'include',
-        })
-        const data = await response.json().catch(() => ({}))
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Session verification failed.')
-        }
+        await apiFetch('/api/auth/me', { accessToken })
 
         if (!cancelled) {
           setStatus('Session verified')
@@ -988,43 +502,248 @@ export default function Dashboard({ user, accessToken, onLogout }) {
     }
   }, [accessToken])
 
+  // Load the user's repositories whenever live mode is active, the session
+  // changes, or a scan/poll invalidates the data (dataVersion).
+  useEffect(() => {
+    if (demoMode || !accessToken) return
+
+    let cancelled = false
+
+    async function loadRepositories() {
+      setRepoListState(current => (current === 'ready' ? current : 'loading'))
+
+      try {
+        const items = await listRepositories(accessToken)
+        const sorted = [...items].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+
+        if (cancelled) return
+
+        setRepoList(sorted)
+        setRepoListState('ready')
+        setRepoListError('')
+        setSelectedRepoId(current => {
+          if (current && sorted.some(item => item.id === current)) return current
+          return sorted[0]?.id || ''
+        })
+      } catch (error) {
+        if (cancelled) return
+
+        if (error instanceof ApiError && error.status === 404) {
+          // Read API not implemented yet: fall back to this session's scan.
+          setRepoList([])
+          setRepoListState('unavailable')
+          setRepoListError('')
+        } else {
+          setRepoList([])
+          setRepoListState('error')
+          setRepoListError(error instanceof Error ? error.message : 'Could not load repositories.')
+        }
+      }
+    }
+
+    loadRepositories()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, demoMode, dataVersion])
+
+  // Fetch every analytics surface for the selected repository. Each endpoint
+  // settles independently so a missing engine (404) empties only its panels.
+  useEffect(() => {
+    if (demoMode || !accessToken || !selectedRepoId) {
+      setAnalytics(EMPTY_ANALYTICS)
+      setAnalyticsErrors(EMPTY_ANALYTICS_ERRORS)
+      return undefined
+    }
+
+    let cancelled = false
+
+    async function loadAnalytics() {
+      setAnalyticsLoading(true)
+
+      const [scores, debt, drift, recommendations] = await Promise.allSettled([
+        getRepositoryScores(accessToken, selectedRepoId),
+        getRepositoryDebt(accessToken, selectedRepoId),
+        getRepositoryDrift(accessToken, selectedRepoId),
+        getRepositoryRecommendations(accessToken, selectedRepoId),
+      ])
+
+      if (cancelled) return
+
+      setAnalytics({
+        scores: settledValue(scores),
+        debt: settledValue(debt),
+        drift: settledValue(drift),
+        recommendations: settledValue(recommendations, []),
+      })
+      setAnalyticsErrors({
+        scores: settledError(scores),
+        debt: settledError(debt),
+        drift: settledError(drift),
+        recommendations: settledError(recommendations),
+      })
+      setAnalyticsLoading(false)
+    }
+
+    loadAnalytics()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, demoMode, selectedRepoId, dataVersion])
+
+  // Poll the analysis status endpoint while the selected repository is queued
+  // or running. This also resumes polling after a page refresh mid-scan.
+  useEffect(() => {
+    if (demoMode || !accessToken || !selectedRepoId) return undefined
+    if (selectedRepoStatus !== 'queued' && selectedRepoStatus !== 'running') return undefined
+
+    const intervalId = window.setInterval(async () => {
+      try {
+        const data = await getRepositoryStatus(accessToken, selectedRepoId)
+        const nextStatus = String(data.status || '')
+
+        setRepoList(current =>
+          current.map(item =>
+            item.id === selectedRepoId ? { ...item, status: nextStatus, updatedAt: data.updatedAt || item.updatedAt } : item,
+          ),
+        )
+
+        if (nextStatus === 'completed' || nextStatus === 'failed') {
+          if (nextStatus === 'failed') {
+            setScanError(data.message || 'Repository analysis failed.')
+          } else {
+            setScanMessage('Repository analyzed.')
+          }
+          setDataVersion(version => version + 1)
+        }
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          // Status endpoint not implemented yet; stop polling quietly.
+          window.clearInterval(intervalId)
+        }
+      }
+    }, STATUS_POLL_INTERVAL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [accessToken, demoMode, selectedRepoId, selectedRepoStatus])
+
   async function handleStartScan() {
     const trimmedRepoUrl = repoUrl.trim()
 
     if (!trimmedRepoUrl || scanLoading) return
+
+    if (!GITHUB_REPO_URL_PATTERN.test(trimmedRepoUrl)) {
+      setScanMessage('')
+      setScanError('Enter a valid public GitHub repository URL (https://github.com/owner/repository).')
+      return
+    }
 
     setScanLoading(true)
     setScanMessage('')
     setScanError('')
 
     try {
-      const response = await fetch(apiUrl('/api/repositories/analyze'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          repoUrl: trimmedRepoUrl,
-          commitLimit: 100,
-        }),
-      })
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Repository scan failed.')
-      }
+      const data = await analyzeRepository(accessToken, trimmedRepoUrl, 100)
 
       setScanSummary(data.summary || null)
+      setScannedRepositoryId(data.repositoryId || '')
       setScanMessage(data.message || 'Repository analyzed.')
       setRepoUrl('')
+      setDemoMode(false)
+
+      if (data.repositoryId) {
+        setSelectedRepoId(data.repositoryId)
+      }
+
+      // Refresh list + analytics from the API so the dashboard reflects the
+      // persisted analysis rather than session-only state.
+      setDataVersion(version => version + 1)
     } catch (error) {
       setScanError(error instanceof Error ? error.message : 'Repository scan failed.')
     } finally {
       setScanLoading(false)
     }
   }
+
+  const demoRepository = demoRepositories.find(item => item.name === demoRepoName) || demoRepositories[0]
+  const displayedRepository = demoMode ? demoRepository : selectedRepo
+  const hasLiveRepository = Boolean(selectedRepo)
+
+  const view = useMemo(() => {
+    if (demoMode) {
+      return {
+        kpis: demoKpis,
+        pipelineItems: demoPipeline,
+        riskTrend: demoRiskTrend,
+        debtItems: demoDebtModules,
+        debtKpis: demoDebtKpis,
+        driftItems: demoDriftFindings,
+        coverageItems: demoCoverage,
+        recommendations: demoRecommendations,
+      }
+    }
+
+    const scores = analytics.scores
+    const debt = analytics.debt
+    const drift = analytics.drift
+    const debtItems = mapDebtModules(debt)
+    const driftItems = mapDriftFindings(drift)
+    const coverageFromApi = Array.isArray(drift?.coverage) ? drift.coverage : []
+
+    return {
+      kpis: scores ? buildScoreKpis(scores) : hasLiveRepository ? buildTotalKpis(selectedRepo) : [],
+      pipelineItems: buildStatusPipeline(selectedRepo, scanLoading),
+      riskTrend: Array.isArray(scores?.risk?.trend) ? scores.risk.trend : [],
+      debtItems,
+      debtKpis: debt?.metrics ? buildDebtKpis(debt.metrics) : [],
+      driftItems,
+      coverageItems:
+        coverageFromApi.length > 0
+          ? coverageFromApi
+          : hasLiveRepository
+            ? [{ label: 'Overall documentation', percent: getDocumentationCoverage(selectedRepo) }]
+            : [],
+      recommendations: mapRecommendations(analytics.recommendations),
+      debtUnavailable: !analyticsLoading && !debt,
+      debtEmptyTitle: 'No module debt data yet',
+      debtEmptyDescription: availabilityMessage(
+        analyticsErrors.debt,
+        'Technical debt scoring runs after a repository scan completes. Module rows appear here once the debt engine has processed the repository.',
+      ),
+      driftEmptyTitle: 'No drift findings yet',
+      driftEmptyDescription: availabilityMessage(
+        analyticsErrors.drift,
+        'Knowledge drift findings appear here after the drift detection engine compares documentation against the analyzed code structure.',
+      ),
+      coverageEmptyTitle: 'No coverage data yet',
+      coverageEmptyDescription: availabilityMessage(
+        analyticsErrors.drift,
+        'Documentation coverage appears here after the Knowledge Debt engine measures documented versus undocumented areas of this repository.',
+      ),
+      riskEmptyTitle: 'No risk trend yet',
+      riskEmptyDescription: availabilityMessage(
+        analyticsErrors.scores,
+        'Risk trend data appears here once the Risk Intelligence engine has scored this repository.',
+      ),
+      recommendationsEmptyTitle: 'No AI recommendations yet',
+      recommendationsEmptyDescription: availabilityMessage(
+        analyticsErrors.recommendations,
+        'AI recommendations appear here after the Risk Intelligence and AI Explainability engines have processed this repository.',
+      ),
+    }
+  }, [analytics, analyticsErrors, analyticsLoading, demoMode, hasLiveRepository, scanLoading, selectedRepo])
+
+  const bannerMessage = demoMode
+    ? 'Demo mode is showing sample dashboard analytics. Toggle live mode to use your analyzed repositories.'
+    : repoListState === 'unavailable'
+      ? 'Live mode — repository analytics APIs are still rolling out. Showing results from scans run in this session.'
+      : repoListState === 'ready' && repoList.length === 0 && !scanSummary
+        ? 'Live mode — no repositories yet. Analyze a GitHub repository above to see real analytics.'
+        : 'Live mode is showing analytics for your analyzed repositories.'
+
+  const showEmptyRepositoryState = liveMode && repoListState === 'ready' && repoList.length === 0 && !scanSummary
 
   return (
     <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
@@ -1101,10 +820,18 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                 <span>Workspace</span>
                 <span>/</span>
-                <span className="text-slate-950">{displayedRepository.name}</span>
-                <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${severityClass(displayedRepository.risk)}`}>
-                  {displayedRepository.risk} risk
-                </span>
+                <span className="text-slate-950">{displayedRepository?.fullName || displayedRepository?.name || 'No repository selected'}</span>
+                {demoMode ? (
+                  <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${severityClass(displayedRepository.risk)}`}>
+                    {displayedRepository.risk} risk
+                  </span>
+                ) : (
+                  selectedRepoStatus && (
+                    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold ${analysisStatusClass(selectedRepoStatus)}`}>
+                      {(ANALYSIS_STATUS_META[selectedRepoStatus] || ANALYSIS_STATUS_META.queued).label}
+                    </span>
+                  )
+                )}
               </div>
               <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Engineering intelligence dashboard</h1>
             </div>
@@ -1182,18 +909,42 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold text-slate-700">Repository</span>
                 <span className="relative block">
-                  <Select
-                    value={selectedRepo}
-                    onChange={event => setSelectedRepo(event.target.value)}
-                    className="appearance-none border-slate-200 bg-white pr-10 text-slate-900 focus:border-cyan-400 focus:ring-cyan-100"
-                  >
-                    {repositories.map(item => (
-                      <option key={item.name} value={item.name}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </Select>
-                  <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  {demoMode ? (
+                    <>
+                      <Select
+                        value={demoRepoName}
+                        onChange={event => setDemoRepoName(event.target.value)}
+                        className="appearance-none border-slate-200 bg-white pr-10 text-slate-900 focus:border-cyan-400 focus:ring-cyan-100"
+                      >
+                        {demoRepositories.map(item => (
+                          <option key={item.name} value={item.name}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </Select>
+                      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    </>
+                  ) : (
+                    <>
+                      <Select
+                        value={selectedRepoId}
+                        onChange={event => setSelectedRepoId(event.target.value)}
+                        disabled={liveRepoOptions.length === 0}
+                        className="appearance-none border-slate-200 bg-white pr-10 text-slate-900 focus:border-cyan-400 focus:ring-cyan-100"
+                      >
+                        {liveRepoOptions.length === 0 ? (
+                          <option value="">{repoListState === 'loading' ? 'Loading repositories...' : 'No repositories yet'}</option>
+                        ) : (
+                          liveRepoOptions.map(item => (
+                            <option key={item.id} value={item.id}>
+                              {item.fullName || item.name}
+                            </option>
+                          ))
+                        )}
+                      </Select>
+                      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    </>
+                  )}
                 </span>
               </label>
 
@@ -1234,7 +985,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 {scanError ? <AlertTriangle size={17} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={17} className="mt-0.5 shrink-0" />}
                 <div className="min-w-0">
                   <p className="font-semibold">{scanError || scanMessage}</p>
-                  {scanSummary?.repository && (
+                  {scanSummary?.repository && !scanError && (
                     <p className="mt-1 truncate text-xs">
                       {scanSummary.repository.fullName || scanSummary.repository.name} on{' '}
                       {scanSummary.repository.defaultBranch || 'default branch'}
@@ -1264,15 +1015,23 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             <div className="mt-4 flex min-w-0 flex-wrap gap-3 text-sm text-slate-600">
               <span className="inline-flex items-center gap-2">
                 <GitBranch size={15} />
-                {displayedRepository.branch}
+                {displayedRepository?.defaultBranch || displayedRepository?.branch || 'No branch'}
               </span>
-              <span className="inline-flex items-center gap-2">
-                <Code2 size={15} />
-                {displayedRepository.language}
-              </span>
+              {demoMode ? (
+                <span className="inline-flex items-center gap-2">
+                  <Code2 size={15} />
+                  {displayedRepository.language}
+                </span>
+              ) : (
+                selectedRepoStatus && (
+                  <span className={`inline-flex items-center gap-2 rounded-md border px-2 py-0.5 text-xs font-bold ${analysisStatusClass(selectedRepoStatus)}`}>
+                    {(ANALYSIS_STATUS_META[selectedRepoStatus] || ANALYSIS_STATUS_META.queued).label}
+                  </span>
+                )
+              )}
               <span className="inline-flex items-center gap-2">
                 <Clock3 size={15} />
-                Last scan {displayedRepository.lastScan}
+                Last scan {demoMode ? displayedRepository.lastScan : formatRelativeTime(displayedRepository?.updatedAt)}
               </span>
               <span className="inline-flex min-w-0 items-center gap-2">
                 <Users size={15} />
@@ -1304,25 +1063,35 @@ export default function Dashboard({ user, accessToken, onLogout }) {
           <div className="mb-5 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
             <div className="flex gap-2">
               <CircleAlert size={17} className="mt-0.5 shrink-0" />
-              <p>
-                {demoMode
-                  ? 'Demo mode is showing sample dashboard analytics. Toggle live mode to use the latest repository scan.'
-                  : 'Live mode is using the latest Repository Intelligence scan available in this session.'}
-              </p>
+              <p>{bannerMessage}</p>
             </div>
           </div>
 
-          <MainContent
-            activeTab={activeTab}
-            dashboardKpis={dashboardKpis}
-            pipelineItems={pipelineItems}
-            riskTrend={riskTrend}
-            debtItems={debtItems}
-            driftItems={driftItems}
-            recommendationsItems={recommendationsItems}
-            liveMode={liveMode}
-            scanSummary={scanSummary}
-          />
+          {repoListState === 'error' && liveMode && (
+            <div className="mb-5">
+              <EmptyPanel
+                title="Could not load your repositories"
+                description={repoListError}
+                icon={AlertTriangle}
+                action={
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => setDataVersion(version => version + 1)}>
+                    <RefreshCw size={15} />
+                    Retry
+                  </Button>
+                }
+              />
+            </div>
+          )}
+
+          {showEmptyRepositoryState ? (
+            <EmptyPanel
+              title="No repositories yet"
+              description="Analyze a public GitHub repository with the scan controls above. CodePulse will extract its files, documentation, commits, and dependencies, then the analysis engines will score its health here."
+              icon={GitBranch}
+            />
+          ) : (
+            <MainContent activeTab={activeTab} view={view} liveMode={liveMode} />
+          )}
         </main>
       </div>
     </div>

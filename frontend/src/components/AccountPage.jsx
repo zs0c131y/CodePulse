@@ -31,6 +31,7 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
+import { getUsageSnapshot } from '../api/usage'
 import { cn } from '../lib/utils'
 
 function apiUrl(path) {
@@ -260,7 +261,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
   )
 }
 
-function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving, message, error }) {
+function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving, message, error, usage }) {
   const completion = useMemo(() => {
     const values = [name, profile.title, profile.company, profile.timezone, profile.location, profile.bio]
     return Math.round((values.filter(Boolean).length / values.length) * 100)
@@ -408,13 +409,13 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
             <h2 className="text-base font-bold text-slate-950">Usage snapshot</h2>
             <div className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
               {[
-                ['3', 'Repositories'],
-                ['12', 'AI actions'],
-                ['19', 'Drift findings'],
-                ['86', 'Health score'],
+                [usage?.repositories, 'Repositories'],
+                [usage?.aiActions, 'AI actions'],
+                [usage?.driftFindings, 'Drift findings'],
+                [usage?.averageHealthScore, 'Health score'],
               ].map(([value, label]) => (
                 <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-2xl font-black text-slate-950">{value}</p>
+                  <p className="text-2xl font-black text-slate-950">{value ?? '—'}</p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
                 </div>
               ))}
@@ -595,6 +596,7 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [usage, setUsage] = useState(null)
 
   useEffect(() => {
     setName(user.name || '')
@@ -633,6 +635,34 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
       cancelled = true
     }
   }, [accessToken])
+
+  useEffect(() => {
+    if (mode !== 'profile' || !accessToken) return undefined
+
+    let cancelled = false
+
+    async function loadUsage() {
+      try {
+        const snapshot = await getUsageSnapshot(accessToken)
+
+        if (!cancelled) {
+          setUsage(snapshot)
+        }
+      } catch {
+        // Usage endpoint is part of the analytics rollout; show placeholders
+        // until it is available.
+        if (!cancelled) {
+          setUsage(null)
+        }
+      }
+    }
+
+    loadUsage()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, mode])
 
   async function submitUpdate(endpoint, body, successMessage) {
     setSaving(true)
@@ -695,6 +725,7 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
           saving={saving}
           message={message}
           error={error}
+          usage={usage}
         />
       )}
     </AccountShell>

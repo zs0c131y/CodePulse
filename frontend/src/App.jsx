@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import LogoBar from './components/LogoBar'
@@ -10,8 +10,15 @@ import Testimonials from './components/Testimonials'
 import FinalCTA from './components/FinalCTA'
 import Footer from './components/Footer'
 import AuthPage from './components/AuthPage'
-import Dashboard from './components/Dashboard'
-import AccountPage from './components/AccountPage'
+
+// Authenticated screens pull in the dashboard chart stack (recharts), so they
+// are code-split and only downloaded after sign-in.
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const AccountPage = lazy(() => import('./components/AccountPage'))
+
+function ProtectedScreenFallback() {
+  return <div className="min-h-screen bg-[#030309] p-6 text-slate-100">Loading workspace...</div>
+}
 
 const appRoutes = new Set([
   'signin',
@@ -167,17 +174,23 @@ export default function App() {
     }
 
     if (route.name === 'dashboard') {
-      return <Dashboard user={user} accessToken={accessToken} onLogout={handleLogout} />
+      return (
+        <Suspense fallback={<ProtectedScreenFallback />}>
+          <Dashboard user={user} accessToken={accessToken} onLogout={handleLogout} />
+        </Suspense>
+      )
     }
 
     return (
-      <AccountPage
-        mode={route.name}
-        user={user}
-        accessToken={accessToken}
-        onLogout={handleLogout}
-        onUserUpdate={setUser}
-      />
+      <Suspense fallback={<ProtectedScreenFallback />}>
+        <AccountPage
+          mode={route.name}
+          user={user}
+          accessToken={accessToken}
+          onLogout={handleLogout}
+          onUserUpdate={setUser}
+        />
+      </Suspense>
     )
   }
 

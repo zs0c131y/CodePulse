@@ -667,6 +667,206 @@ Large repositories are guarded before and during analysis:
 
 ---
 
+## 📡 Repository Read & Analytics API (Planned Contract)
+
+The frontend dashboard is wired against the following read-only endpoints.
+**These are not implemented yet** — they are the agreed contract for the
+Repository Onboarding completion and analysis-engine milestones. All endpoints
+require `Authorization: Bearer <accessToken>` and only ever return
+repositories owned by the signed-in user. The frontend degrades to empty
+states when any of them returns `404`.
+
+Repositories gain an analysis `status` field: `queued`, `running`,
+`completed`, or `failed`.
+
+### `GET /api/repositories`
+
+Lists the signed-in user's repositories, most recently updated first.
+
+Response:
+
+```json
+{
+  "repositories": [
+    {
+      "id": "mongodb-object-id",
+      "name": "repository",
+      "fullName": "owner/repository",
+      "url": "https://github.com/owner/repository",
+      "defaultBranch": "main",
+      "status": "completed",
+      "totalFiles": 80,
+      "totalDirectories": 12,
+      "totalDocumentation": 5,
+      "totalCommits": 100,
+      "totalDependencies": 43,
+      "createdAt": "2026-07-01T07:30:00.000Z",
+      "updatedAt": "2026-07-21T09:15:00.000Z"
+    }
+  ]
+}
+```
+
+### `GET /api/repositories/:repositoryId`
+
+Returns a single repository summary in the same shape as the list items.
+
+Response:
+
+```json
+{
+  "repository": {
+    "id": "mongodb-object-id",
+    "name": "repository",
+    "fullName": "owner/repository",
+    "url": "https://github.com/owner/repository",
+    "defaultBranch": "main",
+    "status": "running",
+    "totalFiles": 80,
+    "totalDirectories": 12,
+    "totalDocumentation": 5,
+    "totalCommits": 100,
+    "totalDependencies": 43,
+    "createdAt": "2026-07-01T07:30:00.000Z",
+    "updatedAt": "2026-07-21T09:15:00.000Z"
+  }
+}
+```
+
+### `GET /api/repositories/:repositoryId/status`
+
+Lightweight analysis-status endpoint used by the frontend to poll while a
+scan is `queued` or `running` (including resuming polling after a page
+refresh mid-scan).
+
+Response:
+
+```json
+{
+  "repositoryId": "mongodb-object-id",
+  "status": "running",
+  "message": "optional human-readable detail",
+  "updatedAt": "2026-07-21T09:15:00.000Z"
+}
+```
+
+### `GET /api/repositories/:repositoryId/scores`
+
+Aggregated dashboard scores for the Overview and Risk & AI tabs. Produced by
+the Technical Debt, Knowledge Debt, and Risk Intelligence engines.
+
+Response:
+
+```json
+{
+  "scores": {
+    "healthScore": 86,
+    "healthTrend": [78, 79, 80, 79, 81, 82, 83, 84, 83, 85, 86, 86],
+    "technicalDebt": { "score": 41, "grade": "B" },
+    "knowledgeDebt": { "score": 32, "documentationCoverage": 63 },
+    "drift": { "total": 19, "critical": 2, "high": 5, "medium": 8, "low": 4 },
+    "risk": {
+      "criticalModules": 7,
+      "trend": [{ "label": "Mon", "value": 62 }]
+    },
+    "recommendationsReady": 12
+  }
+}
+```
+
+### `GET /api/repositories/:repositoryId/debt`
+
+Module-level technical debt table and headline metrics.
+
+Response:
+
+```json
+{
+  "metrics": {
+    "technicalDebtScore": 41,
+    "grade": "B",
+    "averageComplexity": 41,
+    "duplicationPercent": 8.7,
+    "circularDependencies": 5
+  },
+  "modules": [
+    {
+      "path": "src/billing/InvoicePipeline.ts",
+      "owner": "Payments",
+      "complexity": 91,
+      "churnPercent": 84,
+      "duplicationPercent": 18,
+      "risk": "Critical"
+    }
+  ]
+}
+```
+
+### `GET /api/repositories/:repositoryId/drift`
+
+Knowledge drift findings and documentation coverage breakdown.
+
+Response:
+
+```json
+{
+  "findings": [
+    {
+      "id": "finding-id",
+      "title": "README references removed webhook flow",
+      "filePath": "docs/auth/README.md",
+      "severity": "High",
+      "age": "18 days",
+      "evidence": "Payment webhook handler was removed in commit b91a4f2."
+    }
+  ],
+  "coverage": [
+    { "label": "API routes", "percent": 84 },
+    { "label": "Domain modules", "percent": 63 }
+  ]
+}
+```
+
+### `GET /api/repositories/:repositoryId/recommendations`
+
+AI-generated, evidence-backed remediation recommendations.
+
+Response:
+
+```json
+{
+  "recommendations": [
+    {
+      "id": "recommendation-id",
+      "title": "Split InvoicePipeline into orchestration and calculation units",
+      "impact": "High",
+      "effort": "2-3 days",
+      "reason": "The module combines retry orchestration, tax calculation, and notification side effects.",
+      "steps": ["Extract pure invoice calculator", "Move retry policy into queue worker"]
+    }
+  ]
+}
+```
+
+### `GET /api/auth/usage`
+
+Account-level usage snapshot shown on the profile page.
+
+Response:
+
+```json
+{
+  "usage": {
+    "repositories": 3,
+    "aiActions": 12,
+    "driftFindings": 19,
+    "averageHealthScore": 86
+  }
+}
+```
+
+---
+
 ## ⚙️ Planned Analytical Services
 
 Repository Intelligence is implemented. The following services are still

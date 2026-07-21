@@ -39,8 +39,10 @@ CodePulse/
 ├── frontend/                  # React + Vite frontend application
 │   ├── public/                # Static browser assets
 │   ├── src/                   # Frontend source code
+│   │   ├── api/               # Backend API client modules
 │   │   ├── assets/            # Images, fonts, and static SVGs
-│   │   ├── components/        # Reusable UI components
+│   │   ├── components/        # Reusable UI components (incl. dashboard/ panels)
+│   │   ├── demo/              # Dashboard demo-mode fallback data
 │   │   ├── App.jsx            # Client-side route controller
 │   │   ├── App.css            # Component and layout styling
 │   │   ├── index.css          # Global CSS and Tailwind imports
