@@ -732,6 +732,44 @@ email, falling back to author name when no email is recorded).
 }
 ```
 
+### `GET /api/repositories/:repositoryId/manifest`
+
+Parses the repository's root-level dependency manifests. Fetches
+`package.json` and `requirements.txt` from
+`raw.githubusercontent.com/<fullName>/<defaultBranch>/...` (each file is
+optional and skipped on a non-2xx response) and returns their declared
+dependencies — distinct from the import-graph edges in `dependencies`,
+which only capture dependencies actually referenced by source code.
+
+```json
+{
+  "manifests": [
+    {
+      "path": "package.json",
+      "type": "npm",
+      "name": "demo",
+      "version": "1.0.0",
+      "dependencies": [
+        { "name": "express", "version": "^5.2.1", "kind": "dependency" },
+        { "name": "nodemon", "version": "^3.1.14", "kind": "devDependency" }
+      ]
+    },
+    {
+      "path": "requirements.txt",
+      "type": "pip",
+      "name": null,
+      "version": null,
+      "dependencies": [
+        { "name": "flask", "version": ">=2.0,<3.0", "kind": "dependency" }
+      ]
+    }
+  ]
+}
+```
+
+Only implemented for repositories cloned from GitHub (`repo_full_name`
+containing an `owner/name`); returns an empty `manifests` list otherwise.
+
 Implementation modules:
 
 * [services/repositoryQueriesCore.js](../../backend/src/features/repositories/services/repositoryQueriesCore.js):
@@ -741,6 +779,11 @@ Implementation modules:
   thin MongoDB-backed wrappers around the core functions.
 * [services/contributorAggregator.js](../../backend/src/features/repositories/services/contributorAggregator.js):
   pure commit-to-contributor aggregation.
+* [services/manifestParser.js](../../backend/src/features/repositories/services/manifestParser.js):
+  pure `package.json`/`requirements.txt` dependency parsing.
+* [services/manifestFetcher.js](../../backend/src/features/repositories/services/manifestFetcher.js):
+  fetches known manifest files from GitHub raw content (injectable
+  `fetchImpl` for tests) and parses each with `manifestParser.js`.
 * [readController.js](../../backend/src/features/repositories/readController.js):
   exposes a `createReadController(deps)` factory so route handlers can be
   unit-tested with fake dependencies instead of a live database.

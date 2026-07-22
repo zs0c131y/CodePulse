@@ -10,6 +10,7 @@ import {
   getRepositoryDependencies,
   getRepositoryDocumentation,
   getRepositoryContributors,
+  getRepositoryManifest,
 } from './readController.js'
 
 const router = Router()
@@ -23,6 +24,7 @@ router.get('/api/repositories/:repositoryId/commits', requireAccessToken, getRep
 router.get('/api/repositories/:repositoryId/dependencies', requireAccessToken, getRepositoryDependencies)
 router.get('/api/repositories/:repositoryId/documentation', requireAccessToken, getRepositoryDocumentation)
 router.get('/api/repositories/:repositoryId/contributors', requireAccessToken, getRepositoryContributors)
+router.get('/api/repositories/:repositoryId/manifest', requireAccessToken, getRepositoryManifest)
 
 export default router
 

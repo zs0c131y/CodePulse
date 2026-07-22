@@ -170,6 +170,36 @@ test('getRepositoryContributors aggregates commits fetched for the owned reposit
   assert.equal(response.body.contributors[0].commitCount, 2)
 })
 
+test('getRepositoryManifest fetches manifests using the owned repository full name and branch', async () => {
+  let receivedArgs
+  const deps = {
+    async findRepositoryForUser() { return { _id: 'repo-1', repo_full_name: 'owner/demo', default_branch: 'main' } },
+    async fetchRepositoryManifests(args) {
+      receivedArgs = args
+      return [{ path: 'package.json', type: 'npm', dependencies: [] }]
+    },
+  }
+  const { getRepositoryManifest } = createReadController(deps)
+  const request = { user: { _id: 'user-1' }, params: { repositoryId: '507f1f77bcf86cd799439011' } }
+  const response = createResponse()
+
+  await getRepositoryManifest(request, response, () => assert.fail('next should not be called'))
+
+  assert.deepEqual(receivedArgs, { repoFullName: 'owner/demo', defaultBranch: 'main' })
+  assert.deepEqual(response.body, { manifests: [{ path: 'package.json', type: 'npm', dependencies: [] }] })
+})
+
+test('getRepositoryManifest returns 404 for a repository the user does not own', async () => {
+  const deps = { async findRepositoryForUser() { return null } }
+  const { getRepositoryManifest } = createReadController(deps)
+  const request = { user: { _id: 'user-1' }, params: { repositoryId: '507f1f77bcf86cd799439011' } }
+  const response = createResponse()
+
+  await getRepositoryManifest(request, response, () => assert.fail('next should not be called'))
+
+  assert.equal(response.statusCode, 404)
+})
+
 test('controller handlers forward thrown errors to next()', async () => {
   const deps = {
     async listRepositoriesForUser() {

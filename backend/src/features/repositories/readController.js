@@ -1,6 +1,9 @@
 import { ObjectId } from 'mongodb'
-import * as defaultReader from './services/repositoryQueries.js'
+import * as repositoryQueries from './services/repositoryQueries.js'
 import { aggregateContributors } from './services/contributorAggregator.js'
+import { fetchRepositoryManifests } from './services/manifestFetcher.js'
+
+const defaultReader = { ...repositoryQueries, fetchRepositoryManifests }
 
 function parseRepositoryId(value) {
   return typeof value === 'string' && ObjectId.isValid(value) ? new ObjectId(value) : null
@@ -131,6 +134,21 @@ export function createReadController(deps = defaultReader) {
     }
   }
 
+  async function getRepositoryManifest(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      const manifests = await deps.fetchRepositoryManifests({
+        repoFullName: repository.repo_full_name,
+        defaultBranch: repository.default_branch,
+      })
+      response.json({ manifests })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   return {
     requireOwnedRepository,
     listRepositories,
@@ -141,6 +159,7 @@ export function createReadController(deps = defaultReader) {
     getRepositoryDependencies,
     getRepositoryDocumentation,
     getRepositoryContributors,
+    getRepositoryManifest,
   }
 }
 
@@ -153,4 +172,5 @@ export const {
   getRepositoryDependencies,
   getRepositoryDocumentation,
   getRepositoryContributors,
+  getRepositoryManifest,
 } = createReadController()
