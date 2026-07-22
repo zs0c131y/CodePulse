@@ -652,6 +652,99 @@ The public API validates `https://github.com/...` URLs only. Local fixture
 repositories are supported only in tests through an internal option, not
 through the public API.
 
+### `GET /api/repositories`
+
+Lists the signed-in user's repositories, most recently updated first.
+
+```json
+{
+  "repositories": [
+    {
+      "id": "mongodb-object-id",
+      "name": "repository",
+      "fullName": "owner/repository",
+      "url": "https://github.com/owner/repository",
+      "defaultBranch": "main",
+      "status": "completed",
+      "totalFiles": 80,
+      "totalCommits": 100,
+      "totalDependencies": 43,
+      "totalDocumentation": 5,
+      "createdAt": "2026-07-01T07:30:00.000Z",
+      "updatedAt": "2026-07-21T09:15:00.000Z"
+    }
+  ]
+}
+```
+
+### `GET /api/repositories/:repositoryId`
+
+Returns a single repository owned by the signed-in user, in the same shape
+as a list item, under a `repository` key. Returns `400` for a malformed id
+and `404` when the repository does not exist or belongs to another user.
+
+### `DELETE /api/repositories/:repositoryId`
+
+Deletes a repository owned by the signed-in user and cascades the delete to
+its `repo_files`, `commits`, `dependencies`, and `documentation` records.
+Returns `404` when the repository does not exist or belongs to another user.
+
+### `GET /api/repositories/:repositoryId/files`
+
+### `GET /api/repositories/:repositoryId/commits`
+
+### `GET /api/repositories/:repositoryId/dependencies`
+
+### `GET /api/repositories/:repositoryId/documentation`
+
+List the stored records for an owned repository. Each accepts optional
+`limit` (default `50`, max `200`) and `skip` query parameters, and responds
+with:
+
+```json
+{
+  "items": ["..."],
+  "total": 80,
+  "limit": 50,
+  "skip": 0
+}
+```
+
+Files are sorted by path, commits by date (newest first), dependencies by
+source file, and documentation by path.
+
+### `GET /api/repositories/:repositoryId/contributors`
+
+Aggregates the repository's full commit history by author (grouped by
+email, falling back to author name when no email is recorded).
+
+```json
+{
+  "contributors": [
+    {
+      "name": "Ada Lovelace",
+      "email": "ada@example.com",
+      "commitCount": 42,
+      "firstCommitAt": "2026-01-05T00:00:00.000Z",
+      "lastCommitAt": "2026-07-20T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+Implementation modules:
+
+* [services/repositoryQueriesCore.js](../../backend/src/features/repositories/services/repositoryQueriesCore.js):
+  pure, collection-injectable read/serialize/paginate logic for the above
+  endpoints, unit-tested against fake collections.
+* [services/repositoryQueries.js](../../backend/src/features/repositories/services/repositoryQueries.js):
+  thin MongoDB-backed wrappers around the core functions.
+* [services/contributorAggregator.js](../../backend/src/features/repositories/services/contributorAggregator.js):
+  pure commit-to-contributor aggregation.
+* [readController.js](../../backend/src/features/repositories/readController.js):
+  exposes a `createReadController(deps)` factory so route handlers can be
+  unit-tested with fake dependencies instead of a live database.
+
 Large repositories are guarded before and during analysis:
 
 * GitHub repository size is checked before cloning when public metadata is
@@ -671,67 +764,13 @@ Large repositories are guarded before and during analysis:
 
 The frontend dashboard is wired against the following read-only endpoints.
 **These are not implemented yet** — they are the agreed contract for the
-Repository Onboarding completion and analysis-engine milestones. All endpoints
-require `Authorization: Bearer <accessToken>` and only ever return
-repositories owned by the signed-in user. The frontend degrades to empty
-states when any of them returns `404`.
-
-Repositories gain an analysis `status` field: `queued`, `running`,
-`completed`, or `failed`.
-
-### `GET /api/repositories`
-
-Lists the signed-in user's repositories, most recently updated first.
-
-Response:
-
-```json
-{
-  "repositories": [
-    {
-      "id": "mongodb-object-id",
-      "name": "repository",
-      "fullName": "owner/repository",
-      "url": "https://github.com/owner/repository",
-      "defaultBranch": "main",
-      "status": "completed",
-      "totalFiles": 80,
-      "totalDirectories": 12,
-      "totalDocumentation": 5,
-      "totalCommits": 100,
-      "totalDependencies": 43,
-      "createdAt": "2026-07-01T07:30:00.000Z",
-      "updatedAt": "2026-07-21T09:15:00.000Z"
-    }
-  ]
-}
-```
-
-### `GET /api/repositories/:repositoryId`
-
-Returns a single repository summary in the same shape as the list items.
-
-Response:
-
-```json
-{
-  "repository": {
-    "id": "mongodb-object-id",
-    "name": "repository",
-    "fullName": "owner/repository",
-    "url": "https://github.com/owner/repository",
-    "defaultBranch": "main",
-    "status": "running",
-    "totalFiles": 80,
-    "totalDirectories": 12,
-    "totalDocumentation": 5,
-    "totalCommits": 100,
-    "totalDependencies": 43,
-    "createdAt": "2026-07-01T07:30:00.000Z",
-    "updatedAt": "2026-07-21T09:15:00.000Z"
-  }
-}
-```
+analysis-engine milestones (`status`, `scores`, `debt`, `drift`,
+`recommendations`). `GET /api/repositories` and
+`GET /api/repositories/:repositoryId` are now implemented — see the
+"Repository Intelligence API" section above. All endpoints below require
+`Authorization: Bearer <accessToken>` and only ever return repositories
+owned by the signed-in user. The frontend degrades to empty states when any
+of them returns `404`.
 
 ### `GET /api/repositories/:repositoryId/status`
 

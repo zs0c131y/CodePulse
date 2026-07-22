@@ -1,8 +1,13 @@
 import { ObjectId } from 'mongodb'
 import * as defaultReader from './services/repositoryQueries.js'
+import { aggregateContributors } from './services/contributorAggregator.js'
 
 function parseRepositoryId(value) {
   return typeof value === 'string' && ObjectId.isValid(value) ? new ObjectId(value) : null
+}
+
+function parsePagination(query = {}) {
+  return { limit: query.limit, skip: query.skip }
 }
 
 export function createReadController(deps = defaultReader) {
@@ -66,12 +71,86 @@ export function createReadController(deps = defaultReader) {
     }
   }
 
+  async function getRepositoryFiles(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      const result = await deps.listRepoFilesForRepository(repository._id, parsePagination(request.query))
+      response.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async function getRepositoryCommits(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      const result = await deps.listCommitsForRepository(repository._id, parsePagination(request.query))
+      response.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async function getRepositoryDependencies(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      const result = await deps.listDependenciesForRepository(repository._id, parsePagination(request.query))
+      response.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async function getRepositoryDocumentation(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      const result = await deps.listDocumentationForRepository(repository._id, parsePagination(request.query))
+      response.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async function getRepositoryContributors(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      const commits = await deps.listAllCommitsForRepository(repository._id)
+      response.json({ contributors: aggregateContributors(commits) })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   return {
     requireOwnedRepository,
     listRepositories,
     getRepository,
     deleteRepository,
+    getRepositoryFiles,
+    getRepositoryCommits,
+    getRepositoryDependencies,
+    getRepositoryDocumentation,
+    getRepositoryContributors,
   }
 }
 
-export const { listRepositories, getRepository, deleteRepository } = createReadController()
+export const {
+  listRepositories,
+  getRepository,
+  deleteRepository,
+  getRepositoryFiles,
+  getRepositoryCommits,
+  getRepositoryDependencies,
+  getRepositoryDocumentation,
+  getRepositoryContributors,
+} = createReadController()

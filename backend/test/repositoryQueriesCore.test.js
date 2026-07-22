@@ -4,6 +4,11 @@ import {
   listRepositoriesForUserWithCollections,
   findRepositoryForUserWithCollections,
   deleteRepositoryForUserWithCollections,
+  listRepoFilesWithCollections,
+  listCommitsForRepositoryWithCollections,
+  listAllCommitsForRepositoryWithCollections,
+  listDependenciesForRepositoryWithCollections,
+  listDocumentationForRepositoryWithCollections,
 } from '../src/features/repositories/services/repositoryQueriesCore.js'
 
 class FakeCollection {
@@ -140,4 +145,57 @@ test('deleteRepositoryForUserWithCollections cascades child records and reports 
 
   const deletedAgain = await deleteRepositoryForUserWithCollections('user-1', 'repo-1', collections)
   assert.equal(deletedAgain, false)
+})
+
+test('listRepoFilesWithCollections sorts by path and paginates', async () => {
+  const collections = createCollections()
+  collections.repoFiles.records.push(
+    { repository_id: 'repo-1', file_path: 'src/b.js', file_name: 'b.js', extension: '.js', file_type: 'code', language: 'JavaScript', size: 10, depth: 2 },
+    { repository_id: 'repo-1', file_path: 'src/a.js', file_name: 'a.js', extension: '.js', file_type: 'code', language: 'JavaScript', size: 5, depth: 2 },
+    { repository_id: 'repo-1', file_path: 'README.md', file_name: 'README.md', extension: '.md', file_type: 'documentation', language: 'Markdown', size: 20, depth: 1 },
+    { repository_id: 'repo-2', file_path: 'other.js', file_name: 'other.js', extension: '.js', file_type: 'code', language: 'JavaScript', size: 1, depth: 1 },
+  )
+
+  const page = await listRepoFilesWithCollections('repo-1', collections, { limit: 2 })
+
+  assert.equal(page.total, 3)
+  assert.equal(page.limit, 2)
+  assert.equal(page.skip, 0)
+  assert.deepEqual(page.items.map(file => file.path), ['README.md', 'src/a.js'])
+  assert.equal(page.items[0].fileType, 'documentation')
+})
+
+test('listCommitsForRepositoryWithCollections sorts newest first and paginates', async () => {
+  const collections = createCollections()
+  collections.commits.records.push(
+    { repository_id: 'repo-1', commit_hash: 'a', author: 'Ada', author_email: 'ada@example.com', message: 'first', commit_date: '2026-07-01T00:00:00.000Z', changed_files: ['a.js'] },
+    { repository_id: 'repo-1', commit_hash: 'b', author: 'Ada', author_email: 'ada@example.com', message: 'second', commit_date: '2026-07-10T00:00:00.000Z', changed_files: ['b.js'] },
+  )
+
+  const page = await listCommitsForRepositoryWithCollections('repo-1', collections)
+
+  assert.equal(page.total, 2)
+  assert.deepEqual(page.items.map(commit => commit.hash), ['b', 'a'])
+  assert.equal(page.items[0].authorEmail, 'ada@example.com')
+
+  const allCommits = await listAllCommitsForRepositoryWithCollections('repo-1', collections)
+  assert.equal(allCommits.length, 2)
+})
+
+test('listDependenciesForRepositoryWithCollections and listDocumentationForRepositoryWithCollections serialize records', async () => {
+  const collections = createCollections()
+  collections.dependencies.records.push(
+    { repository_id: 'repo-1', source_file: 'src/index.js', target_file: 'express', dependency_type: 'package-import', import_path: 'express', resolved: false },
+  )
+  collections.documentation.records.push(
+    { repository_id: 'repo-1', doc_path: 'README.md', file_name: 'README.md', documentation_type: 'readme', content_summary: 'Demo', content: '# Demo', size: 10, truncated: false },
+  )
+
+  const dependencyPage = await listDependenciesForRepositoryWithCollections('repo-1', collections)
+  assert.equal(dependencyPage.items[0].sourceFile, 'src/index.js')
+  assert.equal(dependencyPage.items[0].resolved, false)
+
+  const documentationPage = await listDocumentationForRepositoryWithCollections('repo-1', collections)
+  assert.equal(documentationPage.items[0].path, 'README.md')
+  assert.equal(documentationPage.items[0].content, '# Demo')
 })
