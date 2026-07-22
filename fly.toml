@@ -1,5 +1,5 @@
 app = "codepulse"
-primary_region = "iad"
+primary_region = "sin"
 
 [build]
 dockerfile = "Dockerfile"
@@ -9,7 +9,7 @@ auto_start_machines = true
 auto_stop_machines = "stop"
 force_https = true
 internal_port = 3_000
-min_machines_running = 0
+min_machines_running = 1
 
   [[http_service.checks]]
   grace_period = "30s"
@@ -19,6 +19,6 @@ min_machines_running = 0
   timeout = "5s"
 
 [[vm]]
-memory = "256mb"
-size = "shared-cpu-1x"
+memory = "512mb"
+size = "shared-cpu-2x"
     
