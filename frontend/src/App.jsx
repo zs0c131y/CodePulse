@@ -1,30 +1,30 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import Navbar from './components/Navbar'
-import Hero from './components/Hero'
-import LogoBar from './components/LogoBar'
-import Problems from './components/Problems'
-import Features from './components/Features'
-import HowItWorks from './components/HowItWorks'
-import Stats from './components/Stats'
-import Testimonials from './components/Testimonials'
-import FinalCTA from './components/FinalCTA'
-import Footer from './components/Footer'
 import AuthPage from './components/AuthPage'
+import MarketingPage from './components/MarketingPage'
 
 // Authenticated screens pull in the dashboard chart stack (recharts), so they
 // are code-split and only downloaded after sign-in.
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const AccountPage = lazy(() => import('./components/AccountPage'))
 
-function ProtectedScreenFallback() {
+function LoadingScreen({ label }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-night-950 p-6 text-mist-400">
+    <div
+      className="flex min-h-screen items-center justify-center bg-[var(--surface-canvas)] p-6 text-[var(--ink-3)]"
+      role="status"
+    >
       <span className="flex items-center gap-3 text-sm font-medium">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-300" />
-        Loading workspace...
+        {/* Loading indicators keep looping under reduced motion — they carry
+            meaning, unlike decorative animation. */}
+        <span className="motion-safe-loop h-4 w-4 animate-spin rounded-full border-2 border-[var(--line-2)] border-t-[var(--accent)]" />
+        {label}
       </span>
     </div>
   )
+}
+
+function ProtectedScreenFallback() {
+  return <LoadingScreen label="Loading workspace…" />
 }
 
 const appRoutes = new Set([
@@ -92,6 +92,27 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const theme = user?.settings?.theme || localStorage.getItem('codepulse-theme') || 'system'
+    const density = user?.settings?.density || 'comfortable'
+    const root = document.documentElement
+
+    const resolvedTheme = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+      : theme
+    root.dataset.theme = resolvedTheme
+    root.dataset.density = density
+
+    // Persisted so the pre-paint script in index.html can stamp both before
+    // first paint on the next load.
+    try {
+      localStorage.setItem('codepulse-theme', theme)
+      localStorage.setItem('codepulse-density', density)
+    } catch {
+      /* Storage blocked; the in-memory stamp above still applies. */
+    }
+  }, [user?.settings?.density, user?.settings?.theme])
+
+  useEffect(() => {
     let cancelled = false
 
     async function refreshSession() {
@@ -135,6 +156,12 @@ export default function App() {
     }
   }, [accessToken, authLoading, isProtectedRoute, user])
 
+  useEffect(() => {
+    if (!authLoading && user && accessToken && ['home', 'signin', 'signup'].includes(route.name)) {
+      navigate('/dashboard')
+    }
+  }, [accessToken, authLoading, route.name, user])
+
   function handleAuthSuccess(data) {
     setUser(data.user)
     setAccessToken(data.accessToken)
@@ -173,14 +200,7 @@ export default function App() {
 
   if (isProtectedRoute) {
     if (authLoading) {
-      return (
-        <div className="flex min-h-screen items-center justify-center bg-night-950 p-6 text-mist-400">
-          <span className="flex items-center gap-3 text-sm font-medium">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-300" />
-            Loading session...
-          </span>
-        </div>
-      )
+      return <LoadingScreen label="Loading session…" />
     }
 
     if (!user || !accessToken) {
@@ -208,20 +228,5 @@ export default function App() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-night-950 text-mist-100">
-      <Navbar />
-      <main>
-        <Hero />
-        <LogoBar />
-        <Problems />
-        <Features />
-        <HowItWorks />
-        <Stats />
-        <Testimonials />
-        <FinalCTA />
-      </main>
-      <Footer />
-    </div>
-  )
+  return <MarketingPage />
 }

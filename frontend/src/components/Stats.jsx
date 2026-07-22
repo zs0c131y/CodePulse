@@ -28,20 +28,20 @@ export default function Stats() {
     <section className="relative overflow-hidden py-20">
       {/* Background gradient strip */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-950/[0.16] to-transparent" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="absolute inset-0 bg-[var(--line-2)]" />
+        <div className="absolute inset-x-0 top-0 h-px bg-[var(--line-2)]" />
+        <div className="absolute inset-x-0 bottom-0 h-px bg-[var(--line-2)]" />
       </div>
 
-      <div className="cp-container relative">
+      <div className="cp-marketing relative">
         <div className="grid grid-cols-1 gap-10 min-[420px]:grid-cols-2 lg:grid-cols-4">
           {stats.map(({ value, label, sub }, index) => (
             <Reveal key={label} delay={index * 100} className="space-y-2 text-center">
-              <div className="text-gradient-aurora font-display text-4xl font-bold leading-none sm:text-5xl lg:text-6xl">
+              <div className="text-[var(--accent-ink)] text-[var(--text-metric-xl)] font-bold leading-none">
                 {value}
               </div>
-              <div className="font-display text-base font-semibold text-white">{label}</div>
-              <div className="text-sm text-mist-500">{sub}</div>
+              <div className="text-[var(--text-title-3)] font-semibold text-[var(--ink-1)]">{label}</div>
+              <div className="text-[0.9375rem] text-[var(--ink-3)]">{sub}</div>
             </Reveal>
           ))}
         </div>

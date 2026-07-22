@@ -27,7 +27,7 @@ function HealthRing({ score = 87 }) {
           strokeWidth="7"
           strokeLinecap="round"
           strokeDasharray={`${filled} ${c}`}
-          className="animate-pulse-ring"
+          className=""
         />
         <defs>
           <linearGradient id="healthGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -37,8 +37,8 @@ function HealthRing({ score = 87 }) {
         </defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-2xl font-bold leading-none text-white">{score}</span>
-        <span className="mt-0.5 text-[10px] uppercase tracking-wider text-mist-500">Health</span>
+        <span className="text-2xl font-bold leading-none text-[var(--ink-1)]">{score}</span>
+        <span className="mt-0.5 text-[10px] uppercase tracking-wider text-[var(--ink-3)]">Health</span>
       </div>
     </div>
   )
@@ -47,7 +47,7 @@ function HealthRing({ score = 87 }) {
 function EcgLine() {
   return (
     <div className="relative h-15 w-full overflow-hidden rounded-md">
-      <div className="animate-ecg flex h-[60px] w-[200%]">
+      <div className="flex h-[60px] w-[200%]">
         <svg viewBox="0 0 960 80" preserveAspectRatio="xMidYMid meet" className="block h-[60px] w-full">
           <path
             d={ECG_PATH}
@@ -64,9 +64,9 @@ function EcgLine() {
 }
 
 const metrics = [
-  { label: 'Knowledge Drift', value: '12%', color: 'text-amber-300', bg: 'bg-amber-400/[0.08] border-amber-400/20' },
-  { label: 'Tech Debt', value: '4.2d', color: 'text-orange-300', bg: 'bg-orange-400/[0.08] border-orange-400/20' },
-  { label: 'Risk Score', value: 'Low', color: 'text-emerald-300', bg: 'bg-emerald-400/[0.08] border-emerald-400/20' },
+  { label: 'Knowledge Drift', value: '12%', color: 'text-[var(--sev-medium-ink)]', bg: 'bg-[var(--sev-medium)]/[0.08] border-[var(--sev-medium-line)]' },
+  { label: 'Tech Debt', value: '4.2d', color: 'text-[var(--sev-high-ink)]', bg: 'bg-[var(--sev-high)]/[0.08] border-[var(--sev-high-line)]' },
+  { label: 'Risk Score', value: 'Low', color: 'text-[var(--sev-nominal-ink)]', bg: 'bg-[var(--sev-nominal)]/[0.08] border-[var(--sev-nominal-line)]' },
 ]
 
 const trust = [
@@ -80,47 +80,47 @@ export default function Hero() {
     <section className="relative flex min-h-screen items-center overflow-hidden pt-24 pb-10">
       <AuroraBackground variant="hero" />
 
-      <div className="cp-container relative grid w-full grid-cols-1 items-center gap-12 py-12 sm:py-16 lg:grid-cols-2 lg:gap-16 xl:py-20 2xl:gap-20">
+      <div className="cp-marketing relative grid w-full grid-cols-1 items-center gap-12 py-12 sm:py-16 lg:grid-cols-2 lg:gap-16 xl:py-20 2xl:gap-20">
 
         {/* Left column — copy */}
-        <div className="space-y-8 animate-fade-up">
+        <div className="space-y-8">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-3.5 py-1.5 text-sm font-medium text-violet-300">
-            <Zap size={12} className="fill-violet-400 text-violet-400" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--accent-line)] bg-[var(--accent-wash)] px-3.5 py-1.5 text-sm font-medium text-[var(--accent-ink)]">
+            <Zap size={12} className="fill-[var(--accent)] text-[var(--accent-ink)]" />
             AI-Powered Engineering Intelligence
           </div>
 
           {/* Headline */}
-          <div className="space-y-1">
-            <h1 className="font-display text-5xl font-bold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl 2xl:text-8xl">
+          <div className="space-y-4">
+            <h1 className="text-[var(--text-display-1)] font-semibold text-[var(--ink-1)]">
               Your codebase
               <br />
-              has a <span className="text-gradient-aurora">pulse.</span>
+              has a <span className="text-[var(--accent-ink)] font-bold">pulse.</span>
             </h1>
-            <p className="font-display text-4xl font-bold leading-[1.05] tracking-tight text-white/35 sm:text-5xl lg:text-6xl 2xl:text-7xl">
+            <p className="text-[var(--text-display-2)] font-medium text-[var(--ink-3)]">
               Are you listening?
             </p>
           </div>
 
           {/* Subtext */}
-          <p className="max-w-2xl text-base leading-relaxed text-mist-400 sm:text-lg lg:max-w-lg 2xl:max-w-xl">
+          <p className="max-w-2xl text-base leading-relaxed text-[var(--ink-3)] sm:text-lg lg:max-w-lg 2xl:max-w-xl">
             CodePulse continuously analyzes your repositories — detecting knowledge drift,
             quantifying technical debt, and generating AI-powered recommendations before
             small problems become engineering crises.
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col gap-3 min-[420px]:flex-row">
+          <div className="flex flex-col gap-4 min-[420px]:flex-row pt-4">
             <a
               href="/signup"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-3 font-semibold text-white shadow-xl shadow-violet-600/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-violet-600/50 hover:brightness-110 active:translate-y-0"
+              className="inline-flex items-center justify-center gap-2 rounded-[var(--r-xl)] bg-[var(--ink-1)] px-8 py-4 font-medium text-[0.9375rem] text-[var(--surface-canvas)] shadow-[var(--shadow-e2)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-e3)] hover:brightness-110 active:translate-y-0"
             >
               Get Early Access
-              <ArrowRight size={16} />
+              <ArrowRight size={18} />
             </a>
             <a
               href="#how-it-works"
-              className="glass-panel inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-medium text-mist-300 transition-all duration-300 hover:border-white/20 hover:text-white"
+              className="panel inline-flex items-center justify-center gap-2 rounded-[var(--r-xl)] px-8 py-4 font-medium text-[0.9375rem] text-[var(--ink-2)] transition-all duration-300 hover:border-[var(--line-3)] hover:text-[var(--ink-1)] hover:bg-[var(--surface-2)]"
             >
               See How It Works
             </a>
@@ -129,8 +129,8 @@ export default function Hero() {
           {/* Trust signals */}
           <ul className="flex flex-wrap gap-5">
             {trust.map(t => (
-              <li key={t} className="flex items-center gap-1.5 text-sm text-mist-500">
-                <CheckCircle size={13} className="shrink-0 text-emerald-400" />
+              <li key={t} className="flex items-center gap-1.5 text-sm text-[var(--ink-3)]">
+                <CheckCircle size={13} className="shrink-0 text-[var(--sev-nominal-ink)]" />
                 {t}
               </li>
             ))}
@@ -138,23 +138,23 @@ export default function Hero() {
         </div>
 
         {/* Right column — dashboard card */}
-        <div className="relative animate-fade-up" style={{ animationDelay: '0.15s' }}>
+        <div className="relative" style={{ animationDelay: '0.15s' }}>
           {/* Ambient glow behind card */}
-          <div className="absolute inset-0 scale-105 rounded-3xl bg-gradient-to-br from-violet-600/25 via-cyan-500/10 to-emerald-500/10 blur-3xl" />
+          <div className="absolute inset-0 scale-105 rounded-3xl bg-[var(--surface-2)] blur-3xl" />
 
           {/* Card */}
-          <div className="glass-panel card-hover relative space-y-5 overflow-hidden rounded-2xl p-5">
+          <div className="glass-panel relative space-y-6 p-8">
             {/* Subtle inner highlight */}
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-px bg-[var(--line-2)]" />
 
             {/* Header row */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <p className="font-display text-sm font-semibold text-white">Repository Health</p>
-                <p className="text-xs text-mist-500">acme-corp/platform · synced just now</p>
+                <p className="text-sm font-semibold text-[var(--ink-1)]">Repository Health</p>
+                <p className="text-xs text-[var(--ink-3)]">acme-corp/platform · synced just now</p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] px-2.5 py-1 text-[11px] font-medium text-[var(--sev-nominal-ink)]">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--sev-nominal)]" />
                 Live
               </span>
             </div>
@@ -163,50 +163,50 @@ export default function Hero() {
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
               <HealthRing score={87} />
               <div className="min-w-0 flex-1 space-y-2">
-                <p className="text-xs font-medium text-mist-500">Real-time activity</p>
+                <p className="text-xs font-medium text-[var(--ink-3)]">Real-time activity</p>
                 <EcgLine />
-                <p className="text-xs text-emerald-300">● Healthy — no critical issues</p>
+                <p className="text-xs text-[var(--sev-nominal-ink)]">● Healthy — no critical issues</p>
               </div>
             </div>
 
             {/* Metrics row */}
-            <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-3">
               {metrics.map(m => (
-                <div key={m.label} className={`space-y-1 rounded-xl border p-3 text-center ${m.bg}`}>
-                  <p className={`font-display text-base font-bold ${m.color}`}>{m.value}</p>
-                  <p className="text-[10px] leading-tight text-mist-400">{m.label}</p>
+                <div key={m.label} className={`space-y-1 rounded-[var(--r-md)] border p-4 text-center ${m.bg}`}>
+                  <p className={`text-[var(--text-title-3)] font-semibold ${m.color}`}>{m.value}</p>
+                  <p className="text-xs leading-tight text-[var(--ink-3)] font-medium">{m.label}</p>
                 </div>
               ))}
             </div>
 
             {/* Alert */}
-            <div className="flex items-start gap-3 rounded-xl border border-violet-400/20 bg-violet-500/[0.08] p-3.5">
-              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-600">
-                <span className="text-[10px] font-bold text-white">!</span>
+            <div className="flex items-start gap-3 rounded-[var(--r-sm)] border border-[var(--accent-line)] bg-[var(--accent)]/[0.08] p-3.5">
+              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]">
+                <span className="text-[10px] font-bold text-[var(--ink-1)]">!</span>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium leading-snug text-white">Documentation drift detected</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-mist-400">
-                  <code className="font-mono text-violet-300">auth/README.md</code> is 3 weeks behind recent changes to the auth module
+                <p className="text-sm font-medium leading-snug text-[var(--ink-1)]">Documentation drift detected</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-[var(--ink-3)]">
+                  <code className="font-mono text-[var(--accent-ink)]">auth/README.md</code> is 3 weeks behind recent changes to the auth module
                 </p>
               </div>
             </div>
 
             {/* Bottom row */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-1 text-xs text-mist-500">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--line-1)] pt-1 text-xs text-[var(--ink-3)]">
               <span>4 repos connected</span>
-              <span className="cursor-pointer text-violet-300 transition-colors hover:text-violet-200">View full report →</span>
+              <span className="cursor-pointer text-[var(--accent-ink)] transition-colors hover:text-[var(--accent-ink)]">View full report →</span>
             </div>
           </div>
 
           {/* Floating chips */}
-          <div className="glass-panel absolute -top-5 left-4 z-20 hidden items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white animate-float lg:flex">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
-            <span><span className="text-emerald-300">↑ 23%</span> maintainability</span>
+          <div className="panel absolute -top-5 left-4 z-20 hidden items-center gap-2 rounded-[var(--r-sm)] px-3 py-2 text-xs font-medium text-[var(--ink-1)] lg:flex">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--sev-nominal)]" />
+            <span><span className="text-[var(--sev-nominal-ink)]">↑ 23%</span> maintainability</span>
           </div>
-          <div className="glass-panel absolute -bottom-5 right-4 z-20 hidden items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white animate-float-delayed lg:flex">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-violet-400" />
-            <span><span className="text-violet-300">14</span> issues resolved</span>
+          <div className="panel absolute -bottom-5 right-4 z-20 hidden items-center gap-2 rounded-[var(--r-sm)] px-3 py-2 text-xs font-medium text-[var(--ink-1)] lg:flex">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
+            <span><span className="text-[var(--accent-ink)]">14</span> issues resolved</span>
           </div>
         </div>
       </div>
