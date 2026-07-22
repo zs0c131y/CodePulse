@@ -25,6 +25,7 @@ export async function persistRepositoryAnalysisWithCollections(analysis, collect
     repo_url: analysis.repository.repoUrl,
     clone_url: analysis.repository.cloneUrl,
     default_branch: analysis.repository.defaultBranch,
+    status: 'completed',
     total_files: analysis.files.length,
     total_commits: analysis.commits.length,
     total_dependencies: analysis.dependencies.length,
