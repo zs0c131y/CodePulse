@@ -313,6 +313,9 @@ db.createCollection("repositories", {
                 default_branch: {
                     bsonType: "string"
                 },
+                status: {
+                    enum: ["queued", "running", "completed", "failed"]
+                },
                 total_files: {
                     bsonType: "int"
                 },

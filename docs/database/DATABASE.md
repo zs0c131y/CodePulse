@@ -146,6 +146,9 @@ Stores high-level metadata for tracked repositories.
 * `repo_url`: Git clone URL.
 * `clone_url`: Normalized Git clone URL used by the analyzer.
 * `default_branch`: Primary scanned branch.
+* `status`: Analysis lifecycle state — `queued`, `running`, `completed`, or
+  `failed`. Set to `completed` once the current synchronous scan pipeline
+  persists a repository.
 * `total_files`: Parsed file count.
 * `total_commits`: Parsed commit count.
 * `total_dependencies`: Parsed dependency edge count.

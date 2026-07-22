@@ -76,6 +76,7 @@ test('persists repository analysis records across collections', async () => {
 
   assert.equal(result.summary.totalFiles, 1)
   assert.equal(collections.repositories.records.length, 1)
+  assert.equal(collections.repositories.records[0].status, 'completed')
   assert.equal(collections.repoFiles.records.length, 1)
   assert.equal(collections.documentation.records.length, 1)
   assert.equal(collections.commits.records.length, 1)
