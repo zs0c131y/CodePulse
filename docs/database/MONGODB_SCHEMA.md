@@ -155,6 +155,8 @@ Indexes:
 Required fields:
 
 * `provider` (`enum`): `github` or `gitlab`.
+* `provider_access_token` (`string`, optional): Encrypted provider token used
+  by the server to read connected repository metadata.
 * `provider_user_id` (`string`): The provider's stable user ID.
 * `user_id` (`objectId`): Owner reference to `users`.
 * `created_at` (`date`): Link creation timestamp.

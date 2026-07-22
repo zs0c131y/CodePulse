@@ -131,6 +131,9 @@ Links a CodePulse user to an external OAuth identity (GitHub or GitLab).
 * `user_id`: Owner reference to `users`.
 * `provider_email`: Email address reported by the provider at link time.
 * `provider_name`: Display name reported by the provider at link time.
+* `provider_access_token` (`string`, optional): AES-256-GCM encrypted OAuth
+  token used only by the backend to list repositories for a connected source.
+* `updated_at` (`date`, optional): Most recent OAuth connection refresh.
 * `created_at`: Link creation timestamp.
 
 ### `repositories`

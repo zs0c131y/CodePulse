@@ -8,16 +8,16 @@ export default function DebtTable({ items = [], title = 'Highest-risk modules', 
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">
+    <section className="glass-panel card-hover overflow-hidden rounded-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] p-5">
         <div>
-          <h2 className="text-base font-bold text-slate-950">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
+          <h2 className="font-display text-base font-bold text-white">{title}</h2>
+          <p className="mt-1 text-sm text-mist-500">{description}</p>
         </div>
       </div>
       <div className="hidden lg:block">
         <table className="w-full table-fixed text-left">
-          <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+          <thead className="bg-white/[0.04] text-xs font-semibold uppercase text-mist-500">
             <tr>
               <th className="w-[34%] px-5 py-3">Module</th>
               <th className="w-[14%] px-5 py-3">Owner</th>
@@ -27,30 +27,30 @@ export default function DebtTable({ items = [], title = 'Highest-risk modules', 
               <th className="w-[10%] px-5 py-3">Risk</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-white/[0.05]">
             {items.map(item => (
-              <tr key={item.module} className="hover:bg-slate-50/80">
+              <tr key={item.module} className="transition-colors hover:bg-white/[0.04]">
                 <td className="min-w-0 px-5 py-4">
-                  <p className="truncate font-semibold text-slate-900" title={item.module}>
+                  <p className="truncate font-mono text-sm font-semibold text-mist-100" title={item.module}>
                     {item.module}
                   </p>
-                  <p className="text-xs text-slate-500">Last touched in recent scan window</p>
+                  <p className="text-xs text-mist-600">Last touched in recent scan window</p>
                 </td>
-                <td className="px-5 py-4 text-sm text-slate-600">
+                <td className="px-5 py-4 text-sm text-mist-400">
                   <span className="block truncate">{item.owner}</span>
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="h-2 min-w-0 flex-1 rounded-full bg-cyan-100">
-                      <div className="h-full rounded-full bg-cyan-500" style={{ width: `${item.complexity}%` }} />
+                    <div className="h-2 min-w-0 flex-1 rounded-full bg-cyan-400/15">
+                      <div className="h-full rounded-full bg-cyan-400" style={{ width: `${item.complexity}%` }} />
                     </div>
-                    <span className="text-sm font-semibold text-slate-700">{item.complexity}</span>
+                    <span className="text-sm font-semibold text-mist-300">{item.complexity}</span>
                   </div>
                 </td>
-                <td className="px-5 py-4 text-sm font-semibold text-slate-700">{item.churn}</td>
-                <td className="px-5 py-4 text-sm font-semibold text-slate-700">{item.duplication}</td>
+                <td className="px-5 py-4 text-sm font-semibold text-mist-300">{item.churn}</td>
+                <td className="px-5 py-4 text-sm font-semibold text-mist-300">{item.duplication}</td>
                 <td className="px-5 py-4">
-                  <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-bold ${severityClass(item.risk)}`}>
+                  <span className={`inline-flex rounded-lg border px-2 py-1 text-xs font-bold ${severityClass(item.risk)}`}>
                     {item.risk}
                   </span>
                 </td>
@@ -61,30 +61,30 @@ export default function DebtTable({ items = [], title = 'Highest-risk modules', 
       </div>
       <div className="grid gap-3 p-4 lg:hidden">
         {items.map(item => (
-          <article key={item.module} className="rounded-lg border border-slate-200 p-4">
+          <article key={item.module} className="glass-chip rounded-xl p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="truncate font-semibold text-slate-900" title={item.module}>
+                <h3 className="truncate font-mono text-sm font-semibold text-mist-100" title={item.module}>
                   {item.module}
                 </h3>
-                <p className="mt-1 text-xs text-slate-500">{item.owner}</p>
+                <p className="mt-1 text-xs text-mist-500">{item.owner}</p>
               </div>
-              <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-bold ${severityClass(item.risk)}`}>
+              <span className={`shrink-0 rounded-lg border px-2 py-1 text-xs font-bold ${severityClass(item.risk)}`}>
                 {item.risk}
               </span>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
               <div>
-                <p className="text-xs font-semibold uppercase text-slate-500">Complexity</p>
-                <p className="mt-1 font-bold text-slate-950">{item.complexity}</p>
+                <p className="text-xs font-semibold uppercase text-mist-600">Complexity</p>
+                <p className="mt-1 font-display font-bold text-white">{item.complexity}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase text-slate-500">Churn</p>
-                <p className="mt-1 font-bold text-slate-950">{item.churn}</p>
+                <p className="text-xs font-semibold uppercase text-mist-600">Churn</p>
+                <p className="mt-1 font-display font-bold text-white">{item.churn}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase text-slate-500">Duplication</p>
-                <p className="mt-1 font-bold text-slate-950">{item.duplication}</p>
+                <p className="text-xs font-semibold uppercase text-mist-600">Duplication</p>
+                <p className="mt-1 font-display font-bold text-white">{item.duplication}</p>
               </div>
             </div>
           </article>

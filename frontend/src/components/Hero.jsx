@@ -1,4 +1,5 @@
 import { ArrowRight, CheckCircle, Zap } from 'lucide-react'
+import AuroraBackground from './AuroraBackground'
 
 const ECG_PATH =
   'M0,40 L25,40 L35,35 L43,40 L47,10 L57,70 L65,40 L75,40 L82,33 L89,40 L120,40 ' +
@@ -16,9 +17,9 @@ function HealthRing({ score = 87 }) {
   const filled = (score / 100) * c
 
   return (
-    <div className="relative w-28 h-28 shrink-0">
-      <svg className="w-28 h-28 -rotate-90" viewBox="0 0 96 96">
-        <circle cx="48" cy="48" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="7" />
+    <div className="relative h-28 w-28 shrink-0">
+      <svg className="h-28 w-28 -rotate-90" viewBox="0 0 96 96">
+        <circle cx="48" cy="48" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="7" />
         <circle
           cx="48" cy="48" r={r}
           fill="none"
@@ -36,8 +37,8 @@ function HealthRing({ score = 87 }) {
         </defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold text-white leading-none">{score}</span>
-        <span className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Health</span>
+        <span className="font-display text-2xl font-bold leading-none text-white">{score}</span>
+        <span className="mt-0.5 text-[10px] uppercase tracking-wider text-mist-500">Health</span>
       </div>
     </div>
   )
@@ -45,16 +46,9 @@ function HealthRing({ score = 87 }) {
 
 function EcgLine() {
   return (
-    <div className="overflow-hidden h-15 w-full rounded-md relative">
-      <div
-        className="animate-ecg"
-        style={{ display: 'flex', width: '200%', height: '60px' }}
-      >
-        <svg
-          viewBox="0 0 960 80"
-          preserveAspectRatio="xMidYMid meet"
-          style={{ width: '100%', height: '60px', display: 'block' }}
-        >
+    <div className="relative h-15 w-full overflow-hidden rounded-md">
+      <div className="animate-ecg flex h-[60px] w-[200%]">
+        <svg viewBox="0 0 960 80" preserveAspectRatio="xMidYMid meet" className="block h-[60px] w-full">
           <path
             d={ECG_PATH}
             fill="none"
@@ -70,9 +64,9 @@ function EcgLine() {
 }
 
 const metrics = [
-  { label: 'Knowledge Drift', value: '12%', color: 'text-yellow-400', bg: 'bg-yellow-400/10 border-yellow-400/20' },
-  { label: 'Tech Debt', value: '4.2d', color: 'text-orange-400', bg: 'bg-orange-400/10 border-orange-400/20' },
-  { label: 'Risk Score', value: 'Low', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
+  { label: 'Knowledge Drift', value: '12%', color: 'text-amber-300', bg: 'bg-amber-400/[0.08] border-amber-400/20' },
+  { label: 'Tech Debt', value: '4.2d', color: 'text-orange-300', bg: 'bg-orange-400/[0.08] border-orange-400/20' },
+  { label: 'Risk Score', value: 'Low', color: 'text-emerald-300', bg: 'bg-emerald-400/[0.08] border-emerald-400/20' },
 ]
 
 const trust = [
@@ -83,39 +77,33 @@ const trust = [
 
 export default function Hero() {
   return (
-    <section className="relative flex min-h-screen items-center overflow-hidden pt-16">
-      {/* Background */}
-      <div className="absolute inset-0 bg-[#030309]">
-        <div className="absolute inset-0 grid-bg opacity-60" />
-        <div className="absolute top-1/3 left-1/4 w-125 h-125 bg-violet-600/8 rounded-full blur-[150px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-100 h-100 bg-cyan-500/8 rounded-full blur-[150px] pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-200 bg-violet-900/5 rounded-full blur-[200px] pointer-events-none" />
-      </div>
+    <section className="relative flex min-h-screen items-center overflow-hidden pt-24 pb-10">
+      <AuroraBackground variant="hero" />
 
-      <div className="cp-container relative grid w-full grid-cols-1 items-center gap-12 py-16 sm:py-20 lg:grid-cols-2 lg:gap-16 xl:py-24 2xl:gap-20 2xl:py-28">
+      <div className="cp-container relative grid w-full grid-cols-1 items-center gap-12 py-12 sm:py-16 lg:grid-cols-2 lg:gap-16 xl:py-20 2xl:gap-20">
 
         {/* Left column — copy */}
         <div className="space-y-8 animate-fade-up">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-300 text-sm font-medium">
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-3.5 py-1.5 text-sm font-medium text-violet-300">
             <Zap size={12} className="fill-violet-400 text-violet-400" />
             AI-Powered Engineering Intelligence
           </div>
 
           {/* Headline */}
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl 2xl:text-7xl">
-              Your codebase<br />
-              has a{' '}
-              <span className="gradient-text">pulse.</span>
+          <div className="space-y-1">
+            <h1 className="font-display text-5xl font-bold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl 2xl:text-8xl">
+              Your codebase
+              <br />
+              has a <span className="text-gradient-aurora">pulse.</span>
             </h1>
-            <h2 className="text-4xl font-bold leading-[1.05] tracking-tight text-white/40 sm:text-5xl lg:text-6xl 2xl:text-7xl">
+            <p className="font-display text-4xl font-bold leading-[1.05] tracking-tight text-white/35 sm:text-5xl lg:text-6xl 2xl:text-7xl">
               Are you listening?
-            </h2>
+            </p>
           </div>
 
           {/* Subtext */}
-          <p className="max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg lg:max-w-lg 2xl:max-w-xl">
+          <p className="max-w-2xl text-base leading-relaxed text-mist-400 sm:text-lg lg:max-w-lg 2xl:max-w-xl">
             CodePulse continuously analyzes your repositories — detecting knowledge drift,
             quantifying technical debt, and generating AI-powered recommendations before
             small problems become engineering crises.
@@ -125,14 +113,14 @@ export default function Hero() {
           <div className="flex flex-col gap-3 min-[420px]:flex-row">
             <a
               href="/signup"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-6 py-3 font-semibold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.02] hover:opacity-90 active:scale-[0.98]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-6 py-3 font-semibold text-white shadow-xl shadow-violet-600/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-violet-600/50 hover:brightness-110 active:translate-y-0"
             >
               Get Early Access
               <ArrowRight size={16} />
             </a>
             <a
               href="#how-it-works"
-              className="glass inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-medium text-slate-300 transition-all hover:border-white/15 hover:text-white"
+              className="glass-panel inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-medium text-mist-300 transition-all duration-300 hover:border-white/20 hover:text-white"
             >
               See How It Works
             </a>
@@ -141,8 +129,8 @@ export default function Hero() {
           {/* Trust signals */}
           <ul className="flex flex-wrap gap-5">
             {trust.map(t => (
-              <li key={t} className="flex items-center gap-1.5 text-sm text-slate-500">
-                <CheckCircle size={13} className="text-emerald-400 shrink-0" />
+              <li key={t} className="flex items-center gap-1.5 text-sm text-mist-500">
+                <CheckCircle size={13} className="shrink-0 text-emerald-400" />
                 {t}
               </li>
             ))}
@@ -152,21 +140,21 @@ export default function Hero() {
         {/* Right column — dashboard card */}
         <div className="relative animate-fade-up" style={{ animationDelay: '0.15s' }}>
           {/* Ambient glow behind card */}
-          <div className="absolute inset-0 bg-linear-to-br from-violet-600/20 to-cyan-500/10 rounded-3xl blur-2xl scale-105" />
+          <div className="absolute inset-0 scale-105 rounded-3xl bg-gradient-to-br from-violet-600/25 via-cyan-500/10 to-emerald-500/10 blur-3xl" />
 
           {/* Card */}
-          <div className="relative glass card-glow rounded-2xl p-5 space-y-5 overflow-hidden">
+          <div className="glass-panel card-hover relative space-y-5 overflow-hidden rounded-2xl p-5">
             {/* Subtle inner highlight */}
-            <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-violet-400/40 to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent" />
 
             {/* Header row */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <p className="text-white font-semibold text-sm">Repository Health</p>
-                <p className="text-slate-500 text-xs">acme-corp/platform · synced just now</p>
+                <p className="font-display text-sm font-semibold text-white">Repository Health</p>
+                <p className="text-xs text-mist-500">acme-corp/platform · synced just now</p>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
                 Live
               </span>
             </div>
@@ -174,50 +162,50 @@ export default function Hero() {
             {/* Score + ECG */}
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
               <HealthRing score={87} />
-              <div className="flex-1 min-w-0 space-y-2">
-                <p className="text-xs text-slate-500 font-medium">Real-time activity</p>
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className="text-xs font-medium text-mist-500">Real-time activity</p>
                 <EcgLine />
-                <p className="text-xs text-emerald-400">● Healthy — no critical issues</p>
+                <p className="text-xs text-emerald-300">● Healthy — no critical issues</p>
               </div>
             </div>
 
             {/* Metrics row */}
             <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
               {metrics.map(m => (
-                <div key={m.label} className={`border rounded-xl p-3 text-center space-y-1 ${m.bg}`}>
-                  <p className={`text-base font-bold ${m.color}`}>{m.value}</p>
-                  <p className="text-[10px] text-slate-400 leading-tight">{m.label}</p>
+                <div key={m.label} className={`space-y-1 rounded-xl border p-3 text-center ${m.bg}`}>
+                  <p className={`font-display text-base font-bold ${m.color}`}>{m.value}</p>
+                  <p className="text-[10px] leading-tight text-mist-400">{m.label}</p>
                 </div>
               ))}
             </div>
 
             {/* Alert */}
-            <div className="flex items-start gap-3 p-3.5 bg-violet-500/8 border border-violet-500/20 rounded-xl">
-              <div className="mt-0.5 w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center shrink-0">
-                <span className="text-white text-[10px] font-bold">!</span>
+            <div className="flex items-start gap-3 rounded-xl border border-violet-400/20 bg-violet-500/[0.08] p-3.5">
+              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-600">
+                <span className="text-[10px] font-bold text-white">!</span>
               </div>
               <div className="min-w-0">
-                <p className="text-sm text-white font-medium leading-snug">Documentation drift detected</p>
-                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                  <code className="text-violet-300">auth/README.md</code> is 3 weeks behind recent changes to the auth module
+                <p className="text-sm font-medium leading-snug text-white">Documentation drift detected</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-mist-400">
+                  <code className="font-mono text-violet-300">auth/README.md</code> is 3 weeks behind recent changes to the auth module
                 </p>
               </div>
             </div>
 
             {/* Bottom row */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-1 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-1 text-xs text-mist-500">
               <span>4 repos connected</span>
-              <span className="text-violet-400 hover:text-violet-300 cursor-pointer transition-colors">View full report →</span>
+              <span className="cursor-pointer text-violet-300 transition-colors hover:text-violet-200">View full report →</span>
             </div>
           </div>
 
-          {/* Floating chips — above/below the card so they never overlap card content */}
-          <div className="absolute -top-5 left-4 glass rounded-xl px-3 py-2 text-xs font-medium text-white animate-float hidden lg:flex items-center gap-2 z-20">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-            <span><span className="text-emerald-400">↑ 23%</span> maintainability</span>
+          {/* Floating chips */}
+          <div className="glass-panel absolute -top-5 left-4 z-20 hidden items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white animate-float lg:flex">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+            <span><span className="text-emerald-300">↑ 23%</span> maintainability</span>
           </div>
-          <div className="absolute -bottom-5 right-4 glass rounded-xl px-3 py-2 text-xs font-medium text-white animate-float-delayed hidden lg:flex items-center gap-2 z-20">
-            <span className="w-2 h-2 rounded-full bg-violet-400 shrink-0" />
+          <div className="glass-panel absolute -bottom-5 right-4 z-20 hidden items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white animate-float-delayed lg:flex">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-violet-400" />
             <span><span className="text-violet-300">14</span> issues resolved</span>
           </div>
         </div>

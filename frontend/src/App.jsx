@@ -17,7 +17,14 @@ const Dashboard = lazy(() => import('./components/Dashboard'))
 const AccountPage = lazy(() => import('./components/AccountPage'))
 
 function ProtectedScreenFallback() {
-  return <div className="min-h-screen bg-[#030309] p-6 text-slate-100">Loading workspace...</div>
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-night-950 p-6 text-mist-400">
+      <span className="flex items-center gap-3 text-sm font-medium">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-300" />
+        Loading workspace...
+      </span>
+    </div>
+  )
 }
 
 const appRoutes = new Set([
@@ -166,7 +173,14 @@ export default function App() {
 
   if (isProtectedRoute) {
     if (authLoading) {
-      return <div className="min-h-screen bg-[#030309] p-6 text-slate-100">Loading session...</div>
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-night-950 p-6 text-mist-400">
+          <span className="flex items-center gap-3 text-sm font-medium">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-300" />
+            Loading session...
+          </span>
+        </div>
+      )
     }
 
     if (!user || !accessToken) {
@@ -195,7 +209,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#030309] text-slate-100">
+    <div className="min-h-screen bg-night-950 text-mist-100">
       <Navbar />
       <main>
         <Hero />

@@ -55,7 +55,8 @@ frontend/
 ├── src/
 │   ├── api/                    # Backend API client modules
 │   │   ├── client.js           # apiUrl + authenticated apiFetch (ApiError carries HTTP status)
-│   │   ├── repositories.js     # Repository analyze + read/analytics endpoints
+  │   │   ├── repositories.js     # Repository analyze + read/analytics endpoints
+  │   │   └── integrations.js     # Connected GitHub/GitLab source APIs
 │   │   └── usage.js            # Account usage snapshot endpoint
 │   ├── assets/
 │   │   └── hero.png
@@ -242,7 +243,13 @@ reuse the protected-session flow and shared account layout.
   `PATCH /api/auth/profile`. The "Usage snapshot" card fetches
   `GET /api/auth/usage` (planned contract) and shows placeholder dashes until
   the endpoint is available.
-* **Settings**: Edits theme, density, scan cadence, AI summary detail, and
-  notification preferences, then persists through `PATCH /api/auth/settings`.
+* **Settings**: Uses clustered Interface, Notifications, Connected code hosts,
+  and Security cards. Theme, density, scan cadence, AI summary detail, and
+  notification preferences persist through `PATCH /api/auth/settings`.
+* **Connected code hosts**: GitHub and GitLab cards start OAuth with expanded
+  repository-read scopes. The backend retains an encrypted provider token and
+  the dashboard fetches available provider repositories into its “Connected
+  repository” dropdown. Choosing one fills the scan URL; the existing analyzer
+  still accepts public GitHub URLs.
 * The dashboard links to both routes from the sidebar and header controls.
 * Password changes continue to use the reset-email flow at `/reset-password`.

@@ -2,7 +2,8 @@ import crypto from 'node:crypto'
 import { GITHUB_ID, GITHUB_SECRET, IS_PRODUCTION, FRONTEND_URL } from '../../../config/index.js'
 import { getUsersCollection, getOAuthAccountsCollection } from '../../../db/index.js'
 import { githubCallbackUrl } from '../../../utils/urls.js'
-import { createSession } from '../../../utils/session.js'
+import { createSession, getSessionFromCookie } from '../../../utils/session.js'
+import { encryptOAuthToken } from '../../../utils/oauthToken.js'
 
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize'
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token'
@@ -38,7 +39,7 @@ export function redirectToGithub(_request, response) {
   const params = new URLSearchParams({
     client_id: GITHUB_ID,
     redirect_uri: githubCallbackUrl,
-    scope: 'user:email',
+    scope: 'read:user user:email repo',
     state,
   })
 
@@ -142,6 +143,27 @@ export async function githubCallback(request, response, next) {
     const oauthAccounts = await getOAuthAccountsCollection()
     const users = await getUsersCollection()
 
+    // A signed-in browser is explicitly linking a repository source. Keep the
+    // current CodePulse account instead of treating this as a second sign-in.
+    const activeSession = await getSessionFromCookie(request)
+    if (activeSession) {
+      const activeUser = await users.findOne({ _id: activeSession.session.user_id, email_verified: true })
+      if (activeUser) {
+        const existingLink = await oauthAccounts.findOne({ provider: 'github', provider_user_id: providerUserId })
+        if (existingLink && !existingLink.user_id.equals(activeUser._id)) {
+          response.redirect(`${FRONTEND_URL}/#settings?error=${encodeURIComponent('This GitHub account is already linked to another CodePulse account.')}`)
+          return
+        }
+        await oauthAccounts.updateOne(
+          { provider: 'github', provider_user_id: providerUserId },
+          { $set: { user_id: activeUser._id, provider_email: email, provider_name: name, provider_access_token: encryptOAuthToken(githubAccessToken), updated_at: new Date() }, $setOnInsert: { provider: 'github', provider_user_id: providerUserId, created_at: new Date() } },
+          { upsert: true },
+        )
+        response.redirect(`${FRONTEND_URL}/#settings?connected=github`)
+        return
+      }
+    }
+
     // Check if this GitHub account is already linked
     let linked = await oauthAccounts.findOne({ provider: 'github', provider_user_id: providerUserId })
     let user
@@ -183,10 +205,17 @@ export async function githubCallback(request, response, next) {
           user_id: user._id,
           provider_email: email,
           provider_name: name,
+          provider_access_token: encryptOAuthToken(githubAccessToken),
           created_at: new Date(),
+          updated_at: new Date(),
         })
       }
     }
+
+    await oauthAccounts.updateOne(
+      { provider: 'github', provider_user_id: providerUserId },
+      { $set: { provider_email: email, provider_name: name, provider_access_token: encryptOAuthToken(githubAccessToken), updated_at: new Date() } },
+    )
 
     // --- Create session and redirect to frontend ---
     await createSession(response, request, user)

@@ -264,6 +264,12 @@ db.createCollection("oauth_accounts", {
                 provider_name: {
                     bsonType: "string"
                 },
+                provider_access_token: {
+                    bsonType: "string"
+                },
+                updated_at: {
+                    bsonType: "date"
+                },
                 created_at: {
                     bsonType: "date"
                 }

@@ -1,26 +1,26 @@
 export function accentClasses(accent) {
   const map = {
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    rose: 'bg-rose-50 text-rose-700 border-rose-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-    cyan: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    emerald: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/20',
+    rose: 'bg-rose-400/10 text-rose-300 border-rose-400/20',
+    amber: 'bg-amber-400/10 text-amber-300 border-amber-400/20',
+    cyan: 'bg-cyan-400/10 text-cyan-300 border-cyan-400/20',
   }
 
   return map[accent] || map.cyan
 }
 
 export function severityClass(severity) {
-  if (severity === 'Critical') return 'bg-rose-50 text-rose-700 border-rose-200'
-  if (severity === 'High') return 'bg-orange-50 text-orange-700 border-orange-200'
-  if (severity === 'Medium') return 'bg-amber-50 text-amber-700 border-amber-200'
-  return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  if (severity === 'Critical') return 'bg-rose-400/10 text-rose-300 border-rose-400/25'
+  if (severity === 'High') return 'bg-orange-400/10 text-orange-300 border-orange-400/25'
+  if (severity === 'Medium') return 'bg-amber-400/10 text-amber-300 border-amber-400/25'
+  return 'bg-emerald-400/10 text-emerald-300 border-emerald-400/25'
 }
 
 export const ANALYSIS_STATUS_META = {
-  queued: { label: 'Queued', badgeClass: 'bg-slate-50 text-slate-600 border-slate-200' },
-  running: { label: 'Running', badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-  completed: { label: 'Completed', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  failed: { label: 'Failed', badgeClass: 'bg-rose-50 text-rose-700 border-rose-200' },
+  queued: { label: 'Queued', badgeClass: 'bg-white/[0.06] text-mist-400 border-white/10' },
+  running: { label: 'Running', badgeClass: 'bg-cyan-400/10 text-cyan-300 border-cyan-400/25' },
+  completed: { label: 'Completed', badgeClass: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/25' },
+  failed: { label: 'Failed', badgeClass: 'bg-rose-400/10 text-rose-300 border-rose-400/25' },
 }
 
 export function analysisStatusClass(status) {

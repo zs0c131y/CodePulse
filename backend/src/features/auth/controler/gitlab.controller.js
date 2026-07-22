@@ -2,7 +2,8 @@ import crypto from 'node:crypto'
 import { GITLAB_ID, GITLAB_SECRET, IS_PRODUCTION, FRONTEND_URL } from '../../../config/index.js'
 import { getUsersCollection, getOAuthAccountsCollection } from '../../../db/index.js'
 import { gitlabCallbackUrl } from '../../../utils/urls.js'
-import { createSession } from '../../../utils/session.js'
+import { createSession, getSessionFromCookie } from '../../../utils/session.js'
+import { encryptOAuthToken } from '../../../utils/oauthToken.js'
 
 const GITLAB_AUTHORIZE_URL = 'https://gitlab.com/oauth/authorize'
 const GITLAB_TOKEN_URL = 'https://gitlab.com/oauth/token'
@@ -38,7 +39,7 @@ export function redirectToGitlab(_request, response) {
     client_id: GITLAB_ID,
     redirect_uri: gitlabCallbackUrl,
     response_type: 'code',
-    scope: 'read_user',
+    scope: 'read_user read_api',
     state,
   })
 
@@ -135,6 +136,25 @@ export async function gitlabCallback(request, response, next) {
     const oauthAccounts = await getOAuthAccountsCollection()
     const users = await getUsersCollection()
 
+    const activeSession = await getSessionFromCookie(request)
+    if (activeSession) {
+      const activeUser = await users.findOne({ _id: activeSession.session.user_id, email_verified: true })
+      if (activeUser) {
+        const existingLink = await oauthAccounts.findOne({ provider: 'gitlab', provider_user_id: providerUserId })
+        if (existingLink && !existingLink.user_id.equals(activeUser._id)) {
+          response.redirect(`${FRONTEND_URL}/#settings?error=${encodeURIComponent('This GitLab account is already linked to another CodePulse account.')}`)
+          return
+        }
+        await oauthAccounts.updateOne(
+          { provider: 'gitlab', provider_user_id: providerUserId },
+          { $set: { user_id: activeUser._id, provider_email: email, provider_name: name, provider_access_token: encryptOAuthToken(gitlabAccessToken), updated_at: new Date() }, $setOnInsert: { provider: 'gitlab', provider_user_id: providerUserId, created_at: new Date() } },
+          { upsert: true },
+        )
+        response.redirect(`${FRONTEND_URL}/#settings?connected=gitlab`)
+        return
+      }
+    }
+
     // Check if this GitLab account is already linked
     let linked = await oauthAccounts.findOne({ provider: 'gitlab', provider_user_id: providerUserId })
     let user
@@ -176,10 +196,17 @@ export async function gitlabCallback(request, response, next) {
           user_id: user._id,
           provider_email: email,
           provider_name: name,
+          provider_access_token: encryptOAuthToken(gitlabAccessToken),
           created_at: new Date(),
+          updated_at: new Date(),
         })
       }
     }
+
+    await oauthAccounts.updateOne(
+      { provider: 'gitlab', provider_user_id: providerUserId },
+      { $set: { provider_email: email, provider_name: name, provider_access_token: encryptOAuthToken(gitlabAccessToken), updated_at: new Date() } },
+    )
 
     // --- Create session and redirect to frontend ---
     await createSession(response, request, user)

@@ -12,6 +12,8 @@ import {
   Code2,
   Database,
   Gauge,
+  GitFork,
+  Boxes,
   KeyRound,
   LayoutDashboard,
   LockKeyhole,
@@ -32,6 +34,8 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { getUsageSnapshot } from '../api/usage'
+import { listIntegrations } from '../api/integrations'
+import AuroraBackground from './AuroraBackground'
 import { cn } from '../lib/utils'
 
 function apiUrl(path) {
@@ -86,8 +90,8 @@ function mergeSettings(user) {
 function Field({ label, icon: Icon, children }) {
   return (
     <label className="block">
-      <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-        {Icon && <Icon size={15} className="text-slate-400" />}
+      <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-mist-300">
+        {Icon && <Icon size={15} className="text-mist-500" />}
         {label}
       </span>
       {children}
@@ -96,15 +100,7 @@ function Field({ label, icon: Icon, children }) {
 }
 
 function TextInput({ className, ...props }) {
-  return (
-    <Input
-      {...props}
-      className={cn(
-        'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-cyan-400 focus:ring-cyan-100',
-        className,
-      )}
-    />
-  )
+  return <Input {...props} className={cn(className)} />
 }
 
 function SelectInput({ className, ...props }) {
@@ -112,12 +108,9 @@ function SelectInput({ className, ...props }) {
     <span className="relative block">
       <Select
         {...props}
-        className={cn(
-          'appearance-none border-slate-200 bg-white pr-10 text-slate-900 focus:border-cyan-400 focus:ring-cyan-100',
-          className,
-        )}
+        className={cn('appearance-none pr-10', className)}
       />
-      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-mist-500" />
     </span>
   )
 }
@@ -129,26 +122,26 @@ function Toggle({ checked, onChange, title, description, icon: Icon }) {
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:bg-slate-50"
+      className="glass-chip flex w-full items-center justify-between gap-4 rounded-xl p-4 text-left transition-all duration-300 hover:border-white/[0.14] hover:bg-white/[0.07]"
     >
       <span className="flex min-w-0 gap-3">
         {Icon && (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-mist-300">
             <Icon size={18} />
           </span>
         )}
         <span>
-          <span className="block text-sm font-bold text-slate-950">{title}</span>
-          <span className="mt-1 block text-sm leading-5 text-slate-500">{description}</span>
+          <span className="block text-sm font-bold text-white">{title}</span>
+          <span className="mt-1 block text-sm leading-5 text-mist-500">{description}</span>
         </span>
       </span>
       <span
-        className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-          checked ? 'bg-slate-950' : 'bg-slate-200'
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-all duration-300 ${
+          checked ? 'bg-gradient-to-r from-violet-600 to-cyan-500 shadow-lg shadow-violet-600/25' : 'bg-white/[0.12]'
         }`}
       >
         <span
-          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
+          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-300 ${
             checked ? 'left-6' : 'left-1'
           }`}
         />
@@ -161,14 +154,15 @@ function AccountShell({ mode, user, status, onLogout, children }) {
   const isProfile = mode === 'profile'
 
   return (
-    <div className="product-shell min-h-screen bg-[#030309] text-slate-100">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-[#10131a] text-white lg:flex lg:flex-col 2xl:w-72">
-        <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-slate-950">
-            <Activity size={18} strokeWidth={2.5} />
+    <div className="relative min-h-screen bg-night-950 text-mist-100">
+      <AuroraBackground variant="page" grid={false} className="fixed" />
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-white/[0.07] bg-night-950/80 text-white backdrop-blur-2xl lg:flex lg:flex-col 2xl:w-72">
+        <div className="flex h-16 items-center gap-2.5 border-b border-white/[0.07] px-5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/25">
+            <Activity size={18} strokeWidth={2.5} className="text-white" />
           </span>
-          <span className="text-lg font-bold">
-            Code<span className="text-cyan-300">Pulse</span>
+          <span className="font-display text-lg font-bold">
+            Code<span className="text-gradient">Pulse</span>
           </span>
         </div>
 
@@ -183,8 +177,10 @@ function AccountShell({ mode, user, status, onLogout, children }) {
               <a
                 key={item.label}
                 href={item.href}
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
-                  selected ? 'bg-white text-slate-950' : 'text-slate-300 hover:bg-white/8 hover:text-white'
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-300 ${
+                  selected
+                    ? 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25'
+                    : 'text-mist-400 hover:bg-white/[0.06] hover:text-white'
                 }`}
               >
                 <Icon size={17} />
@@ -194,17 +190,17 @@ function AccountShell({ mode, user, status, onLogout, children }) {
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+        <div className="border-t border-white/[0.07] p-4">
+          <div className="glass-chip rounded-xl p-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-white">
               <LockKeyhole size={16} className="text-emerald-300" />
               Protected session
             </div>
             <div className="mt-3 flex min-w-0 items-center justify-between gap-2">
-              <span className="truncate text-xs font-medium text-slate-400" title={user.email}>
+              <span className="truncate text-xs font-medium text-mist-500" title={user.email}>
                 {user.email}
               </span>
-              <span className="shrink-0 rounded-md border border-emerald-300/25 bg-emerald-300/10 px-2 py-0.5 text-[11px] font-bold text-emerald-200">
+              <span className="shrink-0 rounded-md border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
                 {status === 'Session verified' ? 'Verified' : 'Checking'}
               </span>
             </div>
@@ -212,19 +208,19 @@ function AccountShell({ mode, user, status, onLogout, children }) {
         </div>
       </aside>
 
-      <div className="min-w-0 lg:pl-64 2xl:pl-72">
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/92 backdrop-blur">
+      <div className="relative min-w-0 lg:pl-64 2xl:pl-72">
+        <header className="sticky top-0 z-20 border-b border-white/[0.07] bg-night-950/75 backdrop-blur-2xl">
           <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 2xl:px-8">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                <a href="/dashboard" className="inline-flex items-center gap-1 hover:text-slate-950">
+              <div className="flex items-center gap-2 text-xs font-semibold text-mist-500">
+                <a href="/dashboard" className="inline-flex items-center gap-1 transition-colors hover:text-white">
                   <ArrowLeft size={14} />
                   Dashboard
                 </a>
                 <ChevronRight size={13} />
-                <span className="text-slate-950">{isProfile ? 'Profile' : 'Settings'}</span>
+                <span className="text-mist-100">{isProfile ? 'Profile' : 'Settings'}</span>
               </div>
-              <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">
+              <h1 className="mt-1 font-display text-xl font-bold text-white sm:text-2xl">
                 {isProfile ? 'Profile' : 'Settings'}
               </h1>
             </div>
@@ -237,7 +233,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
                 className="hidden sm:inline-flex"
               >
                 <a href="/profile">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-cyan-400 text-xs font-bold text-slate-950">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-violet-600 to-cyan-400 text-xs font-bold text-white">
                     {initials(user.name, user.email)}
                   </span>
                   <span className="max-w-32 truncate">{user.name}</span>
@@ -269,24 +265,25 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
 
   return (
     <div className="mx-auto max-w-[112rem] space-y-5">
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-        <div className="bg-linear-to-r from-slate-950 via-slate-900 to-cyan-950 px-5 py-8 text-white sm:px-7">
-          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+      <section className="glass-panel card-hover overflow-hidden rounded-2xl">
+        <div className="relative bg-gradient-to-r from-violet-950/60 via-night-900 to-cyan-950/50 px-5 py-8 text-white sm:px-7">
+          <div className="pointer-events-none absolute inset-0 dot-bg opacity-20" />
+          <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-white text-2xl font-black text-slate-950 shadow-xl">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-violet-600 to-cyan-500 font-display text-2xl font-black text-white shadow-xl shadow-violet-600/30">
                 {initials(name, user.email)}
               </div>
               <div>
                 <p className="text-sm font-semibold text-cyan-200">CodePulse account</p>
-                <h2 className="mt-1 text-3xl font-bold tracking-tight">{name || user.email}</h2>
-                <p className="mt-1 text-sm text-slate-300">{user.email}</p>
+                <h2 className="mt-1 font-display text-3xl font-bold tracking-tight">{name || user.email}</h2>
+                <p className="mt-1 text-sm text-mist-400">{user.email}</p>
               </div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/10 p-4 backdrop-blur">
-              <p className="text-sm font-semibold text-slate-200">Profile completion</p>
+            <div className="rounded-xl border border-white/15 bg-white/[0.08] p-4 backdrop-blur">
+              <p className="text-sm font-semibold text-mist-300">Profile completion</p>
               <div className="mt-3 flex items-center gap-3">
                 <div className="h-2 w-36 rounded-full bg-white/15">
-                  <div className="h-full rounded-full bg-cyan-300" style={{ width: `${completion}%` }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400" style={{ width: `${completion}%` }} />
                 </div>
                 <span className="text-sm font-bold">{completion}%</span>
               </div>
@@ -296,11 +293,11 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr] 2xl:grid-cols-[1.15fr_0.85fr] 2xl:gap-6">
-        <form className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md" onSubmit={onSave}>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <form className="glass-panel card-hover rounded-2xl p-5" onSubmit={onSave}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] pb-4">
             <div>
-              <h2 className="text-base font-bold text-slate-950">Personal details</h2>
-              <p className="mt-1 text-sm text-slate-500">Keep your workspace identity clear for reports and ownership views.</p>
+              <h2 className="font-display text-base font-bold text-white">Personal details</h2>
+              <p className="mt-1 text-sm text-mist-500">Keep your workspace identity clear for reports and ownership views.</p>
             </div>
             <Button
               type="submit"
@@ -358,14 +355,14 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
               value={profile.bio}
               onChange={event => setProfile(current => ({ ...current, bio: event.target.value }))}
               placeholder="Tell teammates what systems you own and how CodePulse should support your review flow."
-              className="min-h-28 w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+              className="min-h-28 w-full rounded-xl border border-white/10 bg-night-950/60 px-3 py-3 text-sm leading-6 text-mist-100 outline-none transition placeholder:text-mist-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10"
             />
           </Field>
 
           {(message || error) && (
             <p
-              className={`mt-4 flex items-start gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
-                error ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              className={`mt-4 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                error ? 'border-rose-400/25 bg-rose-400/10 text-rose-300' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
               }`}
               role="status"
             >
@@ -380,33 +377,33 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
         </form>
 
         <aside className="space-y-5">
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-            <h2 className="text-base font-bold text-slate-950">Account posture</h2>
+          <section className="glass-panel card-hover rounded-2xl p-5">
+            <h2 className="font-display text-base font-bold text-white">Account posture</h2>
             <div className="mt-4 space-y-3">
               {[
                 { label: 'Email verified', value: user.email_verified ? 'Complete' : 'Pending', icon: ShieldCheck, ok: user.email_verified },
                 { label: 'Session storage', value: 'Secure workspace session', icon: LockKeyhole, ok: true },
                 { label: 'Workspace access', value: 'Verified account session', icon: KeyRound, ok: true },
               ].map(item => (
-                <div key={item.label} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+                <div key={item.label} className="glass-chip flex items-center gap-3 rounded-xl p-3">
                   <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                      item.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                      item.ok ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-400/10 text-amber-300'
                     }`}
                   >
                     <item.icon size={17} />
                   </span>
                   <span>
-                    <span className="block text-sm font-bold text-slate-950">{item.label}</span>
-                    <span className="block text-xs text-slate-500">{item.value}</span>
+                    <span className="block text-sm font-bold text-white">{item.label}</span>
+                    <span className="block text-xs text-mist-500">{item.value}</span>
                   </span>
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-            <h2 className="text-base font-bold text-slate-950">Usage snapshot</h2>
+          <section className="glass-panel card-hover rounded-2xl p-5">
+            <h2 className="font-display text-base font-bold text-white">Usage snapshot</h2>
             <div className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
               {[
                 [usage?.repositories, 'Repositories'],
@@ -414,9 +411,9 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
                 [usage?.driftFindings, 'Drift findings'],
                 [usage?.averageHealthScore, 'Health score'],
               ].map(([value, label]) => (
-                <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-2xl font-black text-slate-950">{value ?? '—'}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
+                <div key={label} className="glass-chip rounded-xl p-4">
+                  <p className="font-display text-2xl font-black text-white">{value ?? '—'}</p>
+                  <p className="mt-1 text-xs font-semibold text-mist-500">{label}</p>
                 </div>
               ))}
             </div>
@@ -427,15 +424,15 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
   )
 }
 
-function SettingsPage({ settings, setSettings, onSave, saving, message, error }) {
+function SettingsPage({ settings, setSettings, onSave, saving, message, error, integrations, integrationsLoading }) {
   return (
     <div className="mx-auto max-w-[112rem] space-y-5">
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="glass-panel card-hover rounded-2xl p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-semibold text-cyan-700">Workspace preferences</p>
-            <h2 className="mt-1 text-2xl font-bold text-slate-950">Tune CodePulse for your review flow</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+            <p className="text-sm font-semibold text-cyan-300">Workspace preferences</p>
+            <h2 className="mt-1 font-display text-2xl font-bold text-white">Tune CodePulse for your review flow</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-mist-500">
               These settings control dashboard density, repository scan cadence, AI answer shape, and notification
               delivery for your signed-in account.
             </p>
@@ -453,8 +450,8 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr] 2xl:grid-cols-[0.8fr_1.2fr] 2xl:gap-6">
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-bold text-slate-950">Interface</h2>
+        <section className="glass-panel card-hover rounded-2xl p-5">
+          <h2 className="font-display text-base font-bold text-white">Interface</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             <Field label="Theme" icon={Monitor}>
               <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
@@ -469,10 +466,10 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
                       key={value}
                       type="button"
                       onClick={() => setSettings(current => ({ ...current, theme: value }))}
-                      className={`flex h-20 flex-col items-center justify-center gap-2 rounded-lg border text-sm font-bold ${
+                      className={`flex h-20 flex-col items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-all duration-300 ${
                         selected
-                          ? 'border-slate-950 bg-slate-950 text-white'
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                          ? 'border-transparent bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25'
+                          : 'border-white/10 bg-white/[0.04] text-mist-400 hover:bg-white/[0.07] hover:text-white'
                       }`}
                     >
                       <Icon size={18} />
@@ -518,8 +515,8 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
           </div>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-bold text-slate-950">Notifications</h2>
+        <section className="glass-panel card-hover rounded-2xl p-5">
+          <h2 className="font-display text-base font-bold text-white">Notifications</h2>
           <div className="mt-5 grid gap-3">
             <Toggle
               checked={settings.email_notifications}
@@ -553,11 +550,36 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
         </section>
       </div>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="glass-panel card-hover overflow-hidden rounded-2xl">
+        <div className="border-b border-white/[0.07] bg-gradient-to-r from-violet-950/35 via-night-900 to-cyan-950/25 px-5 py-5">
+          <p className="text-sm font-semibold text-cyan-300">Repository sources</p>
+          <h2 className="mt-1 font-display text-xl font-bold text-white">Connected code hosts</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-mist-500">Connect a provider once, then choose its repositories from the dashboard picker.</p>
+        </div>
+        <div className="grid gap-3 p-5 md:grid-cols-2">
+          {[{ provider: 'github', label: 'GitHub', icon: GitFork, href: '/auth/github', tone: 'from-slate-600 to-slate-800' }, { provider: 'gitlab', label: 'GitLab', icon: Boxes, href: '/auth/gitlab', tone: 'from-orange-500 to-rose-600' }].map(item => {
+            const integration = integrations.find(value => value.provider === item.provider)
+            const connected = Boolean(integration?.connected)
+            const Icon = item.icon
+            return <div key={item.provider} className="group relative overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.035] p-4 transition hover:border-white/[0.18] hover:bg-white/[0.06]">
+              <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${item.tone} opacity-80`} />
+              <div className="flex items-start justify-between gap-4">
+                <span className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${item.tone} text-white shadow-lg`}><Icon size={21} /></span>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${connected ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-white/10 bg-white/[0.04] text-mist-400'}`}>{integrationsLoading ? 'Checking' : connected ? 'Connected' : 'Not connected'}</span>
+              </div>
+              <h3 className="mt-4 font-display font-bold text-white">{item.label}</h3>
+              <p className="mt-1 min-h-10 text-sm text-mist-500">{connected ? `Connected as ${integration.accountName || item.label}.` : `Bring your ${item.label} repositories into CodePulse.`}</p>
+              <Button href={item.href} asChild variant={connected ? 'outline' : 'default'} className="mt-4 w-full"><a href={item.href}>{connected ? 'Reconnect' : `Connect ${item.label}`}</a></Button>
+            </div>
+          })}
+        </div>
+      </section>
+
+      <section className="glass-panel card-hover rounded-2xl p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-base font-bold text-slate-950">Security</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="font-display text-base font-bold text-white">Security</h2>
+            <p className="mt-1 text-sm text-mist-500">
               Reset your password through a verified email flow.
             </p>
           </div>
@@ -576,8 +598,8 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error })
 
       {(message || error) && (
         <p
-          className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
-            error ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
+            error ? 'border-rose-400/25 bg-rose-400/10 text-rose-300' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
           }`}
           role="status"
         >
@@ -597,6 +619,8 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [usage, setUsage] = useState(null)
+  const [integrations, setIntegrations] = useState([])
+  const [integrationsLoading, setIntegrationsLoading] = useState(mode === 'settings')
 
   useEffect(() => {
     setName(user.name || '')
@@ -664,6 +688,13 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
     }
   }, [accessToken, mode])
 
+  useEffect(() => {
+    if (mode !== 'settings' || !accessToken) return undefined
+    let cancelled = false
+    listIntegrations(accessToken).then(items => { if (!cancelled) setIntegrations(items) }).catch(() => { if (!cancelled) setIntegrations([]) }).finally(() => { if (!cancelled) setIntegrationsLoading(false) })
+    return () => { cancelled = true }
+  }, [accessToken, mode])
+
   async function submitUpdate(endpoint, body, successMessage) {
     setSaving(true)
     setMessage('')
@@ -713,6 +744,8 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
           saving={saving}
           message={message}
           error={error}
+          integrations={integrations}
+          integrationsLoading={integrationsLoading}
         />
       ) : (
         <ProfilePage

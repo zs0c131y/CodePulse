@@ -8,21 +8,28 @@ import {
   EyeOff,
   Lock,
   Mail,
-  Moon,
   ShieldCheck,
   Sparkles,
-  Sun,
   User,
   X,
 } from 'lucide-react'
+import AuroraBackground from './AuroraBackground'
 
 const fieldBase =
-  'w-full rounded-xl border px-11 py-3.5 text-sm outline-none transition-all placeholder:text-slate-400'
+  'w-full rounded-xl border px-11 py-3.5 text-sm outline-none transition-all placeholder:text-mist-600'
+
+const inputClass =
+  'border-white/10 bg-night-950/60 text-white focus:border-cyan-300/50 focus:bg-night-950/80 focus:ring-4 focus:ring-cyan-300/10'
+
+const chipClass = 'border-white/[0.08] bg-white/[0.045] text-mist-300'
+
+const mutedText = 'text-mist-400'
+const softText = 'text-mist-500'
 
 const insights = [
-  { label: 'Drift prevented', value: '42%', tone: 'text-cyan-500' },
-  { label: 'PR risk', value: 'Low', tone: 'text-emerald-500' },
-  { label: 'Docs synced', value: '18', tone: 'text-violet-500' },
+  { label: 'Drift prevented', value: '42%', tone: 'text-cyan-300' },
+  { label: 'PR risk', value: 'Low', tone: 'text-emerald-300' },
+  { label: 'Docs synced', value: '18', tone: 'text-violet-300' },
 ]
 
 const activity = [
@@ -51,13 +58,6 @@ function GitLabMark({ className }) {
   )
 }
 
-function getInitialTheme() {
-  if (typeof window === 'undefined') return 'dark'
-  const saved = window.localStorage.getItem('codepulse-auth-theme')
-  if (saved === 'light' || saved === 'dark') return saved
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
-}
-
 function getRememberedEmail() {
   if (typeof window === 'undefined') return ''
   return window.localStorage.getItem('codepulse-remembered-email') || ''
@@ -69,7 +69,6 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
   const isResetFlow = mode === 'reset-password'
   const isPasswordReset = isResetFlow && Boolean(token)
   const isResetRequest = isResetFlow && !token
-  const [theme, setTheme] = useState(getInitialTheme)
   const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
@@ -81,10 +80,6 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
   const [successDialog, setSuccessDialog] = useState(null)
   const [canResendVerification, setCanResendVerification] = useState(false)
   const [isResendingVerification, setIsResendingVerification] = useState(false)
-
-  useEffect(() => {
-    window.localStorage.setItem('codepulse-auth-theme', theme)
-  }, [theme])
 
   useEffect(() => {
     if (isSignup || isPasswordReset || isEmailVerify) return
@@ -224,21 +219,6 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
     [isEmailVerify, isPasswordReset, isResetRequest, isSignup],
   )
 
-  const isDark = theme === 'dark'
-  const pageClass = isDark
-    ? 'bg-[#030309] text-slate-100'
-    : 'bg-[#f7fafc] text-slate-950'
-  const panelClass = isDark
-    ? 'border-white/10 bg-white/5.5 shadow-black/30'
-    : 'border-slate-200 bg-white/85 shadow-slate-200/80'
-  const inputClass = isDark
-    ? 'border-white/10 bg-slate-950/45 text-white focus:border-cyan-400/70 focus:bg-slate-950/70 focus:ring-4 focus:ring-cyan-400/10'
-    : 'border-slate-200 bg-white text-slate-950 focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10'
-  const mutedText = isDark ? 'text-slate-400' : 'text-slate-600'
-  const softText = isDark ? 'text-slate-500' : 'text-slate-500'
-  const chipClass = isDark
-    ? 'border-white/10 bg-white/4.5 text-slate-300'
-    : 'border-slate-200 bg-slate-50 text-slate-600'
   const passwordRules = [
     { label: '8+ characters', valid: password.length >= 8 },
     { label: 'One number', valid: /\d/.test(password) },
@@ -389,68 +369,45 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
   }
 
   return (
-    <div className={`min-h-screen overflow-hidden transition-colors duration-500 ${pageClass}`}>
-      <div className="absolute inset-0 pointer-events-none">
-        <div
-          className={`absolute inset-0 ${
-            isDark ? 'grid-bg opacity-70' : 'bg-[linear-gradient(rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-size-[56px_56px]'
-          }`}
-        />
-        <div className={`absolute inset-x-0 top-0 h-56 ${isDark ? 'bg-linear-to-b from-violet-950/60 to-transparent' : 'bg-linear-to-b from-cyan-100 to-transparent'}`} />
-        <div className={`absolute inset-y-0 right-0 w-1/2 ${isDark ? 'bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.16),transparent_50%)]' : 'bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.14),transparent_48%)]'}`} />
-      </div>
+    <div className="relative min-h-screen overflow-hidden bg-night-950 text-mist-100">
+      <AuroraBackground variant="hero" />
 
       <header className="relative z-10">
         <div className="cp-container flex h-16 items-center justify-between">
-          <a href="/" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/20">
+          <a href="/" className="group flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/25 transition-shadow duration-300 group-hover:shadow-violet-600/50">
               <Activity size={17} strokeWidth={2.5} className="text-white" />
             </span>
-            <span className="text-lg font-bold tracking-tight">
-              Code<span className="gradient-text">Pulse</span>
+            <span className="font-display text-lg font-bold tracking-tight text-white">
+              Code<span className="text-gradient">Pulse</span>
             </span>
           </a>
 
-          <div className="flex items-center gap-2">
-            <a
-              href="/"
-              className={`hidden items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors sm:flex ${
-                isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-950'
-              }`}
-            >
-              <ArrowLeft size={16} />
-              Home
-            </a>
-            <button
-              type="button"
-              onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-all ${
-                isDark
-                  ? 'border-white/10 bg-white/5 text-slate-300 hover:text-white'
-                  : 'border-slate-200 bg-white text-slate-700 hover:text-slate-950'
-              }`}
-              aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-            >
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-          </div>
+          <a
+            href="/"
+            className="hidden items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-mist-400 transition-colors hover:text-white sm:flex"
+          >
+            <ArrowLeft size={16} />
+            Home
+          </a>
         </div>
       </header>
 
       <main className="cp-container relative z-10 grid min-h-[calc(100vh-4rem)] grid-cols-1 items-center gap-10 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-16 2xl:gap-14">
-        <section className="relative order-2 lg:order-1">
-          <div className="absolute -left-8 top-8 hidden h-40 w-40 rotate-12 rounded-4xl border border-cyan-400/20 lg:block" />
-          <div className="absolute -bottom-8 right-8 hidden h-32 w-32 -rotate-12 rounded-4xl border border-violet-400/20 lg:block" />
+        {/* Brand / live workspace panel */}
+        <section className="relative order-2 animate-fade-up lg:order-1" style={{ animationDelay: '0.1s' }}>
+          <div className="absolute -left-8 top-8 hidden h-40 w-40 rotate-12 rounded-[2rem] border border-cyan-400/20 lg:block" />
+          <div className="absolute -bottom-8 right-8 hidden h-32 w-32 -rotate-12 rounded-[2rem] border border-violet-400/20 lg:block" />
 
-          <div className={`relative overflow-hidden rounded-4xl border p-5 shadow-2xl backdrop-blur-2xl ${panelClass}`}>
-            <div className="absolute left-0 right-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-400/70 to-transparent" />
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-current/10 pb-5">
+          <div className="glass-panel relative overflow-hidden rounded-[2rem] p-5">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/60 to-transparent" />
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-5">
               <div>
                 <p className={`text-xs uppercase tracking-[0.22em] ${softText}`}>Live workspace</p>
-                <h2 className="mt-1 text-xl font-bold tracking-tight">Pulse command center</h2>
+                <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-white">Pulse command center</h2>
               </div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-500">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
                 Monitoring
               </span>
             </div>
@@ -458,7 +415,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
             <div className="grid gap-3 py-5 min-[420px]:grid-cols-3">
               {insights.map(item => (
                 <div key={item.label} className={`rounded-2xl border p-4 ${chipClass}`}>
-                  <p className={`text-2xl font-bold ${item.tone}`}>{item.value}</p>
+                  <p className={`font-display text-2xl font-bold ${item.tone}`}>{item.value}</p>
                   <p className="mt-1 text-xs">{item.label}</p>
                 </div>
               ))}
@@ -467,25 +424,25 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
             <div className={`rounded-2xl border p-4 ${chipClass}`}>
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold">Repository health</p>
+                  <p className="text-sm font-semibold text-white">Repository health</p>
                   <p className={`text-xs ${softText}`}>acme/platform · synced now</p>
                 </div>
-                <ShieldCheck size={20} className="text-emerald-500" />
+                <ShieldCheck size={20} className="text-emerald-300" />
               </div>
               <div className="space-y-3">
-                <div className="h-3 overflow-hidden rounded-full bg-current/10">
-                  <div className="h-full w-[86%] rounded-full bg-linear-to-r from-violet-500 via-cyan-400 to-emerald-400" />
+                <div className="h-3 overflow-hidden rounded-full bg-white/[0.08]">
+                  <div className="h-full w-[86%] rounded-full bg-gradient-to-r from-violet-500 via-cyan-400 to-emerald-400" />
                 </div>
                 <div className="grid grid-cols-6 gap-1 sm:grid-cols-8">
                   {Array.from({ length: 24 }).map((_, index) => (
                     <span
                       key={index}
-                      className={`h-10 rounded-md ${
+                      className={`h-10 rounded-md transition-colors ${
                         index % 7 === 0
-                          ? 'bg-rose-400/70'
+                          ? 'bg-rose-400/60'
                           : index % 5 === 0
-                            ? 'bg-amber-400/70'
-                            : 'bg-emerald-400/70'
+                            ? 'bg-amber-400/60'
+                            : 'bg-emerald-400/50'
                       }`}
                     />
                   ))}
@@ -498,24 +455,26 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                 <div key={item.event} className={`flex items-center gap-3 rounded-2xl border p-3 ${chipClass}`}>
                   <span className={`h-2.5 w-2.5 rounded-full ${item.accent}`} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{item.event}</p>
+                    <p className="truncate text-sm font-medium text-white">{item.event}</p>
                     <p className={`text-xs ${softText}`}>{item.meta}</p>
                   </div>
-                  <Check size={16} className="text-emerald-500" />
+                  <Check size={16} className="text-emerald-300" />
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="order-1 lg:order-2">
-          <div className={`rounded-4xl border p-6 shadow-2xl backdrop-blur-2xl sm:p-8 ${panelClass}`}>
+        {/* Form panel */}
+        <section className="order-1 animate-fade-up lg:order-2">
+          <div className="glass-panel relative overflow-hidden rounded-[2rem] p-6 sm:p-8">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
             <div className="mb-8">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-3.5 py-1.5 text-sm font-semibold text-violet-400">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-3.5 py-1.5 text-sm font-semibold text-violet-300">
                 <Sparkles size={14} />
                 {copy.eyebrow}
               </div>
-              <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{copy.title}</h1>
+              <h1 className="font-display text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">{copy.title}</h1>
               <p className={`mt-3 text-sm leading-6 sm:text-base ${mutedText}`}>{copy.subtitle}</p>
             </div>
 
@@ -524,18 +483,14 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                 <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
                   <a
                     href={`${import.meta.env.VITE_API_BASE_URL || ''}/auth/github`}
-                    className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
-                      isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition-all duration-300 hover:border-white/20 hover:bg-white/[0.08]"
                   >
                     <GitHubMark className="h-4.5 w-4.5" />
                     GitHub
                   </a>
                   <a
                     href={`${import.meta.env.VITE_API_BASE_URL || ''}/auth/gitlab`}
-                    className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
-                      isDark ? 'border-white/10 bg-white/4 hover:bg-white/7.5' : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white transition-all duration-300 hover:border-white/20 hover:bg-white/[0.08]"
                   >
                     <GitLabMark className="h-4.5 w-4.5 text-[#fc6d26]" />
                     GitLab
@@ -543,9 +498,9 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                 </div>
 
                 <div className="my-6 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-current/10" />
+                  <div className="h-px flex-1 bg-white/[0.08]" />
                   <span className={`text-xs font-medium ${softText}`}>or continue with email</span>
-                  <div className="h-px flex-1 bg-current/10" />
+                  <div className="h-px flex-1 bg-white/[0.08]" />
                 </div>
               </>
             )}
@@ -553,7 +508,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
             <form className="space-y-4" onSubmit={handleSubmit}>
               {isSignup && (
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold">Full name</span>
+                  <span className="mb-2 block text-sm font-semibold text-mist-300">Full name</span>
                   <span className="relative block">
                     <User size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
                     <input
@@ -570,7 +525,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
               {!isEmailVerify && !isPasswordReset && (
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold">Work email</span>
+                  <span className="mb-2 block text-sm font-semibold text-mist-300">Work email</span>
                   <span className="relative block">
                     <Mail size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
                     <input
@@ -587,7 +542,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
               {!isEmailVerify && !isResetRequest && (
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold">
+                  <span className="mb-2 block text-sm font-semibold text-mist-300">
                     {isPasswordReset ? 'New password' : 'Password'}
                   </span>
                   <span className="relative block">
@@ -603,7 +558,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                     <button
                       type="button"
                       onClick={() => setShowPassword(v => !v)}
-                      className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 transition-colors ${softText}`}
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 transition-colors hover:text-white ${softText}`}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -619,13 +574,13 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                       key={rule.label}
                       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all ${
                         rule.valid
-                          ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-500'
+                          ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
                           : chipClass
                       }`}
                     >
                       <Check
                         size={12}
-                        className={rule.valid ? 'text-emerald-500' : softText}
+                        className={rule.valid ? 'text-emerald-300' : softText}
                       />
                       {rule.label}
                     </span>
@@ -643,17 +598,15 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                     <span
                       className={`inline-flex h-5 w-5 items-center justify-center rounded-lg border transition-all ${
                         rememberMe
-                          ? 'border-emerald-400/30 bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-400/20'
-                          : isDark
-                            ? 'border-white/15 bg-white/4 group-hover:border-white/25'
-                            : 'border-slate-300 bg-white group-hover:border-slate-400'
+                          ? 'border-emerald-400/30 bg-emerald-400 text-night-950 shadow-lg shadow-emerald-400/20'
+                          : 'border-white/15 bg-white/[0.04] group-hover:border-white/25'
                       }`}
                     >
                       {rememberMe && <Check size={13} strokeWidth={3} />}
                     </span>
                     Remember me
                   </button>
-                  <a href="/reset-password" className="text-sm font-semibold text-cyan-500 hover:text-cyan-400">
+                  <a href="/reset-password" className="text-sm font-semibold text-cyan-300 hover:text-cyan-200">
                     Forgot password?
                   </a>
                 </div>
@@ -669,8 +622,8 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                 <div
                   className={`rounded-xl border px-4 py-3 text-sm ${
                     authError
-                      ? 'border-rose-400/25 bg-rose-400/10 text-rose-400'
-                      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-500'
+                      ? 'border-rose-400/25 bg-rose-400/10 text-rose-300'
+                      : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
                   }`}
                   role="status"
                   aria-live="polite"
@@ -684,11 +637,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                   type="button"
                   onClick={handleResendVerification}
                   disabled={isResendingVerification}
-                  className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-5 py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
-                    isDark
-                      ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15'
-                      : 'border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100'
-                  }`}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-200 transition-all hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Mail size={16} />
                   {isResendingVerification ? 'Sending verification email...' : 'Resend verification email'}
@@ -699,7 +648,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                 <button
                   type="submit"
                   disabled={!canSubmit}
-                  className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all hover:scale-[1.01] hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100"
+                  className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-violet-600/25 transition-all duration-300 hover:-translate-y-px hover:shadow-violet-600/45 hover:brightness-110 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
                 >
                   {isSubmitting ? 'Please wait...' : copy.cta}
                   <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
@@ -709,7 +658,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
             <p className={`mt-6 text-center text-sm ${mutedText}`}>
               {copy.swapText}{' '}
-              <a href={copy.swapHref} className="font-bold text-violet-500 hover:text-cyan-500">
+              <a href={copy.swapHref} className="font-bold text-violet-300 transition-colors hover:text-cyan-300">
                 {copy.swapLabel}
               </a>
             </p>
@@ -719,52 +668,40 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
       {successDialog && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-night-950/80 px-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="auth-success-title"
         >
-          <div
-            className={`w-full max-w-md rounded-3xl border p-6 shadow-2xl ${
-              isDark
-                ? 'border-white/10 bg-[#0b1020] text-slate-100'
-                : 'border-slate-200 bg-white text-slate-950'
-            }`}
-          >
+          <div className="glass-strong w-full max-w-md animate-fade-up rounded-3xl p-6 text-mist-100">
             <div className="flex items-start justify-between gap-4">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-500">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
                 <ShieldCheck size={24} />
               </span>
               <button
                 type="button"
                 onClick={() => setSuccessDialog(null)}
-                className={`rounded-xl p-2 transition-colors ${
-                  isDark ? 'text-slate-400 hover:bg-white/8 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-950'
-                }`}
+                className="rounded-xl p-2 text-mist-400 transition-colors hover:bg-white/[0.08] hover:text-white"
                 aria-label="Close confirmation"
               >
                 <X size={18} />
               </button>
             </div>
-            <h2 id="auth-success-title" className="mt-5 text-2xl font-bold tracking-tight">
+            <h2 id="auth-success-title" className="mt-5 font-display text-2xl font-bold tracking-tight text-white">
               {successDialog.title}
             </h2>
             <p className={`mt-3 text-sm leading-6 ${mutedText}`}>{successDialog.message}</p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <a
                 href={successDialog.actionHref}
-                className="inline-flex flex-1 items-center justify-center rounded-xl bg-linear-to-r from-violet-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-violet-600/20"
+                className="inline-flex flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-violet-600/25 transition-all duration-300 hover:brightness-110"
               >
                 {successDialog.actionLabel}
               </a>
               <button
                 type="button"
                 onClick={() => setSuccessDialog(null)}
-                className={`inline-flex flex-1 items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold ${
-                  isDark
-                    ? 'border-white/10 text-slate-300 hover:bg-white/8 hover:text-white'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
+                className="inline-flex flex-1 items-center justify-center rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-mist-300 transition-colors hover:bg-white/[0.08] hover:text-white"
               >
                 Close
               </button>

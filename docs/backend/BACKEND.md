@@ -867,6 +867,24 @@ Response:
 
 ---
 
+## 🔌 Connected Repository Sources
+
+Authenticated users can connect GitHub or GitLab from Settings using the
+existing OAuth routes. If the browser already has a CodePulse refresh session,
+the callback links the provider to that signed-in user rather than changing the
+session. Provider access tokens are AES-256-GCM encrypted by
+[oauthToken.js](../../backend/src/utils/oauthToken.js) before storage in
+`oauth_accounts`; they are only decrypted server-side when listing sources.
+
+* `GET /api/integrations` returns each provider's connection status and account
+  name.
+* `GET /api/integrations/repositories` returns repositories accessible through
+  connected GitHub/GitLab accounts for the dashboard source picker.
+
+OAuth requests include repository-read scopes (`repo` on GitHub and
+`read_api` on GitLab). The provider calls never send access tokens to the
+frontend.
+
 ## ⚙️ Planned Analytical Services
 
 Repository Intelligence is implemented. The following services are still

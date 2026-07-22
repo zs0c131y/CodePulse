@@ -9,24 +9,24 @@ const links = {
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/6 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-150 h-50 bg-violet-900/5 rounded-full blur-[80px]" />
+    <footer className="relative overflow-hidden border-t border-white/[0.07]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="aurora-blob bottom-0 left-1/2 h-48 w-[36rem] -translate-x-1/2 bg-violet-900/[0.07]" />
       </div>
 
       <div className="cp-container relative py-16">
         <div className="grid grid-cols-1 gap-10 min-[420px]:grid-cols-2 md:grid-cols-5 2xl:gap-12">
           {/* Brand column */}
-          <div className="col-span-2 md:col-span-1 space-y-4">
-            <a href="#" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-violet-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-violet-600/20">
+          <div className="col-span-2 space-y-4 md:col-span-1">
+            <a href="#" className="group flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/25">
                 <Activity size={15} strokeWidth={2.5} className="text-white" />
-              </div>
-              <span className="text-white font-bold text-lg tracking-tight">
-                Code<span className="gradient-text">Pulse</span>
+              </span>
+              <span className="font-display text-lg font-bold tracking-tight text-white">
+                Code<span className="text-gradient">Pulse</span>
               </span>
             </a>
-            <p className="text-slate-500 text-sm leading-relaxed max-w-45">
+            <p className="max-w-45 text-sm leading-relaxed text-mist-500">
               Engineering intelligence for healthy, maintainable codebases.
             </p>
             <div className="flex gap-3">
@@ -39,7 +39,7 @@ export default function Footer() {
                   key={label}
                   href="#"
                   aria-label={label}
-                  className="w-8 h-8 rounded-lg glass flex items-center justify-center text-slate-500 hover:text-white hover:border-white/15 transition-all"
+                  className="glass-chip flex h-8 w-8 items-center justify-center rounded-lg text-mist-500 transition-all duration-300 hover:border-white/20 hover:text-white"
                 >
                   <Icon size={14} />
                 </a>
@@ -50,13 +50,13 @@ export default function Footer() {
           {/* Link columns */}
           {Object.entries(links).map(([section, items]) => (
             <div key={section} className="space-y-4">
-              <h4 className="text-white text-sm font-semibold">{section}</h4>
+              <h4 className="font-display text-sm font-semibold text-white">{section}</h4>
               <ul className="space-y-2.5">
                 {items.map(item => (
                   <li key={item}>
                     <a
                       href="#"
-                      className="text-slate-500 text-sm hover:text-slate-300 transition-colors"
+                      className="text-sm text-mist-500 transition-colors hover:text-mist-300"
                     >
                       {item}
                     </a>
@@ -68,8 +68,8 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 text-center md:flex-row md:text-left">
-          <p className="text-slate-600 text-sm">
+        <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-white/[0.06] pt-6 text-center md:flex-row md:text-left">
+          <p className="text-sm text-mist-600">
             © {new Date().getFullYear()} CodePulse, Inc. All rights reserved.
           </p>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 md:justify-end">
@@ -77,7 +77,7 @@ export default function Footer() {
               <a
                 key={item}
                 href="#"
-                className="text-slate-600 text-sm hover:text-slate-400 transition-colors"
+                className="text-sm text-mist-600 transition-colors hover:text-mist-400"
               >
                 {item}
               </a>
