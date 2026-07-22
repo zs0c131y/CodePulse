@@ -1,0 +1,26 @@
+{
+  "name": "codepulse",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
+    "build": "cd frontend && npm run build",
+    "lint": "oxlint",
+    "preview": "cd frontend && npm run preview",
+    "test": "npm run test:backend",
+    "test:backend": "cd backend && npm test"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongodb": "^7.4.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.3",
+    "oxlint": "^1.69.0"
+  }
+}

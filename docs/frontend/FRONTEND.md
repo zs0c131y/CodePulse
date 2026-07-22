@@ -1,0 +1,255 @@
+# CodePulse — Frontend Documentation
+
+This document describes the React frontend structure, route flow, and auth API
+wiring for CodePulse.
+
+---
+
+## 🛠️ Technology Stack & Styling
+
+* **Framework**: React with Vite.
+* **Build Config**: [frontend/vite.config.js](../../frontend/vite.config.js).
+* **Styling**: Tailwind utilities, local shadcn-style primitives in
+  [frontend/src/components/ui](../../frontend/src/components/ui), shared class
+  merging in [frontend/src/lib/utils.js](../../frontend/src/lib/utils.js), and
+  project CSS in [frontend/src/index.css](../../frontend/src/index.css) and
+  [frontend/src/App.css](../../frontend/src/App.css).
+* **Charts**: recharts (area charts, bar charts) inside the dashboard panels
+  under [frontend/src/components/dashboard](../../frontend/src/components/dashboard).
+* **Routing**: Lightweight client-side path routing in
+  [frontend/src/App.jsx](../../frontend/src/App.jsx). Legacy hash routes are
+  normalized for backward compatibility. Authenticated screens (`Dashboard`,
+  `AccountPage`) are lazy-loaded with `React.lazy` so the marketing bundle
+  stays free of the chart stack.
+
+---
+
+## Responsive Layout
+
+Shared responsive utilities live in
+[frontend/src/index.css](../../frontend/src/index.css):
+
+* `cp-container` is used by landing and auth screens. It keeps mobile gutters
+  compact, then increases usable width through desktop, ultrawide, and 4K
+  breakpoints without letting marketing copy become too wide to scan.
+* `cp-dashboard-main` is used by authenticated workspace screens. It preserves
+  mobile-safe gutters, then expands dashboard content up to a 4K-friendly
+  maximum so tables, repository scan controls, and settings forms have more
+  working room on large displays.
+* `cp-section` standardizes landing-page vertical rhythm across mobile,
+  desktop, and high-resolution screens.
+
+Landing, auth, dashboard, profile, and settings layouts are mobile-first. Dense
+workspace views switch from one-column layouts to two- or multi-column grids
+only after enough viewport width is available, and small-screen controls wrap
+instead of forcing page-level horizontal scrolling.
+
+---
+
+## 📂 Frontend Directory Structure
+
+```text
+frontend/
+├── public/
+│   └── favicon.svg
+├── src/
+│   ├── api/                    # Backend API client modules
+│   │   ├── client.js           # apiUrl + authenticated apiFetch (ApiError carries HTTP status)
+  │   │   ├── repositories.js     # Repository analyze + read/analytics endpoints
+  │   │   └── integrations.js     # Connected GitHub/GitLab source APIs
+│   │   └── usage.js            # Account usage snapshot endpoint
+│   ├── assets/
+│   │   └── hero.png
+│   ├── components/
+│   │   ├── dashboard/          # Dashboard panels (presentational)
+│   │   │   ├── CoveragePanel.jsx    # recharts horizontal documentation-coverage bars
+│   │   │   ├── DebtCharts.jsx       # recharts complexity + churn/duplication charts
+│   │   │   ├── DebtTable.jsx        # Ranked module debt table (cards on small screens)
+│   │   │   ├── DriftPanel.jsx       # Knowledge drift findings queue
+│   │   │   ├── KpiCard.jsx          # KPI stat card with sparkline
+│   │   │   ├── PipelinePanel.jsx    # Analysis pipeline status list
+│   │   │   ├── RecommendationPanel.jsx # AI recommendation cards
+│   │   │   ├── RiskTrendPanel.jsx   # recharts risk-trend area chart + table toggle
+│   │   │   ├── shared.jsx           # Tooltip, Sparkline, EmptyPanel components
+│   │   │   └── utils.js             # severity/status classes, clamp, formatRelativeTime
+│   │   ├── ui/
+│   │   │   ├── badge.jsx
+│   │   │   ├── button.jsx
+│   │   │   ├── card.jsx
+│   │   │   ├── input.jsx
+│   │   │   └── select.jsx
+│   │   ├── AuthPage.jsx
+│   │   ├── AccountPage.jsx
+│   │   ├── Dashboard.jsx        # Dashboard shell + data orchestration
+│   │   ├── Features.jsx
+│   │   ├── FinalCTA.jsx
+│   │   ├── Footer.jsx
+│   │   ├── Hero.jsx
+│   │   ├── HowItWorks.jsx
+│   │   ├── LogoBar.jsx
+│   │   ├── Navbar.jsx
+│   │   ├── Problems.jsx
+│   │   ├── Stats.jsx
+│   │   └── Testimonials.jsx
+│   ├── demo/
+│   │   └── dashboardDemoData.js  # Demo-mode fallback data (never used in live mode)
+│   ├── lib/
+│   │   └── utils.js
+│   ├── App.css
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+├── index.html
+└── vite.config.js
+```
+
+---
+
+## 🏛️ Landing Page Flow
+
+The landing page is composed in [frontend/src/App.jsx](../../frontend/src/App.jsx):
+
+1. [Navbar](../../frontend/src/components/Navbar.jsx)
+2. [Hero](../../frontend/src/components/Hero.jsx)
+3. [LogoBar](../../frontend/src/components/LogoBar.jsx)
+4. [Problems](../../frontend/src/components/Problems.jsx)
+5. [Features](../../frontend/src/components/Features.jsx)
+6. [HowItWorks](../../frontend/src/components/HowItWorks.jsx)
+7. [Stats](../../frontend/src/components/Stats.jsx)
+8. [Testimonials](../../frontend/src/components/Testimonials.jsx)
+9. [FinalCTA](../../frontend/src/components/FinalCTA.jsx)
+10. [Footer](../../frontend/src/components/Footer.jsx)
+
+---
+
+## 🔐 Auth Page Wiring
+
+[AuthPage.jsx](../../frontend/src/components/AuthPage.jsx) handles both
+`/signin` and `/signup` modes, plus account recovery and email verification
+routes.
+
+* Signup posts to `POST /api/auth/signup`.
+* Signup requires email verification before sign-in.
+* Signup and password reset request success states are shown in modal dialogs.
+  Tokenized verification and reset links are never rendered in the browser.
+* Sign-in posts to `POST /api/auth/signin`.
+* If sign-in credentials are valid but the account is unverified, the form shows
+  a **Resend verification email** action and posts to
+  `POST /api/auth/resend-verification`.
+* Password reset starts at `/reset-password` and posts to
+  `POST /api/auth/request-password-reset`.
+* Reset links use `/reset-password?token=...` and post to
+  `POST /api/auth/reset-password`.
+* Verification links use `/verify-email?token=...` and post to
+  `POST /api/auth/verify-email`.
+* The GitHub and GitLab buttons are plain links to `GET /auth/github` and
+  `GET /auth/gitlab` on the backend (full-page navigation, not `fetch`, so the
+  browser follows the provider's OAuth consent redirect).
+* Vite proxies `/api` and `/auth` requests to the backend API on
+  `localhost:3000` during development.
+* Successful sign-in stores the short-lived access token in React state only.
+  The refresh token is held by the backend as a MongoDB session and sent to the
+  browser as an `HttpOnly` cookie.
+* [frontend/src/App.jsx](../../frontend/src/App.jsx) refreshes the session on
+  load with `POST /api/auth/refresh`, gates `/dashboard`, `/profile`, and
+  `/settings`, checks
+  `GET /api/auth/me` with a bearer token, and calls `POST /api/auth/logout` to
+  revoke the refresh session. After a GitHub/GitLab login the backend redirects
+  the browser straight to `#dashboard`; the refresh-on-load call picks up the
+  session cookie the OAuth callback already set. On OAuth failure the backend
+  redirects to `#signin?error=<message>`, which
+  [AuthPage.jsx](../../frontend/src/components/AuthPage.jsx) surfaces as the
+  sign-in form's error banner.
+
+---
+
+## 🎨 Dashboard Interface
+
+After sign-in, `/dashboard` renders
+[Dashboard.jsx](../../frontend/src/components/Dashboard.jsx). The dashboard
+preserves the protected-session check against `GET /api/auth/me`, supports
+sign-out, and runs in **live mode** by default with a **demo mode** toggle as a
+fallback.
+
+### Live mode (default)
+
+Live mode is wired entirely to backend APIs — it never fabricates analytics.
+All repository reads go through
+[frontend/src/api/repositories.js](../../frontend/src/api/repositories.js),
+which implements the contract documented in
+[docs/backend/BACKEND.md](../backend/BACKEND.md) ("Repository Read & Analytics
+API"):
+
+* On load, the dashboard fetches `GET /api/repositories`, selects the most
+  recently updated repository, and renders its persisted totals — so the
+  last-scan view survives page refreshes (nothing is session-only).
+* The repository dropdown lists the user's real repositories from the API.
+* Each tab fetches its own analytics endpoint for the selected repository
+  (`GET /api/repositories/:id/scores`, `/debt`, `/drift`,
+  `/recommendations`). Every request settles independently: an endpoint that
+  returns `404` (engine not rolled out yet) empties only its own panels, which
+  render honest "not available yet" empty states instead of sample data.
+* While the selected repository's analysis `status` is `queued` or `running`,
+  the dashboard polls `GET /api/repositories/:id/status` every 4 seconds and
+  refreshes data when the run reaches `completed` or `failed`. Polling resumes
+  automatically after a page refresh mid-scan.
+* The scan form validates the GitHub URL client-side before posting to
+  `POST /api/repositories/analyze`. A successful scan switches the dashboard
+  to live mode, selects the new repository, and reloads list + analytics.
+* Until the read API ships on the backend, live mode degrades gracefully: it
+  shows the current session's scan summary and marks the remaining panels as
+  unavailable.
+
+Four dashboard tabs:
+
+* **Overview**: Score KPIs (health, critical risks, drift findings, AI
+  actions) when the scores engine responds, otherwise real scan totals (files,
+  docs, commits, dependency edges); analysis pipeline driven by the real
+  analysis status; risk-trend area chart; top debt modules and drift findings.
+* **Technical Debt**: Debt-metric KPIs, recharts complexity and
+  churn/duplication bar charts, and the ranked module table from
+  `GET /api/repositories/:id/debt`.
+* **Knowledge Drift & Debt**: Drift findings queue and recharts documentation
+  coverage bars from `GET /api/repositories/:id/drift`.
+* **Risk & AI Recommendations**: Risk trend, pipeline state, and AI
+  recommendation cards from `GET /api/repositories/:id/recommendations`.
+
+Repositories with no completed analysis render a dedicated empty state
+prompting the user to start a scan.
+
+### Demo mode (toggle fallback)
+
+The header demo toggle switches the whole dashboard to the sample data in
+[frontend/src/demo/dashboardDemoData.js](../../frontend/src/demo/dashboardDemoData.js)
+(repositories, KPIs, pipeline, debt modules, drift findings, coverage,
+recommendations, risk trend). Demo data never leaves this module, and live
+mode never reads it.
+
+Authenticated screens share a fixed sidebar, sticky header, responsive content
+width, and shadcn-style buttons, badges, inputs, and selects. Dashboard grids use
+single-column layouts until enough viewport width is available, and the
+highest-risk module table switches to compact cards on smaller screens to avoid
+page-level horizontal scrolling.
+
+---
+
+## 👤 Profile & Settings
+
+`/profile` and `/settings` render
+[AccountPage.jsx](../../frontend/src/components/AccountPage.jsx). Both routes
+reuse the protected-session flow and shared account layout.
+
+* **Profile**: Edits display name and profile metadata, then persists through
+  `PATCH /api/auth/profile`. The "Usage snapshot" card fetches
+  `GET /api/auth/usage` (planned contract) and shows placeholder dashes until
+  the endpoint is available.
+* **Settings**: Uses clustered Interface, Notifications, Connected code hosts,
+  and Security cards. Theme, density, scan cadence, AI summary detail, and
+  notification preferences persist through `PATCH /api/auth/settings`.
+* **Connected code hosts**: GitHub and GitLab cards start OAuth with expanded
+  repository-read scopes. The backend retains an encrypted provider token and
+  the dashboard fetches available provider repositories into its “Connected
+  repository” dropdown. Choosing one fills the scan URL; the existing analyzer
+  still accepts public GitHub URLs.
+* The dashboard links to both routes from the sidebar and header controls.
+* Password changes continue to use the reset-email flow at `/reset-password`.
