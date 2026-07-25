@@ -4,12 +4,43 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#05060e" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0d12" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f7f9" />
     <meta name="description" content="CodePulse is an AI-powered Engineering Intelligence Platform that continuously monitors your repositories — detecting knowledge drift, quantifying technical debt, and delivering AI-powered recommendations." />
     <title>CodePulse — Engineering Intelligence Platform</title>
+
+    <!--
+      Stamp theme and density BEFORE first paint, so there is no flash of the
+      wrong theme. Both are re-synced from the user's saved settings on
+      hydration in App.jsx.
+    -->
+    <script>
+      (function () {
+        var root = document.documentElement;
+        try {
+          var theme = localStorage.getItem('codepulse-theme');
+          root.dataset.theme = theme === 'light' || theme === 'dark'
+            ? theme
+            : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          var density = localStorage.getItem('codepulse-density');
+          if (density === 'compact' || density === 'comfortable') root.dataset.density = density;
+        } catch (error) {
+          /* Private mode / blocked storage: fall back to the OS preference. */
+        }
+      })();
+    </script>
+
+    <!--
+      TODO(design.md §3.2): self-host these as .woff2 under /fonts and preload
+      the two above-the-fold weights. This third-party stylesheet is
+      render-blocking on the critical path.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

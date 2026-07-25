@@ -90,8 +90,8 @@ function mergeSettings(user) {
 function Field({ label, icon: Icon, children }) {
   return (
     <label className="block">
-      <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-mist-300">
-        {Icon && <Icon size={15} className="text-mist-500" />}
+      <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--ink-2)]">
+        {Icon && <Icon size={15} className="text-[var(--ink-3)]" />}
         {label}
       </span>
       {children}
@@ -110,7 +110,7 @@ function SelectInput({ className, ...props }) {
         {...props}
         className={cn('appearance-none pr-10', className)}
       />
-      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-mist-500" />
+      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-3)]" />
     </span>
   )
 }
@@ -122,26 +122,26 @@ function Toggle({ checked, onChange, title, description, icon: Icon }) {
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="glass-chip flex w-full items-center justify-between gap-4 rounded-xl p-4 text-left transition-all duration-300 hover:border-white/[0.14] hover:bg-white/[0.07]"
+      className="panel-2 flex w-full items-center justify-between gap-4 rounded-[var(--r-sm)] p-4 text-left transition-all duration-300 hover:border-[var(--line-2)] hover:bg-[var(--surface-3)]"
     >
       <span className="flex min-w-0 gap-3">
         {Icon && (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-mist-300">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-sm)] bg-[var(--surface-2)] text-[var(--ink-2)]">
             <Icon size={18} />
           </span>
         )}
         <span>
-          <span className="block text-sm font-bold text-white">{title}</span>
-          <span className="mt-1 block text-sm leading-5 text-mist-500">{description}</span>
+          <span className="block text-sm font-bold text-[var(--ink-1)]">{title}</span>
+          <span className="mt-1 block text-sm leading-5 text-[var(--ink-3)]">{description}</span>
         </span>
       </span>
       <span
         className={`relative h-6 w-11 shrink-0 rounded-full transition-all duration-300 ${
-          checked ? 'bg-gradient-to-r from-violet-600 to-cyan-500 shadow-lg shadow-violet-600/25' : 'bg-white/[0.12]'
+          checked ? 'bg-[var(--surface-2)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)]' : 'bg-[var(--surface-3)]'
         }`}
       >
         <span
-          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-300 ${
+          className={`absolute top-1 h-4 w-4 rounded-full bg-[var(--surface-1)] shadow-sm transition-all duration-300 ${
             checked ? 'left-6' : 'left-1'
           }`}
         />
@@ -154,19 +154,16 @@ function AccountShell({ mode, user, status, onLogout, children }) {
   const isProfile = mode === 'profile'
 
   return (
-    <div className="relative min-h-screen bg-night-950 text-mist-100">
+    <div className="relative min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-1)]">
       <AuroraBackground variant="page" grid={false} className="fixed" />
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-white/[0.07] bg-night-950/80 text-white backdrop-blur-2xl lg:flex lg:flex-col 2xl:w-72">
-        <div className="flex h-16 items-center gap-2.5 border-b border-white/[0.07] px-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/25">
-            <Activity size={18} strokeWidth={2.5} className="text-white" />
-          </span>
-          <span className="font-display text-lg font-bold">
-            Code<span className="text-gradient">Pulse</span>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-16 border-r border-[var(--line-1)] bg-[var(--surface-canvas)]/90 text-[var(--ink-1)] backdrop-blur-xl lg:flex lg:flex-col">
+        <div className="flex h-16 items-center justify-center border-b border-[var(--line-1)]">
+          <span className="flex h-9 w-9 items-center justify-center rounded-[var(--r-sm)] bg-[var(--surface-2)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)]">
+            <Activity size={18} strokeWidth={2.5} className="text-[var(--ink-1)]" />
           </span>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-5" aria-label="Account navigation">
+        <nav className="flex-1 space-y-1 px-2 py-5" aria-label="Account navigation">
           {navItems.map(item => {
             const Icon = item.icon
             const selected =
@@ -177,50 +174,41 @@ function AccountShell({ mode, user, status, onLogout, children }) {
               <a
                 key={item.label}
                 href={item.href}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-300 ${
+                aria-label={item.label}
+                title={item.label}
+                className={`flex w-full items-center justify-center rounded-[var(--r-sm)] px-3 py-2.5 text-left text-sm font-semibold transition-all duration-300 ${
                   selected
-                    ? 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25'
-                    : 'text-mist-400 hover:bg-white/[0.06] hover:text-white'
+                    ? 'bg-[var(--surface-2)] text-[var(--ink-1)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)]'
+                    : 'text-[var(--ink-3)] hover:bg-[var(--surface-3)] hover:text-[var(--ink-1)]'
                 }`}
               >
-                <Icon size={17} />
-                {item.label}
+                <Icon size={18} />
+                <span className="sr-only">{item.label}</span>
               </a>
             )
           })}
         </nav>
 
-        <div className="border-t border-white/[0.07] p-4">
-          <div className="glass-chip rounded-xl p-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <LockKeyhole size={16} className="text-emerald-300" />
-              Protected session
-            </div>
-            <div className="mt-3 flex min-w-0 items-center justify-between gap-2">
-              <span className="truncate text-xs font-medium text-mist-500" title={user.email}>
-                {user.email}
-              </span>
-              <span className="shrink-0 rounded-md border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
-                {status === 'Session verified' ? 'Verified' : 'Checking'}
-              </span>
-            </div>
-          </div>
+        <div className="border-t border-[var(--line-1)] p-2">
+          <a href="/profile" aria-label="Profile" title={user.name || user.email} className="grid h-11 w-11 place-items-center rounded-[var(--r-sm)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--ink-1)] hover:bg-[var(--surface-3)]">
+            {initials(user.name, user.email)}
+          </a>
         </div>
       </aside>
 
-      <div className="relative min-w-0 lg:pl-64 2xl:pl-72">
-        <header className="sticky top-0 z-20 border-b border-white/[0.07] bg-night-950/75 backdrop-blur-2xl">
+      <div className="relative min-w-0 lg:pl-16">
+        <header className="sticky top-0 z-40 border-b border-[var(--line-1)] bg-[var(--surface-canvas)]/95 backdrop-blur-xl">
           <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 2xl:px-8">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs font-semibold text-mist-500">
-                <a href="/dashboard" className="inline-flex items-center gap-1 transition-colors hover:text-white">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[var(--ink-3)]">
+                <a href="/dashboard" className="inline-flex items-center gap-1 transition-colors hover:text-[var(--ink-1)]">
                   <ArrowLeft size={14} />
                   Dashboard
                 </a>
                 <ChevronRight size={13} />
-                <span className="text-mist-100">{isProfile ? 'Profile' : 'Settings'}</span>
+                <span className="text-[var(--ink-1)]">{isProfile ? 'Profile' : 'Settings'}</span>
               </div>
-              <h1 className="mt-1 font-display text-xl font-bold text-white sm:text-2xl">
+              <h1 className="mt-1 text-xl font-bold text-[var(--ink-1)] sm:text-2xl">
                 {isProfile ? 'Profile' : 'Settings'}
               </h1>
             </div>
@@ -233,7 +221,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
                 className="hidden sm:inline-flex"
               >
                 <a href="/profile">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-violet-600 to-cyan-400 text-xs font-bold text-white">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--surface-2)] text-xs font-bold text-[var(--ink-1)]">
                     {initials(user.name, user.email)}
                   </span>
                   <span className="max-w-32 truncate">{user.name}</span>
@@ -251,7 +239,7 @@ function AccountShell({ mode, user, status, onLogout, children }) {
           </div>
         </header>
 
-        <main className="cp-dashboard-main min-w-0 py-5 sm:py-6 2xl:py-8">{children}</main>
+        <main className="cp-app min-w-0 py-5 sm:py-6 2xl:py-8">{children}</main>
       </div>
     </div>
   )
@@ -265,25 +253,25 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
 
   return (
     <div className="mx-auto max-w-[112rem] space-y-5">
-      <section className="glass-panel card-hover overflow-hidden rounded-2xl">
-        <div className="relative bg-gradient-to-r from-violet-950/60 via-night-900 to-cyan-950/50 px-5 py-8 text-white sm:px-7">
+      <section className="glass-panel overflow-hidden">
+        <div className="relative bg-[var(--surface-2)] px-5 py-8 text-[var(--ink-1)] sm:px-7">
           <div className="pointer-events-none absolute inset-0 dot-bg opacity-20" />
           <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-violet-600 to-cyan-500 font-display text-2xl font-black text-white shadow-xl shadow-violet-600/30">
+              <div className="flex h-20 w-20 items-center justify-center rounded-[var(--r-md)] border border-[var(--line-3)] bg-[var(--surface-2)] text-2xl font-black text-[var(--ink-1)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)]">
                 {initials(name, user.email)}
               </div>
               <div>
-                <p className="text-sm font-semibold text-cyan-200">CodePulse account</p>
-                <h2 className="mt-1 font-display text-3xl font-bold tracking-tight">{name || user.email}</h2>
-                <p className="mt-1 text-sm text-mist-400">{user.email}</p>
+                <p className="text-sm font-semibold text-[var(--accent-ink)]">CodePulse account</p>
+                <h2 className="mt-1 text-3xl font-bold tracking-tight">{name || user.email}</h2>
+                <p className="mt-1 text-sm text-[var(--ink-3)]">{user.email}</p>
               </div>
             </div>
-            <div className="rounded-xl border border-white/15 bg-white/[0.08] p-4 backdrop-blur">
-              <p className="text-sm font-semibold text-mist-300">Profile completion</p>
+            <div className="rounded-[var(--r-sm)] border border-white/15 bg-[var(--surface-2)] p-4 backdrop-blur">
+              <p className="text-sm font-semibold text-[var(--ink-2)]">Profile completion</p>
               <div className="mt-3 flex items-center gap-3">
-                <div className="h-2 w-36 rounded-full bg-white/15">
-                  <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400" style={{ width: `${completion}%` }} />
+                <div className="h-2 w-36 rounded-full bg-[var(--surface-3)]">
+                  <div className="h-full rounded-full bg-[var(--surface-2)]" style={{ width: `${completion}%` }} />
                 </div>
                 <span className="text-sm font-bold">{completion}%</span>
               </div>
@@ -293,11 +281,11 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr] 2xl:grid-cols-[1.15fr_0.85fr] 2xl:gap-6">
-        <form className="glass-panel card-hover rounded-2xl p-5" onSubmit={onSave}>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] pb-4">
+        <form className="glass-panel p-6" onSubmit={onSave}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-1)] pb-4">
             <div>
-              <h2 className="font-display text-base font-bold text-white">Personal details</h2>
-              <p className="mt-1 text-sm text-mist-500">Keep your workspace identity clear for reports and ownership views.</p>
+              <h2 className="text-base font-bold text-[var(--ink-1)]">Personal details</h2>
+              <p className="mt-1 text-sm text-[var(--ink-3)]">Keep your workspace identity clear for reports and ownership views.</p>
             </div>
             <Button
               type="submit"
@@ -355,14 +343,14 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
               value={profile.bio}
               onChange={event => setProfile(current => ({ ...current, bio: event.target.value }))}
               placeholder="Tell teammates what systems you own and how CodePulse should support your review flow."
-              className="min-h-28 w-full rounded-xl border border-white/10 bg-night-950/60 px-3 py-3 text-sm leading-6 text-mist-100 outline-none transition placeholder:text-mist-600 focus:border-cyan-300/50 focus:ring-4 focus:ring-cyan-300/10"
+              className="min-h-28 w-full rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-canvas)]/60 px-3 py-3 text-sm leading-6 text-[var(--ink-1)] outline-none transition placeholder:text-[var(--ink-4)] focus:border-[var(--accent-line)] focus:ring-4 focus:ring-[var(--accent)]"
             />
           </Field>
 
           {(message || error) && (
             <p
-              className={`mt-4 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${
-                error ? 'border-rose-400/25 bg-rose-400/10 text-rose-300' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
+              className={`mt-4 flex items-start gap-2 rounded-[var(--r-sm)] border px-3 py-2 text-sm font-semibold ${
+                error ? 'border-[var(--sev-critical-line)] bg-[var(--sev-critical-wash)] text-[var(--sev-critical-ink)]' : 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]'
               }`}
               role="status"
             >
@@ -377,33 +365,33 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
         </form>
 
         <aside className="space-y-5">
-          <section className="glass-panel card-hover rounded-2xl p-5">
-            <h2 className="font-display text-base font-bold text-white">Account posture</h2>
+          <section className="glass-panel p-6">
+            <h2 className="text-base font-bold text-[var(--ink-1)]">Account posture</h2>
             <div className="mt-4 space-y-3">
               {[
                 { label: 'Email verified', value: user.email_verified ? 'Complete' : 'Pending', icon: ShieldCheck, ok: user.email_verified },
                 { label: 'Session storage', value: 'Secure workspace session', icon: LockKeyhole, ok: true },
                 { label: 'Workspace access', value: 'Verified account session', icon: KeyRound, ok: true },
               ].map(item => (
-                <div key={item.label} className="glass-chip flex items-center gap-3 rounded-xl p-3">
+                <div key={item.label} className="panel-2 flex items-center gap-3 rounded-[var(--r-sm)] p-3">
                   <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-                      item.ok ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-400/10 text-amber-300'
+                    className={`flex h-9 w-9 items-center justify-center rounded-[var(--r-sm)] ${
+                      item.ok ? 'bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]' : 'bg-[var(--sev-medium-wash)] text-[var(--sev-medium-ink)]'
                     }`}
                   >
                     <item.icon size={17} />
                   </span>
                   <span>
-                    <span className="block text-sm font-bold text-white">{item.label}</span>
-                    <span className="block text-xs text-mist-500">{item.value}</span>
+                    <span className="block text-sm font-bold text-[var(--ink-1)]">{item.label}</span>
+                    <span className="block text-xs text-[var(--ink-3)]">{item.value}</span>
                   </span>
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="glass-panel card-hover rounded-2xl p-5">
-            <h2 className="font-display text-base font-bold text-white">Usage snapshot</h2>
+          <section className="glass-panel p-6">
+            <h2 className="text-base font-bold text-[var(--ink-1)]">Usage snapshot</h2>
             <div className="mt-4 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
               {[
                 [usage?.repositories, 'Repositories'],
@@ -411,9 +399,9 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
                 [usage?.driftFindings, 'Drift findings'],
                 [usage?.averageHealthScore, 'Health score'],
               ].map(([value, label]) => (
-                <div key={label} className="glass-chip rounded-xl p-4">
-                  <p className="font-display text-2xl font-black text-white">{value ?? '—'}</p>
-                  <p className="mt-1 text-xs font-semibold text-mist-500">{label}</p>
+                <div key={label} className="panel-2 rounded-[var(--r-sm)] p-4">
+                  <p className="text-2xl font-black text-[var(--ink-1)]">{value ?? '—'}</p>
+                  <p className="mt-1 text-xs font-semibold text-[var(--ink-3)]">{label}</p>
                 </div>
               ))}
             </div>
@@ -427,12 +415,12 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
 function SettingsPage({ settings, setSettings, onSave, saving, message, error, integrations, integrationsLoading }) {
   return (
     <div className="mx-auto max-w-[112rem] space-y-5">
-      <section className="glass-panel card-hover rounded-2xl p-5">
+      <section className="glass-panel p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-semibold text-cyan-300">Workspace preferences</p>
-            <h2 className="mt-1 font-display text-2xl font-bold text-white">Tune CodePulse for your review flow</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-mist-500">
+            <p className="text-sm font-semibold text-[var(--accent-ink)]">Workspace preferences</p>
+            <h2 className="mt-1 text-2xl font-bold text-[var(--ink-1)]">Tune CodePulse for your review flow</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--ink-3)]">
               These settings control dashboard density, repository scan cadence, AI answer shape, and notification
               delivery for your signed-in account.
             </p>
@@ -450,8 +438,8 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr] 2xl:grid-cols-[0.8fr_1.2fr] 2xl:gap-6">
-        <section className="glass-panel card-hover rounded-2xl p-5">
-          <h2 className="font-display text-base font-bold text-white">Interface</h2>
+        <section className="glass-panel p-6">
+          <h2 className="text-base font-bold text-[var(--ink-1)]">Interface</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             <Field label="Theme" icon={Monitor}>
               <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
@@ -466,10 +454,10 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
                       key={value}
                       type="button"
                       onClick={() => setSettings(current => ({ ...current, theme: value }))}
-                      className={`flex h-20 flex-col items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-all duration-300 ${
+                      className={`flex h-20 flex-col items-center justify-center gap-2 rounded-[var(--r-sm)] border text-sm font-bold transition-all duration-300 ${
                         selected
-                          ? 'border-transparent bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25'
-                          : 'border-white/10 bg-white/[0.04] text-mist-400 hover:bg-white/[0.07] hover:text-white'
+                          ? 'border-transparent bg-[var(--surface-2)] text-[var(--ink-1)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)]'
+                          : 'border-[var(--line-2)] bg-[var(--surface-2)] text-[var(--ink-3)] hover:bg-[var(--surface-3)] hover:text-[var(--ink-1)]'
                       }`}
                     >
                       <Icon size={18} />
@@ -515,8 +503,8 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
           </div>
         </section>
 
-        <section className="glass-panel card-hover rounded-2xl p-5">
-          <h2 className="font-display text-base font-bold text-white">Notifications</h2>
+        <section className="glass-panel p-6">
+          <h2 className="text-base font-bold text-[var(--ink-1)]">Notifications</h2>
           <div className="mt-5 grid gap-3">
             <Toggle
               checked={settings.email_notifications}
@@ -550,36 +538,36 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
         </section>
       </div>
 
-      <section className="glass-panel card-hover overflow-hidden rounded-2xl">
-        <div className="border-b border-white/[0.07] bg-gradient-to-r from-violet-950/35 via-night-900 to-cyan-950/25 px-5 py-5">
-          <p className="text-sm font-semibold text-cyan-300">Repository sources</p>
-          <h2 className="mt-1 font-display text-xl font-bold text-white">Connected code hosts</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-mist-500">Connect a provider once, then choose its repositories from the dashboard picker.</p>
+      <section className="glass-panel overflow-hidden">
+        <div className="border-b border-[var(--line-1)] bg-[var(--surface-2)] px-5 py-5">
+          <p className="text-sm font-semibold text-[var(--accent-ink)]">Repository sources</p>
+          <h2 className="mt-1 text-xl font-bold text-[var(--ink-1)]">Connected code hosts</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--ink-3)]">Connect a provider once, then choose its repositories from the dashboard picker.</p>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2">
-          {[{ provider: 'github', label: 'GitHub', icon: GitFork, href: '/auth/github', tone: 'from-slate-600 to-slate-800' }, { provider: 'gitlab', label: 'GitLab', icon: Boxes, href: '/auth/gitlab', tone: 'from-orange-500 to-rose-600' }].map(item => {
+          {[{ provider: 'github', label: 'GitHub', icon: GitFork, href: '/auth/github', tone: ' ' }, { provider: 'gitlab', label: 'GitLab', icon: Boxes, href: '/auth/gitlab', tone: ' ' }].map(item => {
             const integration = integrations.find(value => value.provider === item.provider)
             const connected = Boolean(integration?.connected)
             const Icon = item.icon
-            return <div key={item.provider} className="group relative overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.035] p-4 transition hover:border-white/[0.18] hover:bg-white/[0.06]">
-              <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${item.tone} opacity-80`} />
+            return <div key={item.provider} className="group relative overflow-hidden rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-2)] p-4 transition hover:border-[var(--line-2)] hover:bg-[var(--surface-3)]">
+              <div className={`absolute inset-x-0 top-0 h-px  ${item.tone} opacity-80`} />
               <div className="flex items-start justify-between gap-4">
-                <span className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${item.tone} text-white shadow-lg`}><Icon size={21} /></span>
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${connected ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300' : 'border-white/10 bg-white/[0.04] text-mist-400'}`}>{integrationsLoading ? 'Checking' : connected ? 'Connected' : 'Not connected'}</span>
+                <span className={`flex h-11 w-11 items-center justify-center rounded-[var(--r-sm)]  ${item.tone} text-[var(--ink-1)] shadow-[var(--shadow-e2)]`}><Icon size={21} /></span>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${connected ? 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]' : 'border-[var(--line-2)] bg-[var(--surface-2)] text-[var(--ink-3)]'}`}>{integrationsLoading ? 'Checking' : connected ? 'Connected' : 'Not connected'}</span>
               </div>
-              <h3 className="mt-4 font-display font-bold text-white">{item.label}</h3>
-              <p className="mt-1 min-h-10 text-sm text-mist-500">{connected ? `Connected as ${integration.accountName || item.label}.` : `Bring your ${item.label} repositories into CodePulse.`}</p>
+              <h3 className="mt-4 font-bold text-[var(--ink-1)]">{item.label}</h3>
+              <p className="mt-1 min-h-10 text-sm text-[var(--ink-3)]">{connected ? `Connected as ${integration.accountName || item.label}.` : `Bring your ${item.label} repositories into CodePulse.`}</p>
               <Button href={item.href} asChild variant={connected ? 'outline' : 'default'} className="mt-4 w-full"><a href={item.href}>{connected ? 'Reconnect' : `Connect ${item.label}`}</a></Button>
             </div>
           })}
         </div>
       </section>
 
-      <section className="glass-panel card-hover rounded-2xl p-5">
+      <section className="glass-panel p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-display text-base font-bold text-white">Security</h2>
-            <p className="mt-1 text-sm text-mist-500">
+            <h2 className="text-base font-bold text-[var(--ink-1)]">Security</h2>
+            <p className="mt-1 text-sm text-[var(--ink-3)]">
               Reset your password through a verified email flow.
             </p>
           </div>
@@ -598,8 +586,8 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
 
       {(message || error) && (
         <p
-          className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
-            error ? 'border-rose-400/25 bg-rose-400/10 text-rose-300' : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
+          className={`rounded-[var(--r-sm)] border px-3 py-2 text-sm font-semibold ${
+            error ? 'border-[var(--sev-critical-line)] bg-[var(--sev-critical-wash)] text-[var(--sev-critical-ink)]' : 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]'
           }`}
           role="status"
         >

@@ -9,13 +9,54 @@ wiring for CodePulse.
 
 * **Framework**: React with Vite.
 * **Build Config**: [frontend/vite.config.js](../../frontend/vite.config.js).
-* **Styling**: Tailwind utilities, local shadcn-style primitives in
-  [frontend/src/components/ui](../../frontend/src/components/ui), shared class
-  merging in [frontend/src/lib/utils.js](../../frontend/src/lib/utils.js), and
-  project CSS in [frontend/src/index.css](../../frontend/src/index.css) and
-  [frontend/src/App.css](../../frontend/src/App.css).
-* **Charts**: recharts (area charts, bar charts) inside the dashboard panels
-  under [frontend/src/components/dashboard](../../frontend/src/components/dashboard).
+* **Styling**: The **Signal** design system — full specification in
+  [docs/design.md](../design.md). Semantic dark/light tokens live in
+  [frontend/src/index.css](../../frontend/src/index.css) and are bridged into
+  Tailwind through `@theme inline`. Local shadcn-style primitives are in
+  [frontend/src/components/ui](../../frontend/src/components/ui), with class
+  merging in [frontend/src/lib/utils.js](../../frontend/src/lib/utils.js).
+
+  **Rule: component code uses semantic tokens only** — `var(--surface-1)`,
+  `var(--ink-2)`, `var(--sev-high)`, `var(--series-1)`. Never a Tailwind colour
+  literal (`text-white`, `bg-violet-600`), because a literal cannot follow the
+  theme and cannot be re-checked for contrast. Token groups:
+
+  | Group | Tokens | Meaning |
+  | :--- | :--- | :--- |
+  | Surfaces | `--surface-canvas`, `--surface-1..3`, `--surface-overlay`, `--surface-sunken` | Elevation planes |
+  | Ink | `--ink-1..4` | Text. `--ink-4` is below 4.5:1 in both themes — non-text only |
+  | Lines | `--line-1..3` | Hairline, divider, emphasis |
+  | Accent | `--accent`, `--accent-ink`, `--accent-on`, `--accent-wash`, `--accent-line` | Interactive only, never decoration |
+  | Providers | `--provider-github`, `--provider-gitlab` | Provider identity, only beside an explicit GitHub/GitLab action |
+  | Severity | `--sev-{nominal,low,medium,high,critical}` + `-ink`/`-wash`/`-line` | Fixed in both themes; always paired with an icon + label |
+  | Series | `--series-1..6` | Chart identity, fixed assignment order |
+  | Heat | `--heat-1..5` | Single-hue risk ramp |
+  | Elevation | `--shadow-e1..e4` | One light source |
+  | Motion | `--d-1..5`, `--ease-out/in/inout` | One easing family |
+
+  The palette is a midnight-blue workspace with a signal-blue interactive
+  accent. Surfaces intentionally become nearly opaque at overlay elevation so
+  menus, sticky headers, and dialogs remain visually separate from scrolling
+  content. Severity and chart colors are supporting semantic signals, never
+  decorative page colors.
+
+* **Theming**: `data-theme="light" | "dark"` on `<html>`, stamped before first
+  paint by an inline script in [frontend/index.html](../../frontend/index.html)
+  reading `localStorage`, then re-synced from user settings in
+  [App.jsx](../../frontend/src/App.jsx). With no stamp, the OS preference wins
+  via `prefers-color-scheme`. Density is exposed the same way as
+  `data-density="comfortable" | "compact"`.
+* **Charts**: recharts, themed through
+  [frontend/src/lib/useChartTokens.js](../../frontend/src/lib/useChartTokens.js).
+  SVG presentation attributes do not resolve `var()`, so that hook reads the
+  computed custom properties and re-reads them on theme change. The categorical
+  palette and heat ramp are **validated, not chosen** (colourblind separation
+  and contrast measured — see [docs/design.md](../design.md) §5); re-run those
+  checks before altering any `--series-*` or `--heat-*` value.
+* **Severity in the UI**: render with `SeverityBadge` from
+  [dashboard/shared.jsx](../../frontend/src/components/dashboard/shared.jsx),
+  which pairs the colour with a required icon and label. Colour must never
+  carry severity alone.
 * **Routing**: Lightweight client-side path routing in
   [frontend/src/App.jsx](../../frontend/src/App.jsx). Legacy hash routes are
   normalized for backward compatibility. Authenticated screens (`Dashboard`,
@@ -29,17 +70,26 @@ wiring for CodePulse.
 Shared responsive utilities live in
 [frontend/src/index.css](../../frontend/src/index.css):
 
-* `cp-container` is used by landing and auth screens. It keeps mobile gutters
-  compact, then increases usable width through desktop, ultrawide, and 4K
-  breakpoints without letting marketing copy become too wide to scan.
-* `cp-dashboard-main` is used by authenticated workspace screens. It preserves
-  mobile-safe gutters, then expands dashboard content up to a 4K-friendly
-  maximum so tables, repository scan controls, and settings forms have more
-  working room on large displays.
-* `cp-section` standardizes landing-page vertical rhythm across mobile,
-  desktop, and high-resolution screens.
+* `cp-marketing` (72rem) is used by landing and auth screens. Marketing copy is
+  capped rather than allowed to grow with the viewport — past ~72rem a line of
+  prose becomes hard to scan.
+* `cp-app` (90rem) is used by authenticated workspace screens.
+* `cp-wide` (120rem) is for grid-heavy surfaces, and `cp-prose` (44rem) for
+  long-form documents such as reports.
+* `cp-section` standardizes landing-page vertical rhythm.
 
-Landing, auth, dashboard, profile, and settings layouts are mobile-first. Dense
+On ultrawide displays the intent is to gain **columns, not width**: containers
+stop growing and layouts add grid tracks instead.
+
+Surface utilities: `panel` (elevation 1 card), `panel-2` (nested), and
+`panel-interactive` (hover lift). `scrim` is the only sanctioned
+`backdrop-filter` surface — glass on a large scrolling container is a reliable
+way to drop below 60fps.
+
+Landing, auth, dashboard, profile, and settings layouts are mobile-first. The
+theme preference is applied as `data-theme` on the document root before paint
+when possible and is synchronized from the authenticated user settings; density
+is likewise exposed as `data-density` for component spacing. Dense
 workspace views switch from one-column layouts to two- or multi-column grids
 only after enough viewport width is available, and small-screen controls wrap
 instead of forcing page-level horizontal scrolling.
@@ -76,21 +126,23 @@ frontend/
 │   │   │   ├── badge.jsx
 │   │   │   ├── button.jsx
 │   │   │   ├── card.jsx
+│   │   │   ├── combobox.jsx     # Searchable, grouped repository picker
 │   │   │   ├── input.jsx
 │   │   │   └── select.jsx
 │   │   ├── AuthPage.jsx
 │   │   ├── AccountPage.jsx
 │   │   ├── Dashboard.jsx        # Dashboard shell + data orchestration
-│   │   ├── Features.jsx
-│   │   ├── FinalCTA.jsx
-│   │   ├── Footer.jsx
-│   │   ├── Hero.jsx
-│   │   ├── HowItWorks.jsx
-│   │   ├── LogoBar.jsx
-│   │   ├── Navbar.jsx
-│   │   ├── Problems.jsx
-│   │   ├── Stats.jsx
-│   │   └── Testimonials.jsx
+│   │   ├── MarketingPage.jsx   # Customer-facing marketing experience
+│   │   ├── Features.jsx        # Legacy, not mounted by App.jsx
+│   │   ├── FinalCTA.jsx        # Legacy, not mounted by App.jsx
+│   │   ├── Footer.jsx          # Legacy, not mounted by App.jsx
+│   │   ├── Hero.jsx            # Legacy, not mounted by App.jsx
+│   │   ├── HowItWorks.jsx      # Legacy, not mounted by App.jsx
+│   │   ├── LogoBar.jsx         # Legacy, not mounted by App.jsx
+│   │   ├── Navbar.jsx          # Legacy, not mounted by App.jsx
+│   │   ├── Problems.jsx        # Legacy, not mounted by App.jsx
+│   │   ├── Stats.jsx           # Legacy, not mounted by App.jsx
+│   │   └── Testimonials.jsx    # Legacy, not mounted by App.jsx
 │   ├── demo/
 │   │   └── dashboardDemoData.js  # Demo-mode fallback data (never used in live mode)
 │   ├── lib/
@@ -107,18 +159,10 @@ frontend/
 
 ## 🏛️ Landing Page Flow
 
-The landing page is composed in [frontend/src/App.jsx](../../frontend/src/App.jsx):
-
-1. [Navbar](../../frontend/src/components/Navbar.jsx)
-2. [Hero](../../frontend/src/components/Hero.jsx)
-3. [LogoBar](../../frontend/src/components/LogoBar.jsx)
-4. [Problems](../../frontend/src/components/Problems.jsx)
-5. [Features](../../frontend/src/components/Features.jsx)
-6. [HowItWorks](../../frontend/src/components/HowItWorks.jsx)
-7. [Stats](../../frontend/src/components/Stats.jsx)
-8. [Testimonials](../../frontend/src/components/Testimonials.jsx)
-9. [FinalCTA](../../frontend/src/components/FinalCTA.jsx)
-10. [Footer](../../frontend/src/components/Footer.jsx)
+The landing page is composed by
+[MarketingPage.jsx](../../frontend/src/components/MarketingPage.jsx). It
+includes responsive navigation, a repository-instrument preview clearly marked
+as illustrative, product capabilities, workflow, and conversion sections.
 
 ---
 
@@ -194,8 +238,11 @@ API"):
   refreshes data when the run reaches `completed` or `failed`. Polling resumes
   automatically after a page refresh mid-scan.
 * The scan form validates the GitHub URL client-side before posting to
-  `POST /api/repositories/analyze`. A successful scan switches the dashboard
-  to live mode, selects the new repository, and reloads list + analytics.
+  `POST /api/repositories/analyze`. Choosing an analyzed GitHub repository in
+  the picker pre-fills its scan URL for a direct re-scan; choosing a connected
+  repository does the same when its provider URL is supported. A successful
+  scan switches the dashboard to live mode, selects the new repository, and
+  reloads list + analytics.
 * Until the read API ships on the backend, live mode degrades gracefully: it
   shows the current session's scan summary and marks the remaining panels as
   unavailable.
@@ -225,8 +272,10 @@ The header demo toggle switches the whole dashboard to the sample data in
 recommendations, risk trend). Demo data never leaves this module, and live
 mode never reads it.
 
-Authenticated screens share a fixed sidebar, sticky header, responsive content
-width, and shadcn-style buttons, badges, inputs, and selects. Dashboard grids use
+Authenticated screens share a compact fixed 64px icon rail, sticky header,
+responsive content width, and shadcn-style buttons, badges, inputs, and selects.
+The account identity remains available through the avatar rail control instead
+of a persistent session-status card. Dashboard grids use
 single-column layouts until enough viewport width is available, and the
 highest-risk module table switches to compact cards on smaller screens to avoid
 page-level horizontal scrolling.

@@ -1,22 +1,15 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as ChartTooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { BarChart3 } from 'lucide-react'
 import { EmptyPanel } from './shared'
-
-const RISK_COLORS = {
-  Critical: '#fb7185',
-  High: '#fb923c',
-  Medium: '#fbbf24',
-  Low: '#34d399',
-}
-
-const TOOLTIP_STYLE = {
-  backgroundColor: 'rgba(11, 14, 30, 0.95)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 12,
-  fontSize: 12,
-  color: '#eef1fb',
-  boxShadow: '0 18px 50px rgba(0,0,0,0.45)',
-}
+import { axisTick, tooltipStyle, useChartTokens } from '../../lib/useChartTokens'
 
 function shortenPath(path) {
   if (!path) return 'unknown'
@@ -24,17 +17,27 @@ function shortenPath(path) {
   return parts.length > 2 ? `…/${parts.slice(-2).join('/')}` : String(path)
 }
 
-export default function DebtCharts({ items = [], emptyTitle = 'No debt charts yet', emptyDescription = 'Complexity and churn charts appear here once the Technical Debt engine has scored modules in this repository.' }) {
+export default function DebtCharts({
+  items = [],
+  emptyTitle = 'No debt charts yet',
+  emptyDescription = 'Complexity and churn charts appear here once the Technical Debt engine has scored modules in this repository.',
+}) {
+  const tokens = useChartTokens()
+
   if (items.length === 0) {
     return <EmptyPanel title={emptyTitle} description={emptyDescription} icon={BarChart3} />
   }
 
-  const complexityData = items.map(item => ({
-    name: shortenPath(item.module),
-    fullName: item.module,
-    complexity: Number(item.complexity) || 0,
-    risk: item.risk,
-  }))
+  // Sorted descending and laid out horizontally: module paths are long, and a
+  // vertical axis gives the labels room without truncating them to nothing.
+  const complexityData = [...items]
+    .map(item => ({
+      name: shortenPath(item.module),
+      fullName: item.module,
+      complexity: Number(item.complexity) || 0,
+    }))
+    .sort((a, b) => b.complexity - a.complexity)
+    .slice(0, 10)
 
   const churnData = items.map(item => ({
     name: shortenPath(item.module),
@@ -43,60 +46,100 @@ export default function DebtCharts({ items = [], emptyTitle = 'No debt charts ye
     duplication: Number(String(item.duplication).replace('%', '')) || 0,
   }))
 
+  const worst = complexityData[0]
+
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-      <section className="glass-panel card-hover rounded-2xl p-5">
-        <h2 className="font-display text-base font-bold text-white">Complexity by module</h2>
-        <p className="mt-1 text-sm text-mist-500">Highest-complexity modules, colored by risk level.</p>
-        <div className="mt-6 h-56" aria-label="Complexity by module" role="img">
+      <section className="glass-panel p-6">
+        <h2 className="text-base font-semibold text-[var(--ink-1)]">Complexity by module</h2>
+        <p className="mt-1 text-sm text-[var(--ink-3)]">
+          Ten highest-complexity modules. Risk level is in the table below.
+        </p>
+        {/*
+          One nominal series -> every bar wears slot 1, and no legend (the
+          title names the series). Colouring bars by their own risk band would
+          re-encode what the bar length already shows.
+        */}
+        <div
+          className="mt-6 h-72"
+          role="img"
+          aria-label={`Complexity by module. Highest: ${worst.fullName} at ${worst.complexity} out of 100.`}
+        >
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={complexityData} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#8b93b8' }} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#8b93b8' }} tickLine={false} axisLine={false} />
+            <BarChart
+              data={complexityData}
+              layout="vertical"
+              margin={{ top: 0, right: 16, bottom: 0, left: 8 }}
+            >
+              <CartesianGrid stroke={tokens['chart-grid']} horizontal={false} />
+              <XAxis
+                type="number"
+                domain={[0, 100]}
+                tick={axisTick(tokens)}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={150}
+                tick={{ ...axisTick(tokens), fontSize: 11 }}
+                tickLine={false}
+                axisLine={{ stroke: tokens['chart-axis'] }}
+              />
               <ChartTooltip
                 formatter={(value, name, entry) => [`${value}/100`, entry?.payload?.fullName || 'Complexity']}
-                contentStyle={TOOLTIP_STYLE}
-                labelStyle={{ color: '#a4adc9' }}
-                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                contentStyle={tooltipStyle(tokens)}
+                labelStyle={{ color: tokens['ink-3'] }}
+                cursor={{ fill: tokens['line-1'] }}
               />
-              <Bar dataKey="complexity" radius={[6, 6, 0, 0]} maxBarSize={48}>
-                {complexityData.map(entry => (
-                  <Cell key={entry.fullName} fill={RISK_COLORS[entry.risk] || '#22d3ee'} />
-                ))}
-              </Bar>
+              <Bar dataKey="complexity" fill={tokens['series-1']} radius={[0, 4, 4, 0]} maxBarSize={18} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </section>
 
-      <section className="glass-panel card-hover rounded-2xl p-5">
-        <h2 className="font-display text-base font-bold text-white">Churn vs duplication</h2>
-        <p className="mt-1 text-sm text-mist-500">Change frequency and duplicated code per module.</p>
-        <div className="mt-6 h-56" aria-label="Churn versus duplication" role="img">
+      <section className="glass-panel p-6">
+        <h2 className="text-base font-semibold text-[var(--ink-1)]">Churn vs duplication</h2>
+        <p className="mt-1 text-sm text-[var(--ink-3)]">Change frequency and duplicated code per module.</p>
+
+        <div className="mt-6 h-72" role="img" aria-label="Churn versus duplication per module, as a percentage.">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={churnData} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#8b93b8' }} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#8b93b8' }} tickLine={false} axisLine={false} unit="%" />
+              <CartesianGrid stroke={tokens['chart-grid']} vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ ...axisTick(tokens), fontSize: 11 }}
+                tickLine={false}
+                axisLine={{ stroke: tokens['chart-axis'] }}
+              />
+              <YAxis domain={[0, 100]} tick={axisTick(tokens)} tickLine={false} axisLine={false} unit="%" />
               <ChartTooltip
                 formatter={(value, name) => [`${value}%`, name === 'churn' ? 'Churn' : 'Duplication']}
-                contentStyle={TOOLTIP_STYLE}
-                labelStyle={{ color: '#a4adc9' }}
-                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                contentStyle={tooltipStyle(tokens)}
+                labelStyle={{ color: tokens['ink-3'] }}
+                cursor={{ fill: tokens['line-1'] }}
               />
-              <Bar dataKey="churn" name="churn" fill="#22d3ee" radius={[6, 6, 0, 0]} maxBarSize={32} />
-              <Bar dataKey="duplication" name="duplication" fill="#fbbf24" radius={[6, 6, 0, 0]} maxBarSize={32} />
+              {/* Two series -> slots 1 and 2, in fixed order, with a legend. */}
+              <Bar dataKey="churn" name="churn" fill={tokens['series-1']} radius={[4, 4, 0, 0]} maxBarSize={28} />
+              <Bar
+                dataKey="duplication"
+                name="duplication"
+                fill={tokens['series-2']}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={28}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-3 flex items-center gap-4 text-xs font-semibold text-mist-500">
+
+        <div className="mt-3 flex items-center gap-4 text-xs font-medium text-[var(--ink-3)]">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-cyan-400" />
+            <span className="h-2.5 w-2.5 rounded-[2px] bg-[var(--series-1)]" aria-hidden="true" />
             Churn
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-amber-400" />
+            <span className="h-2.5 w-2.5 rounded-[2px] bg-[var(--series-2)]" aria-hidden="true" />
             Duplication
           </span>
         </div>

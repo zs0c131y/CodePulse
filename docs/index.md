@@ -26,6 +26,7 @@ Use these focused documentation files instead of scanning the repository:
 | **MongoDB Schema Reference** | [docs/database/MONGODB_SCHEMA.md](database/MONGODB_SCHEMA.md) | Collection-level schema converted from the draft schema script. |
 | **AI Engine** | [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) | AI explainability pipelines, prompt templates, and context construction. |
 | **Implementation Roadmap** | [docs/implementation.md](implementation.md) | Feature-based implementation phases and delivery guidance. |
+| **Design Plan** | [docs/design.md](design.md) | "Signal" design system, screen specifications, and UI/UX delivery stages. |
 
 ---
 

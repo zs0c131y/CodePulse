@@ -1,30 +1,115 @@
-export function accentClasses(accent) {
-  const map = {
-    emerald: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/20',
-    rose: 'bg-rose-400/10 text-rose-300 border-rose-400/20',
-    amber: 'bg-amber-400/10 text-amber-300 border-amber-400/20',
-    cyan: 'bg-cyan-400/10 text-cyan-300 border-cyan-400/20',
-  }
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Circle,
+  OctagonAlert,
+} from 'lucide-react'
 
-  return map[accent] || map.cyan
+/**
+ * Severity is the product's real palette. Every level ships an icon AND a text
+ * label so hue never carries meaning alone — required, because Medium and High
+ * sit below 3:1 as marks on the light surface by design.
+ *
+ * Spec: docs/design.md §3.1
+ */
+export const SEVERITY_META = {
+  Critical: {
+    key: 'critical',
+    icon: OctagonAlert,
+    className: 'border-[var(--sev-critical-line)] bg-[var(--sev-critical-wash)] text-[var(--sev-critical-ink)]',
+    mark: 'var(--sev-critical)',
+  },
+  High: {
+    key: 'high',
+    icon: AlertTriangle,
+    className: 'border-[var(--sev-high-line)] bg-[var(--sev-high-wash)] text-[var(--sev-high-ink)]',
+    mark: 'var(--sev-high)',
+  },
+  Medium: {
+    key: 'medium',
+    icon: AlertCircle,
+    className: 'border-[var(--sev-medium-line)] bg-[var(--sev-medium-wash)] text-[var(--sev-medium-ink)]',
+    mark: 'var(--sev-medium)',
+  },
+  Low: {
+    key: 'low',
+    icon: Circle,
+    className: 'border-[var(--sev-low-line)] bg-[var(--sev-low-wash)] text-[var(--sev-low-ink)]',
+    mark: 'var(--sev-low)',
+  },
+  Nominal: {
+    key: 'nominal',
+    icon: CheckCircle2,
+    className: 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]',
+    mark: 'var(--sev-nominal)',
+  },
+}
+
+export function severityMeta(severity) {
+  return SEVERITY_META[severity] || SEVERITY_META.Nominal
 }
 
 export function severityClass(severity) {
-  if (severity === 'Critical') return 'bg-rose-400/10 text-rose-300 border-rose-400/25'
-  if (severity === 'High') return 'bg-orange-400/10 text-orange-300 border-orange-400/25'
-  if (severity === 'Medium') return 'bg-amber-400/10 text-amber-300 border-amber-400/25'
-  return 'bg-emerald-400/10 text-emerald-300 border-emerald-400/25'
+  return severityMeta(severity).className
+}
+
+/** Bucket a 0-100 score into a severity level. Higher score = higher risk. */
+export function severityForScore(score) {
+  const value = Number(score) || 0
+  if (value >= 80) return 'Critical'
+  if (value >= 60) return 'High'
+  if (value >= 40) return 'Medium'
+  if (value >= 20) return 'Low'
+  return 'Nominal'
+}
+
+/** Health runs the other way: a high health score is good. */
+export function severityForHealth(score) {
+  return severityForScore(100 - (Number(score) || 0))
 }
 
 export const ANALYSIS_STATUS_META = {
-  queued: { label: 'Queued', badgeClass: 'bg-white/[0.06] text-mist-400 border-white/10' },
-  running: { label: 'Running', badgeClass: 'bg-cyan-400/10 text-cyan-300 border-cyan-400/25' },
-  completed: { label: 'Completed', badgeClass: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/25' },
-  failed: { label: 'Failed', badgeClass: 'bg-rose-400/10 text-rose-300 border-rose-400/25' },
+  queued: {
+    label: 'Queued',
+    badgeClass: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--ink-3)]',
+  },
+  running: {
+    label: 'Running',
+    badgeClass: 'border-[var(--accent-line)] bg-[var(--accent-wash)] text-[var(--accent-ink)]',
+  },
+  completed: {
+    label: 'Completed',
+    badgeClass: 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]',
+  },
+  failed: {
+    label: 'Failed',
+    badgeClass: 'border-[var(--sev-critical-line)] bg-[var(--sev-critical-wash)] text-[var(--sev-critical-ink)]',
+  },
 }
 
 export function analysisStatusClass(status) {
   return (ANALYSIS_STATUS_META[status] || ANALYSIS_STATUS_META.queued).badgeClass
+}
+
+/**
+ * Icon chip for a metric tile. These are series slots, not severity — a KPI
+ * icon identifies a measure, it does not grade it.
+ */
+export function accentClasses(accent) {
+  const slots = {
+    1: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--series-1)]',
+    2: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--series-2)]',
+    3: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--series-3)]',
+    4: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--series-4)]',
+    5: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--series-5)]',
+    6: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--series-6)]',
+  }
+
+  // Legacy hue names from the demo dataset map onto series slots.
+  const legacy = { cyan: 1, iris: 1, emerald: 2, rose: 3, amber: 4 }
+
+  return slots[accent] || slots[legacy[accent]] || slots[1]
 }
 
 export function clamp(value, min = 0, max = 100) {

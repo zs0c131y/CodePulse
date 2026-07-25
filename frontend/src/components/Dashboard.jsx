@@ -30,6 +30,7 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
+import { Combobox } from './ui/combobox'
 import { ApiError, apiFetch } from '../api/client'
 import {
   analyzeRepository,
@@ -67,6 +68,15 @@ import AuroraBackground from './AuroraBackground'
 const STATUS_POLL_INTERVAL_MS = 4000
 
 const GITHUB_REPO_URL_PATTERN = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/
+
+function initials(name, email) {
+  return String(name || email || 'CP')
+    .split(/\s|@/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join('')
+}
 
 const navItems = [
   { label: 'Overview', icon: LayoutDashboard },
@@ -106,6 +116,15 @@ function summaryToRepository(summary, repositoryId) {
     totalDependencies: summary?.totalDependencies || 0,
     updatedAt: null,
   }
+}
+
+function publicGithubUrl(repository) {
+  const candidate = String(repository?.url || '').trim()
+  if (GITHUB_REPO_URL_PATTERN.test(candidate)) return candidate
+
+  const fullName = String(repository?.fullName || repository?.name || '').trim()
+  const inferred = `https://github.com/${fullName}`
+  return GITHUB_REPO_URL_PATTERN.test(inferred) ? inferred : ''
 }
 
 function settledValue(result, fallback = null) {
@@ -481,6 +500,10 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   )
   const selectedRepoStatus = selectedRepo?.status || ''
   const liveMode = !demoMode
+  const repositoryPickerOptions = useMemo(() => [
+    ...liveRepoOptions.map(item => ({ value: `analyzed:${item.id}`, label: item.fullName || item.name, description: item.defaultBranch ? `Analyzed · ${item.defaultBranch}` : 'Analyzed repository', group: 'Analyzed repositories', tone: 'bg-[var(--sev-nominal)]' })),
+    ...connectedRepos.map(item => ({ value: `connected:${item.id}`, label: item.fullName, description: item.private ? 'Private repository' : 'Connected source', meta: item.provider === 'github' ? 'GitHub' : 'GitLab', group: 'Connected sources', tone: item.provider === 'github' ? 'bg-[var(--series-1)]' : 'bg-[var(--series-6)]' })),
+  ], [connectedRepos, liveRepoOptions])
 
   useEffect(() => {
     if (selectedRepoId) setRepositoryPickerValue(`analyzed:${selectedRepoId}`)
@@ -491,16 +514,29 @@ export default function Dashboard({ user, accessToken, onLogout }) {
     setRepositoryPickerValue(value)
 
     if (value.startsWith('analyzed:')) {
-      setSelectedRepoId(value.slice('analyzed:'.length))
+      const repositoryId = value.slice('analyzed:'.length)
+      const repository = liveRepoOptions.find(item => item.id === repositoryId)
+      setSelectedRepoId(repositoryId)
+      const scanUrl = publicGithubUrl(repository)
+      if (scanUrl) {
+        setRepoUrl(scanUrl)
+        setScanMessage(`Ready to re-scan ${repository.fullName || repository.name}.`)
+        setScanError('')
+      }
       return
     }
 
     const repository = connectedRepos.find(item => `connected:${item.id}` === value)
     if (repository) {
-      setRepoUrl(repository.url)
+      setRepoUrl(publicGithubUrl(repository))
       setSelectedRepoId('')
-      setScanMessage(`Ready to scan ${repository.fullName}.`)
-      setScanError('')
+      if (publicGithubUrl(repository)) {
+        setScanMessage(`Ready to scan ${repository.fullName}.`)
+        setScanError('')
+      } else {
+        setScanMessage('')
+        setScanError('This scan endpoint currently accepts public GitHub repository URLs only.')
+      }
     }
   }
 
@@ -665,7 +701,13 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   async function handleStartScan() {
     const trimmedRepoUrl = repoUrl.trim()
 
-    if (!trimmedRepoUrl || scanLoading) return
+    if (scanLoading) return
+
+    if (!trimmedRepoUrl) {
+      setScanMessage('')
+      setScanError('Paste a public GitHub repository URL to start a scan.')
+      return
+    }
 
     if (!GITHUB_REPO_URL_PATTERN.test(trimmedRepoUrl)) {
       setScanMessage('')
@@ -779,19 +821,16 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const showEmptyRepositoryState = liveMode && repoListState === 'ready' && repoList.length === 0 && !scanSummary
 
   return (
-    <div className="relative min-h-screen bg-night-950 text-mist-100">
+    <div className="relative min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-1)]">
       <AuroraBackground variant="page" grid={false} className="fixed" />
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-white/[0.07] bg-night-950/80 text-white backdrop-blur-2xl lg:flex lg:flex-col 2xl:w-72">
-        <div className="flex h-16 items-center gap-2.5 border-b border-white/[0.07] px-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 shadow-lg shadow-violet-600/25">
-            <Activity size={18} strokeWidth={2.5} className="text-white" />
-          </span>
-          <span className="font-display text-lg font-bold">
-            Code<span className="text-gradient">Pulse</span>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-16 border-r border-[var(--line-1)] bg-[var(--surface-canvas)]/90 text-[var(--ink-1)] backdrop-blur-xl lg:flex lg:flex-col">
+        <div className="flex h-16 items-center justify-center border-b border-[var(--line-1)]">
+          <span className="flex h-9 w-9 items-center justify-center rounded-[var(--r-sm)] bg-[var(--surface-2)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)]">
+            <Activity size={18} strokeWidth={2.5} className="text-[var(--ink-1)]" />
           </span>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-5" aria-label="Dashboard">
+        <nav className="flex-1 space-y-1 px-2 py-5" aria-label="Dashboard">
           {navItems.map(item => {
             const Icon = item.icon
             const selected = activeTab === item.label
@@ -801,19 +840,21 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 key={item.label}
                 type="button"
                 onClick={() => setActiveTab(item.label)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-300 ${
+                aria-label={item.label}
+                title={item.label}
+                className={`flex w-full items-center justify-center rounded-[var(--r-sm)] px-3 py-2.5 text-left text-sm font-semibold transition-all duration-300 ${
                   selected
-                    ? 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25'
-                    : 'text-mist-400 hover:bg-white/[0.06] hover:text-white'
+                    ? 'bg-[var(--surface-2)] text-[var(--ink-1)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)]'
+                    : 'text-[var(--ink-3)] hover:bg-[var(--surface-3)] hover:text-[var(--ink-1)]'
                 }`}
               >
-                <Icon size={17} />
-                {item.label}
+                <Icon size={18} />
+                <span className="sr-only">{item.label}</span>
               </button>
             )
           })}
 
-          <div className="my-4 h-px bg-white/[0.07]" />
+          <div className="my-4 h-px bg-[var(--line-1)]" />
 
           {accountNavItems.map(item => {
             const Icon = item.icon
@@ -822,41 +863,32 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <a
                 key={item.label}
                 href={item.href}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-mist-400 transition-all duration-300 hover:bg-white/[0.06] hover:text-white"
+                aria-label={item.label}
+                title={item.label}
+                className="flex w-full items-center justify-center rounded-[var(--r-sm)] px-3 py-2.5 text-left text-sm font-semibold text-[var(--ink-3)] transition-all duration-300 hover:bg-[var(--surface-3)] hover:text-[var(--ink-1)]"
               >
-                <Icon size={17} />
-                {item.label}
+                <Icon size={18} />
+                <span className="sr-only">{item.label}</span>
               </a>
             )
           })}
         </nav>
 
-        <div className="border-t border-white/[0.07] p-4">
-          <div className="glass-chip rounded-xl p-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <LockKeyhole size={16} className="text-emerald-300" />
-              Protected session
-            </div>
-            <div className="mt-3 flex min-w-0 items-center justify-between gap-2">
-              <span className="truncate text-xs font-medium text-mist-500" title={user.email}>
-                {user.email}
-              </span>
-              <span className="shrink-0 rounded-md border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
-                {status === 'Session verified' ? 'Verified' : 'Checking'}
-              </span>
-            </div>
-          </div>
+        <div className="border-t border-[var(--line-1)] p-2">
+          <a href="/profile" aria-label="Profile" title={user.name || user.email} className="grid h-11 w-11 place-items-center rounded-[var(--r-sm)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--ink-1)] hover:bg-[var(--surface-3)]">
+            {initials(user.name, user.email)}
+          </a>
         </div>
       </aside>
 
-      <div className="relative min-w-0 lg:pl-64 2xl:pl-72">
-        <header className="sticky top-0 z-20 border-b border-white/[0.07] bg-night-950/75 backdrop-blur-2xl">
-          <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 2xl:px-8">
+      <div className="relative min-w-0 lg:pl-16">
+        <header className="sticky top-0 z-40 border-b border-[var(--line-1)] bg-[var(--surface-canvas)]/95 backdrop-blur-xl">
+          <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 2xl:px-8">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-mist-500">
-                <span>Workspace</span>
-                <span>/</span>
-                <span className="font-mono text-mist-100">{displayedRepository?.fullName || displayedRepository?.name || 'No repository selected'}</span>
+              <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--ink-3)]">
+                <span className="hidden sm:inline">Workspace</span>
+                <span className="hidden sm:inline">/</span>
+                <span className="font-mono text-[var(--ink-1)]">{displayedRepository?.fullName || displayedRepository?.name || 'No repository selected'}</span>
                 {demoMode ? (
                   <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold capitalize ${severityClass(displayedRepository.risk)}`}>
                     {displayedRepository.risk} risk
@@ -869,7 +901,6 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                   )
                 )}
               </div>
-              <h1 className="mt-1 font-display text-xl font-bold text-white sm:text-2xl">Engineering intelligence dashboard</h1>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -939,11 +970,11 @@ export default function Dashboard({ user, accessToken, onLogout }) {
           </div>
         </header>
 
-        <main className="cp-dashboard-main min-w-0 py-5 sm:py-6 2xl:py-8">
-          <section className="glass-panel card-hover mb-5 rounded-2xl p-4">
-            <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.35fr)] xl:items-end">
+        <main className="cp-app min-w-0 py-5 sm:py-6 2xl:py-8">
+          <section className="glass-panel relative z-30 mb-5 p-5 sm:p-6">
+            <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.35fr)] xl:items-start">
               <label className="block min-w-0">
-                <span className="mb-2 block text-sm font-semibold text-mist-300">Repository</span>
+                <span className="mb-2 block text-sm font-semibold text-[var(--ink-2)]">Repository</span>
                 <span className="relative block">
                   {demoMode ? (
                     <>
@@ -958,61 +989,40 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                           </option>
                         ))}
                       </Select>
-                      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-mist-500" />
+                      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-3)]" />
                     </>
                   ) : (
-                    <>
-                      <Select
-                        value={repositoryPickerValue}
-                        onChange={handleRepositoryPickerChange}
-                        disabled={liveRepoOptions.length === 0 && connectedRepos.length === 0}
-                        className="appearance-none pr-10"
-                      >
-                        <option value="">{repoListState === 'loading' ? 'Loading repositories...' : 'Select a repository'}</option>
-                        {liveRepoOptions.length > 0 && (
-                          <optgroup label="Analyzed repositories">
-                            {liveRepoOptions.map(item => (
-                              <option key={item.id} value={`analyzed:${item.id}`}>
-                                {item.fullName || item.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {connectedRepos.length > 0 && (
-                          <optgroup label="Connected sources">
-                            {connectedRepos.map(item => (
-                              <option key={item.id} value={`connected:${item.id}`}>
-                                {item.provider === 'github' ? 'GitHub' : 'GitLab'} · {item.fullName}{item.private ? ' · Private' : ''}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </Select>
-                      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-mist-500" />
-                    </>
+                    <Combobox
+                      value={repositoryPickerValue}
+                      onChange={value => handleRepositoryPickerChange({ target: { value } })}
+                      options={repositoryPickerOptions}
+                      disabled={repositoryPickerOptions.length === 0}
+                      placeholder={repoListState === 'loading' ? 'Loading repositories…' : 'Select a repository'}
+                      ariaLabel="Choose a repository"
+                    />
                   )}
                 </span>
               </label>
 
               <label className="block min-w-0">
-                <span className="mb-2 block text-sm font-semibold text-mist-300">Analyze a repository</span>
+                <span className="mb-2 block text-sm font-semibold text-[var(--ink-2)]">Analyze a repository</span>
                 <span className="flex flex-col gap-2 sm:flex-row">
                   <span className="relative block min-w-0 flex-1">
-                    <GitPullRequest size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-mist-500" />
+                    <GitPullRequest size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-3)]" />
                     <Input
                       value={repoUrl}
                       onChange={event => setRepoUrl(event.target.value)}
                       placeholder="https://github.com/company/repository"
                       className="h-11 px-10"
                     />
-                    <Search size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-mist-500" />
+                    <Search size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-3)]" />
                   </span>
                   <Button
                     type="button"
-                    size="lg"
+                    size="default"
                     className="shrink-0"
                     onClick={handleStartScan}
-                    disabled={!repoUrl.trim() || scanLoading}
+                    disabled={scanLoading}
                   >
                     {scanLoading ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} />}
                     {scanLoading ? 'Scanning...' : 'Start scan'}
@@ -1023,10 +1033,10 @@ export default function Dashboard({ user, accessToken, onLogout }) {
 
             {(scanMessage || scanError) && (
               <div
-                className={`mt-4 flex gap-2 rounded-xl border px-4 py-3 text-sm ${
+                className={`mt-4 flex gap-2 rounded-[var(--r-sm)] border px-4 py-3 text-sm ${
                   scanError
-                    ? 'border-rose-400/25 bg-rose-400/10 text-rose-300'
-                    : 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
+                    ? 'border-[var(--sev-critical-line)] bg-[var(--sev-critical-wash)] text-[var(--sev-critical-ink)]'
+                    : 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]'
                 }`}
                 role="status"
               >
@@ -1052,15 +1062,15 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                   ['Dependencies', scanSummary.totalDependencies],
                   ['Directories', scanSummary.totalDirectories],
                 ].map(([label, value]) => (
-                  <div key={label} className="glass-chip rounded-xl px-3 py-2">
-                    <p className="text-xs font-semibold uppercase text-mist-500">{label}</p>
-                    <p className="mt-1 font-display text-lg font-bold text-white">{value ?? 0}</p>
+                  <div key={label} className="panel-2 rounded-[var(--r-sm)] px-3 py-2">
+                    <p className="text-xs font-semibold uppercase text-[var(--ink-3)]">{label}</p>
+                    <p className="mt-1 text-lg font-bold text-[var(--ink-1)]">{value ?? 0}</p>
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="mt-4 flex min-w-0 flex-wrap gap-3 text-sm text-mist-400">
+            <div className="mt-4 flex min-w-0 flex-wrap gap-3 text-sm text-[var(--ink-3)]">
               <span className="inline-flex items-center gap-2">
                 <GitBranch size={15} />
                 {displayedRepository?.defaultBranch || displayedRepository?.branch || 'No branch'}
@@ -1096,10 +1106,10 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                   key={item.label}
                   type="button"
                   onClick={() => setActiveTab(item.label)}
-                  className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all duration-300 ${
+                  className={`rounded-[var(--r-md)] border px-4 py-2 text-[0.9375rem] font-medium transition-all duration-300 ${
                     selected
-                      ? 'border-transparent bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-violet-600/25'
-                      : 'border-white/10 bg-white/[0.04] text-mist-400 hover:text-white'
+                      ? 'border-transparent bg-[var(--surface-2)] text-[var(--ink-1)] shadow-[var(--shadow-e2)]'
+                      : 'border-[var(--line-1)] bg-transparent text-[var(--ink-3)] hover:text-[var(--ink-1)] hover:bg-[var(--surface-3)]'
                   }`}
                 >
                   {item.label}
@@ -1108,7 +1118,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             })}
           </div>
 
-          <div className="mb-5 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.08] px-4 py-3 text-sm text-cyan-200">
+          <div className="mb-5 rounded-[var(--r-sm)] border border-[var(--accent-line)] bg-[var(--accent)]/[0.08] px-4 py-3 text-sm text-[var(--accent-ink)]">
             <div className="flex gap-2">
               <CircleAlert size={17} className="mt-0.5 shrink-0" />
               <p>{bannerMessage}</p>

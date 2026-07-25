@@ -1,24 +1,28 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip as ChartTooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { BookOpenCheck } from 'lucide-react'
 import { EmptyPanel } from './shared'
+import { axisTick, tooltipStyle, useChartTokens } from '../../lib/useChartTokens'
 
-const TOOLTIP_STYLE = {
-  backgroundColor: 'rgba(11, 14, 30, 0.95)',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 12,
-  fontSize: 12,
-  color: '#eef1fb',
-  boxShadow: '0 18px 50px rgba(0,0,0,0.45)',
-}
+const COVERAGE_TARGET = 80
 
-function coverageColor(percent) {
-  if (percent >= 75) return '#34d399'
-  if (percent >= 50) return '#22d3ee'
-  if (percent >= 30) return '#fbbf24'
-  return '#fb7185'
-}
+export default function CoveragePanel({
+  items = [],
+  title = 'Documentation coverage',
+  description = 'Coverage by repository area, against an 80% target.',
+  emptyTitle = 'No coverage data yet',
+  emptyDescription = 'Documentation coverage appears here after the Knowledge Debt engine measures documented versus undocumented areas of this repository.',
+}) {
+  const tokens = useChartTokens()
 
-export default function CoveragePanel({ items = [], title = 'Documentation coverage', description = 'Coverage by repository area.', emptyTitle = 'No coverage data yet', emptyDescription = 'Documentation coverage appears here after the Knowledge Debt engine measures documented versus undocumented areas of this repository.' }) {
   if (items.length === 0) {
     return <EmptyPanel title={emptyTitle} description={emptyDescription} icon={BookOpenCheck} />
   }
@@ -28,27 +32,60 @@ export default function CoveragePanel({ items = [], title = 'Documentation cover
     percent: Math.min(100, Math.max(0, Number(item.percent) || 0)),
   }))
 
+  const lowest = data.reduce((min, item) => (item.percent < min.percent ? item : min), data[0])
+
   return (
-    <section className="glass-panel card-hover rounded-2xl p-5">
-      <h2 className="font-display text-base font-bold text-white">{title}</h2>
-      <p className="mt-1 text-sm text-mist-500">{description}</p>
-      <div className="mt-6 h-56" aria-label={title} role="img">
+    <section className="glass-panel p-6">
+      <h2 className="text-base font-semibold text-[var(--ink-1)]">{title}</h2>
+      <p className="mt-1 text-sm text-[var(--ink-3)]">{description}</p>
+
+      {/*
+        One nominal series, so every bar wears slot 1. Colouring each bar by
+        its own value would spend the identity channel re-encoding what the
+        bar length already shows.
+      */}
+      <div
+        className="mt-6 h-56"
+        role="img"
+        aria-label={`${title}. ${data.length} areas. Lowest: ${lowest.label} at ${lowest.percent}%. Target ${COVERAGE_TARGET}%.`}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
-            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12, fill: '#8b93b8' }} tickLine={false} axisLine={false} unit="%" />
-            <YAxis type="category" dataKey="label" width={130} tick={{ fontSize: 12, fill: '#a4adc9' }} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
+            <CartesianGrid stroke={tokens['chart-grid']} horizontal={false} />
+            <XAxis
+              type="number"
+              domain={[0, 100]}
+              tick={axisTick(tokens)}
+              tickLine={false}
+              axisLine={false}
+              unit="%"
+            />
+            <YAxis
+              type="category"
+              dataKey="label"
+              width={130}
+              tick={axisTick(tokens)}
+              tickLine={false}
+              axisLine={{ stroke: tokens['chart-axis'] }}
+            />
             <ChartTooltip
               formatter={value => [`${value}%`, 'Coverage']}
-              contentStyle={TOOLTIP_STYLE}
-              labelStyle={{ color: '#a4adc9' }}
-              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+              contentStyle={tooltipStyle(tokens)}
+              labelStyle={{ color: tokens['ink-3'] }}
+              cursor={{ fill: tokens['line-1'] }}
             />
-            <Bar dataKey="percent" radius={[0, 6, 6, 0]} maxBarSize={22}>
-              {data.map(entry => (
-                <Cell key={entry.label} fill={coverageColor(entry.percent)} />
-              ))}
-            </Bar>
+            <ReferenceLine
+              x={COVERAGE_TARGET}
+              stroke={tokens['ink-4']}
+              strokeDasharray="4 4"
+              label={{
+                value: `target ${COVERAGE_TARGET}%`,
+                position: 'top',
+                fill: tokens['ink-3'],
+                fontSize: 11,
+              }}
+            />
+            <Bar dataKey="percent" fill={tokens['series-1']} radius={[0, 4, 4, 0]} maxBarSize={20} />
           </BarChart>
         </ResponsiveContainer>
       </div>
