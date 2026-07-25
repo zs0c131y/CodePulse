@@ -6,8 +6,8 @@ import app from './src/app.js'
 
 async function start() {
   await ensureIndexes()
-  app.listen(PORT, () => {
-    console.log(`CodePulse API listening on http://localhost:${PORT}`)
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`CodePulse API listening on http://0.0.0.0:${PORT}`)
   })
 }
 
