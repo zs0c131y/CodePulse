@@ -5,7 +5,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 
-COPY frontend/ ./
+COPY frontend/* ./
 RUN npm run build
 
 FROM node:24-alpine
