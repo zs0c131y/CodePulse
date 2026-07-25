@@ -1,9 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Activity,
   ArrowRight,
   BadgeCheck,
-  BookOpenCheck,
   BrainCircuit,
   Check,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import { ThemeToggle } from './ui/theme-toggle'
 
 const productSignals = [
   ['Repository health', '86', 'Measured from code, docs, and change activity'],
@@ -35,12 +36,33 @@ const steps = [
 ]
 
 function Brand() {
-  return <a href="/" className="flex items-center gap-2.5 text-[var(--ink-1)]"><span className="grid h-9 w-9 place-items-center rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-2)] shadow-[var(--shadow-e1)]"><Activity size={18} strokeWidth={1.8} /></span><span className="text-[1.0625rem] font-semibold tracking-[-.03em]">CodePulse</span></a>
+  return <Link to="/" className="flex items-center gap-2.5 text-[var(--ink-1)]"><span className="grid h-9 w-9 place-items-center rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-2)] shadow-[var(--shadow-e1)]"><Activity size={18} strokeWidth={1.8} /></span><span className="text-[1.0625rem] font-semibold tracking-[-.03em]">CodePulse</span></Link>
 }
 
 function Nav() {
   const [open, setOpen] = useState(false)
-  return <header className="sticky top-0 z-40 border-b border-[var(--line-1)] bg-[color-mix(in_srgb,var(--surface-canvas)_88%,transparent)] backdrop-blur-xl"><div className="cp-marketing flex h-16 items-center justify-between"><Brand /><nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation"><a href="#product" className="rounded-[var(--r-sm)] px-3 py-2 text-sm text-[var(--ink-3)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]">Product</a><a href="#workflow" className="rounded-[var(--r-sm)] px-3 py-2 text-sm text-[var(--ink-3)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]">How it works</a><a href="#principles" className="rounded-[var(--r-sm)] px-3 py-2 text-sm text-[var(--ink-3)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]">Principles</a></nav><div className="hidden items-center gap-2 md:flex"><a href="/signin" className="px-3 py-2 text-sm font-medium text-[var(--ink-2)] hover:text-[var(--ink-1)]">Sign in</a><a href="/signup" className="inline-flex h-10 items-center gap-2 rounded-[var(--r-sm)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-on)] shadow-[var(--shadow-e1)] hover:bg-[var(--accent-hover)]">Get started <ArrowRight size={15} /></a></div><button type="button" onClick={() => setOpen(value => !value)} className="grid h-10 w-10 place-items-center rounded-[var(--r-sm)] border border-[var(--line-2)] text-[var(--ink-2)] md:hidden" aria-label="Toggle navigation">{open ? <X size={18} /> : <Menu size={18} />}</button></div>{open && <nav className="cp-marketing border-t border-[var(--line-1)] py-3 md:hidden" aria-label="Mobile navigation"><div className="grid gap-1"><a onClick={() => setOpen(false)} href="#product" className="rounded-[var(--r-sm)] px-3 py-3 text-sm text-[var(--ink-2)]">Product</a><a onClick={() => setOpen(false)} href="#workflow" className="rounded-[var(--r-sm)] px-3 py-3 text-sm text-[var(--ink-2)]">How it works</a><a onClick={() => setOpen(false)} href="/signin" className="rounded-[var(--r-sm)] px-3 py-3 text-sm text-[var(--ink-2)]">Sign in</a><a href="/signup" className="mt-1 rounded-[var(--r-sm)] bg-[var(--accent)] px-3 py-3 text-center text-sm font-semibold text-[var(--accent-on)]">Get started</a></div></nav>}</header>
+  return (
+    <header className="sticky top-0 z-40 border-b border-[var(--line-1)] bg-[color-mix(in_srgb,var(--surface-canvas)_88%,transparent)] backdrop-blur-xl">
+      <div className="cp-marketing flex h-16 items-center justify-between">
+        <Brand />
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
+          <a href="#product" className="rounded-[var(--r-sm)] px-3 py-2 text-sm text-[var(--ink-3)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]">Product</a>
+          <a href="#workflow" className="rounded-[var(--r-sm)] px-3 py-2 text-sm text-[var(--ink-3)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]">How it works</a>
+          <a href="#principles" className="rounded-[var(--r-sm)] px-3 py-2 text-sm text-[var(--ink-3)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]">Principles</a>
+        </nav>
+        <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
+          <Link to="/signin" className="px-3 py-2 text-sm font-medium text-[var(--ink-2)] hover:text-[var(--ink-1)]">Sign in</Link>
+          <Link to="/signup" className="inline-flex h-10 items-center gap-2 rounded-[var(--r-sm)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-on)] shadow-[var(--shadow-e1)] hover:bg-[var(--accent-hover)]">Get started <ArrowRight size={15} /></Link>
+        </div>
+        <div className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
+          <button type="button" onClick={() => setOpen(value => !value)} className="grid h-10 w-10 place-items-center rounded-[var(--r-sm)] border border-[var(--line-2)] text-[var(--ink-2)]" aria-label="Toggle navigation">{open ? <X size={18} /> : <Menu size={18} />}</button>
+        </div>
+      </div>
+      {open && <nav className="cp-marketing border-t border-[var(--line-1)] py-3 md:hidden" aria-label="Mobile navigation"><div className="grid gap-1"><a onClick={() => setOpen(false)} href="#product" className="rounded-[var(--r-sm)] px-3 py-3 text-sm text-[var(--ink-2)]">Product</a><a onClick={() => setOpen(false)} href="#workflow" className="rounded-[var(--r-sm)] px-3 py-3 text-sm text-[var(--ink-2)]">How it works</a><Link onClick={() => setOpen(false)} to="/signin" className="rounded-[var(--r-sm)] px-3 py-3 text-sm text-[var(--ink-2)]">Sign in</Link><Link to="/signup" className="mt-1 rounded-[var(--r-sm)] bg-[var(--accent)] px-3 py-3 text-center text-sm font-semibold text-[var(--accent-on)]">Get started</Link></div></nav>}
+    </header>
+  )
 }
 
 function InstrumentPreview() {

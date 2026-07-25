@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Activity,
   AlertTriangle,
@@ -15,7 +16,6 @@ import {
   GitBranch,
   GitPullRequest,
   LayoutDashboard,
-  LockKeyhole,
   LogOut,
   Play,
   RefreshCw,
@@ -64,6 +64,7 @@ import RiskTrendPanel from './dashboard/RiskTrendPanel'
 import { EmptyPanel, Tooltip } from './dashboard/shared'
 import { ANALYSIS_STATUS_META, analysisStatusClass, formatRelativeTime, severityClass } from './dashboard/utils'
 import AuroraBackground from './AuroraBackground'
+import { ThemeToggle } from './ui/theme-toggle'
 
 const STATUS_POLL_INTERVAL_MS = 4000
 
@@ -463,7 +464,7 @@ function MainContent({ activeTab, view, liveMode }) {
 
 export default function Dashboard({ user, accessToken, onLogout }) {
   const [activeTab, setActiveTab] = useState('Overview')
-  const [status, setStatus] = useState('Verifying session...')
+  const [, setStatus] = useState('Verifying session...')
   const [demoMode, setDemoMode] = useState(false)
   const [demoRepoName, setDemoRepoName] = useState(demoRepositories[0].name)
   const [repoUrl, setRepoUrl] = useState('')
@@ -860,24 +861,24 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             const Icon = item.icon
 
             return (
-              <a
+              <Link
                 key={item.label}
-                href={item.href}
+                to={item.href}
                 aria-label={item.label}
                 title={item.label}
                 className="flex w-full items-center justify-center rounded-[var(--r-sm)] px-3 py-2.5 text-left text-sm font-semibold text-[var(--ink-3)] transition-all duration-300 hover:bg-[var(--surface-3)] hover:text-[var(--ink-1)]"
               >
                 <Icon size={18} />
                 <span className="sr-only">{item.label}</span>
-              </a>
+              </Link>
             )
           })}
         </nav>
 
         <div className="border-t border-[var(--line-1)] p-2">
-          <a href="/profile" aria-label="Profile" title={user.name || user.email} className="grid h-11 w-11 place-items-center rounded-[var(--r-sm)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--ink-1)] hover:bg-[var(--surface-3)]">
+          <Link to="/profile" aria-label="Profile" title={user.name || user.email} className="grid h-11 w-11 place-items-center rounded-[var(--r-sm)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--ink-1)] hover:bg-[var(--surface-3)]">
             {initials(user.name, user.email)}
-          </a>
+          </Link>
         </div>
       </aside>
 
@@ -904,6 +905,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
+              <ThemeToggle />
               <span className="group relative inline-flex">
                 <Button
                   type="button"
@@ -915,7 +917,6 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 >
                   <Database size={18} />
                 </Button>
-                <Tooltip label={demoMode ? 'Demo mode on' : 'Live mode on'} />
               </span>
               <span className="group relative inline-flex">
                 <Button type="button" variant="outline" size="icon" aria-label="Notifications" title="Notifications">
@@ -925,31 +926,29 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               </span>
               <span className="group relative inline-flex">
                 <Button
-                  href="/settings"
                   asChild
                   variant="outline"
                   size="icon"
                   aria-label="Settings"
                   title="Settings"
                 >
-                  <a href="/settings">
+                  <Link to="/settings">
                     <Settings size={18} />
-                  </a>
+                  </Link>
                 </Button>
                 <Tooltip label="Settings" />
               </span>
               <span className="group relative inline-flex">
                 <Button
-                  href="/profile"
                   asChild
                   variant="outline"
                   size="icon"
                   aria-label="Profile"
                   title="Profile"
                 >
-                  <a href="/profile">
+                  <Link to="/profile">
                     <User size={18} />
-                  </a>
+                  </Link>
                 </Button>
                 <Tooltip label="Profile" />
               </span>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Activity,
   AlertTriangle,
@@ -37,6 +38,7 @@ import { getUsageSnapshot } from '../api/usage'
 import { listIntegrations } from '../api/integrations'
 import AuroraBackground from './AuroraBackground'
 import { cn } from '../lib/utils'
+import { ThemeToggle } from './ui/theme-toggle'
 
 function apiUrl(path) {
   return `${import.meta.env.VITE_API_BASE_URL || ''}${path}`
@@ -150,7 +152,7 @@ function Toggle({ checked, onChange, title, description, icon: Icon }) {
   )
 }
 
-function AccountShell({ mode, user, status, onLogout, children }) {
+function AccountShell({ mode, user, onLogout, children }) {
   const isProfile = mode === 'profile'
 
   return (
@@ -171,9 +173,9 @@ function AccountShell({ mode, user, status, onLogout, children }) {
               (mode === 'settings' && item.label === 'Settings')
 
             return (
-              <a
+              <Link
                 key={item.label}
-                href={item.href}
+                to={item.href}
                 aria-label={item.label}
                 title={item.label}
                 className={`flex w-full items-center justify-center rounded-[var(--r-sm)] px-3 py-2.5 text-left text-sm font-semibold transition-all duration-300 ${
@@ -184,15 +186,15 @@ function AccountShell({ mode, user, status, onLogout, children }) {
               >
                 <Icon size={18} />
                 <span className="sr-only">{item.label}</span>
-              </a>
+              </Link>
             )
           })}
         </nav>
 
         <div className="border-t border-[var(--line-1)] p-2">
-          <a href="/profile" aria-label="Profile" title={user.name || user.email} className="grid h-11 w-11 place-items-center rounded-[var(--r-sm)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--ink-1)] hover:bg-[var(--surface-3)]">
+          <Link to="/profile" aria-label="Profile" title={user.name || user.email} className="grid h-11 w-11 place-items-center rounded-[var(--r-sm)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--ink-1)] hover:bg-[var(--surface-3)]">
             {initials(user.name, user.email)}
-          </a>
+          </Link>
         </div>
       </aside>
 
@@ -201,10 +203,10 @@ function AccountShell({ mode, user, status, onLogout, children }) {
           <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 2xl:px-8">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-xs font-semibold text-[var(--ink-3)]">
-                <a href="/dashboard" className="inline-flex items-center gap-1 transition-colors hover:text-[var(--ink-1)]">
+                <Link to="/dashboard" className="inline-flex items-center gap-1 transition-colors hover:text-[var(--ink-1)]">
                   <ArrowLeft size={14} />
                   Dashboard
-                </a>
+                </Link>
                 <ChevronRight size={13} />
                 <span className="text-[var(--ink-1)]">{isProfile ? 'Profile' : 'Settings'}</span>
               </div>
@@ -214,18 +216,18 @@ function AccountShell({ mode, user, status, onLogout, children }) {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
+              <ThemeToggle />
               <Button
-                href="/profile"
                 asChild
                 variant="outline"
                 className="hidden sm:inline-flex"
               >
-                <a href="/profile">
+                <Link to="/profile">
                   <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--surface-2)] text-xs font-bold text-[var(--ink-1)]">
                     {initials(user.name, user.email)}
                   </span>
                   <span className="max-w-32 truncate">{user.name}</span>
-                </a>
+                </Link>
               </Button>
               <Button
                 type="button"
@@ -572,14 +574,13 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
             </p>
           </div>
           <Button
-            href="/reset-password"
             asChild
             variant="outline"
           >
-            <a href="/reset-password">
+            <Link to="/reset-password">
               <KeyRound size={16} />
               Reset password
-            </a>
+            </Link>
           </Button>
         </div>
       </section>
@@ -602,7 +603,7 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
   const [name, setName] = useState(user.name || '')
   const [profile, setProfile] = useState(() => mergeProfile(user))
   const [settings, setSettings] = useState(() => mergeSettings(user))
-  const [status, setStatus] = useState('Verifying session...')
+  const [, setStatus] = useState('Verifying session...')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -723,7 +724,7 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
   }
 
   return (
-    <AccountShell mode={mode} user={user} status={status} onLogout={onLogout}>
+    <AccountShell mode={mode} user={user} onLogout={onLogout}>
       {mode === 'settings' ? (
         <SettingsPage
           settings={settings}

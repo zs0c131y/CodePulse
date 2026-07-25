@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import AuthPage from './components/AuthPage'
 import MarketingPage from './components/MarketingPage'
 
@@ -6,6 +7,16 @@ import MarketingPage from './components/MarketingPage'
 // are code-split and only downloaded after sign-in.
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const AccountPage = lazy(() => import('./components/AccountPage'))
+
+const legacyRoutes = new Set([
+  'signin',
+  'signup',
+  'reset-password',
+  'verify-email',
+  'dashboard',
+  'profile',
+  'settings',
+])
 
 function LoadingScreen({ label }) {
   return (
@@ -27,72 +38,64 @@ function ProtectedScreenFallback() {
   return <LoadingScreen label="Loading workspace…" />
 }
 
-const appRoutes = new Set([
-  'signin',
-  'signup',
-  'reset-password',
-  'verify-email',
-  'dashboard',
-  'profile',
-  'settings',
-])
-
-function getRoute() {
-  if (typeof window === 'undefined') return { name: 'home', params: new URLSearchParams() }
-
-  const pathName = window.location.pathname.replace(/^\/+|\/+$/g, '')
-
-  if (appRoutes.has(pathName)) {
-    return { name: pathName, params: new URLSearchParams(window.location.search) }
-  }
-
-  const hash = window.location.hash.replace('#', '')
-  const [hashName, hashQuery = ''] = hash.split('?')
-
-  if (appRoutes.has(hashName)) {
-    return { name: hashName, params: new URLSearchParams(hashQuery) }
-  }
-
-  return { name: 'home', params: new URLSearchParams(window.location.search) }
-}
-
 function apiUrl(path) {
   return `${import.meta.env.VITE_API_BASE_URL || ''}${path}`
 }
 
-function navigate(path) {
-  window.history.pushState({}, '', path)
-  window.dispatchEvent(new PopStateEvent('popstate'))
+function withLocalTheme(user) {
+  if (!user) return user
+
+  try {
+    const localTheme = localStorage.getItem('codepulse-theme')
+    if (localTheme === 'light' || localTheme === 'dark') {
+      return {
+        ...user,
+        settings: { ...(user.settings || {}), theme: localTheme },
+      }
+    }
+  } catch {
+    /* Use the server preference when browser storage is unavailable. */
+  }
+
+  return user
 }
 
-export default function App() {
-  const [route, setRoute] = useState(getRoute)
+function LegacyHashRedirect() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (location.pathname !== '/' || !window.location.hash) return
+
+    const [legacyName, legacyQuery = ''] = window.location.hash.slice(1).split('?')
+    if (!legacyRoutes.has(legacyName)) return
+
+    navigate(`/${legacyName}${legacyQuery ? `?${legacyQuery}` : ''}`, { replace: true })
+  }, [location.pathname, navigate])
+
+  return null
+}
+
+function ProtectedRoute({ authLoading, user, accessToken, children }) {
+  if (authLoading) return <LoadingScreen label="Loading session…" />
+  if (!user || !accessToken) return <Navigate to="/signin" replace />
+  return children
+}
+
+function PublicRoute({ user, accessToken, children }) {
+  if (user && accessToken) return <Navigate to="/dashboard" replace />
+  return children
+}
+
+function AppRoutes() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [user, setUser] = useState(null)
   const [accessToken, setAccessToken] = useState('')
   const [authLoading, setAuthLoading] = useState(true)
-  const isProtectedRoute = ['dashboard', 'profile', 'settings'].includes(route.name)
 
   useEffect(() => {
-    const onRouteChange = () => setRoute(getRoute())
-
-    window.addEventListener('popstate', onRouteChange)
-    window.addEventListener('hashchange', onRouteChange)
-
-    if (appRoutes.has(window.location.hash.replace('#', '').split('?')[0])) {
-      const legacyRoute = getRoute()
-      const query = legacyRoute.params.toString()
-      window.history.replaceState({}, '', `/${legacyRoute.name}${query ? `?${query}` : ''}`)
-      setRoute(getRoute())
-    }
-
-    return () => {
-      window.removeEventListener('popstate', onRouteChange)
-      window.removeEventListener('hashchange', onRouteChange)
-    }
-  }, [])
-
-  useEffect(() => {
-    const theme = user?.settings?.theme || localStorage.getItem('codepulse-theme') || 'system'
+    const theme = localStorage.getItem('codepulse-theme') || user?.settings?.theme || 'system'
     const density = user?.settings?.density || 'comfortable'
     const root = document.documentElement
 
@@ -113,6 +116,20 @@ export default function App() {
   }, [user?.settings?.density, user?.settings?.theme])
 
   useEffect(() => {
+    const onThemeChange = event => {
+      const theme = event.detail?.theme
+      if (theme !== 'light' && theme !== 'dark') return
+
+      setUser(current => current
+        ? { ...current, settings: { ...(current.settings || {}), theme } }
+        : current)
+    }
+
+    window.addEventListener('codepulse-theme-change', onThemeChange)
+    return () => window.removeEventListener('codepulse-theme-change', onThemeChange)
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
 
     async function refreshSession() {
@@ -128,7 +145,7 @@ export default function App() {
         }
 
         if (!cancelled) {
-          setUser(data.user)
+          setUser(withLocalTheme(data.user))
           setAccessToken(data.accessToken)
         }
       } catch {
@@ -150,22 +167,10 @@ export default function App() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!authLoading && isProtectedRoute && (!user || !accessToken)) {
-      navigate('/signin')
-    }
-  }, [accessToken, authLoading, isProtectedRoute, user])
-
-  useEffect(() => {
-    if (!authLoading && user && accessToken && ['home', 'signin', 'signup'].includes(route.name)) {
-      navigate('/dashboard')
-    }
-  }, [accessToken, authLoading, route.name, user])
-
   function handleAuthSuccess(data) {
-    setUser(data.user)
+    setUser(withLocalTheme(data.user))
     setAccessToken(data.accessToken)
-    navigate('/dashboard')
+    navigate('/dashboard', { replace: true })
   }
 
   async function handleLogout() {
@@ -175,58 +180,81 @@ export default function App() {
     }).catch(() => {})
     setUser(null)
     setAccessToken('')
-    navigate('/signin')
+    navigate('/signin', { replace: true })
   }
 
-  if (route.name === 'signin' || route.name === 'signup') {
-    return (
-      <AuthPage
-        mode={route.name}
-        oauthError={route.params.get('error') || ''}
-        onAuthSuccess={handleAuthSuccess}
-      />
-    )
+  function handleUserUpdate(nextUser) {
+    const theme = nextUser?.settings?.theme
+
+    if (theme === 'light' || theme === 'dark' || theme === 'system') {
+      try {
+        localStorage.setItem('codepulse-theme', theme)
+      } catch {
+        /* The user object still updates when browser storage is unavailable. */
+      }
+    }
+
+    setUser(nextUser)
   }
 
-  if (route.name === 'reset-password' || route.name === 'verify-email') {
-    return (
-      <AuthPage
-        mode={route.name}
-        token={route.params.get('token') || ''}
-        onAuthSuccess={handleAuthSuccess}
-      />
-    )
-  }
+  const authError = new URLSearchParams(location.search).get('error') || ''
+  const authToken = new URLSearchParams(location.search).get('token') || ''
 
-  if (isProtectedRoute) {
-    if (authLoading) {
-      return <LoadingScreen label="Loading session…" />
-    }
-
-    if (!user || !accessToken) {
-      return null
-    }
-
-    if (route.name === 'dashboard') {
-      return (
-        <Suspense fallback={<ProtectedScreenFallback />}>
-          <Dashboard user={user} accessToken={accessToken} onLogout={handleLogout} />
-        </Suspense>
-      )
-    }
-
-    return (
-      <Suspense fallback={<ProtectedScreenFallback />}>
-        <AccountPage
-          mode={route.name}
-          user={user}
-          accessToken={accessToken}
-          onLogout={handleLogout}
-          onUserUpdate={setUser}
+  return (
+    <>
+      <LegacyHashRedirect />
+      <Routes>
+        <Route path="/" element={<PublicRoute user={user} accessToken={accessToken}><MarketingPage /></PublicRoute>} />
+        <Route
+          path="/signin"
+          element={<PublicRoute user={user} accessToken={accessToken}><AuthPage mode="signin" oauthError={authError} onAuthSuccess={handleAuthSuccess} /></PublicRoute>}
         />
-      </Suspense>
-    )
-  }
+        <Route
+          path="/signup"
+          element={<PublicRoute user={user} accessToken={accessToken}><AuthPage mode="signup" onAuthSuccess={handleAuthSuccess} /></PublicRoute>}
+        />
+        <Route path="/reset-password" element={<AuthPage mode="reset-password" token={authToken} onAuthSuccess={handleAuthSuccess} />} />
+        <Route path="/verify-email" element={<AuthPage mode="verify-email" token={authToken} onAuthSuccess={handleAuthSuccess} />} />
+        <Route
+          path="/dashboard"
+          element={(
+            <ProtectedRoute authLoading={authLoading} user={user} accessToken={accessToken}>
+              <Suspense fallback={<ProtectedScreenFallback />}>
+                <Dashboard user={user} accessToken={accessToken} onLogout={handleLogout} />
+              </Suspense>
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/profile"
+          element={(
+            <ProtectedRoute authLoading={authLoading} user={user} accessToken={accessToken}>
+              <Suspense fallback={<ProtectedScreenFallback />}>
+                <AccountPage mode="profile" user={user} accessToken={accessToken} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
+              </Suspense>
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/settings"
+          element={(
+            <ProtectedRoute authLoading={authLoading} user={user} accessToken={accessToken}>
+              <Suspense fallback={<ProtectedScreenFallback />}>
+                <AccountPage mode="settings" user={user} accessToken={accessToken} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
+              </Suspense>
+            </ProtectedRoute>
+          )}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
+  )
+}
 
-  return <MarketingPage />
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  )
 }

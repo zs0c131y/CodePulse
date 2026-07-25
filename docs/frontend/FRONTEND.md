@@ -44,8 +44,11 @@ wiring for CodePulse.
   paint by an inline script in [frontend/index.html](../../frontend/index.html)
   reading `localStorage`, then re-synced from user settings in
   [App.jsx](../../frontend/src/App.jsx). With no stamp, the OS preference wins
-  via `prefers-color-scheme`. Density is exposed the same way as
-  `data-density="comfortable" | "compact"`.
+  via `prefers-color-scheme`. The shared `ThemeToggle` is available from
+  marketing, authentication, dashboard, profile, and settings headers; it
+  switches immediately, persists the device preference, and notifies the app
+  so authenticated account state stays synchronized. Density is exposed the
+  same way as `data-density="comfortable" | "compact"`.
 * **Charts**: recharts, themed through
   [frontend/src/lib/useChartTokens.js](../../frontend/src/lib/useChartTokens.js).
   SVG presentation attributes do not resolve `var()`, so that hook reads the
@@ -128,7 +131,8 @@ frontend/
 │   │   │   ├── card.jsx
 │   │   │   ├── combobox.jsx     # Searchable, grouped repository picker
 │   │   │   ├── input.jsx
-│   │   │   └── select.jsx
+│   │   │   ├── select.jsx
+│   │   │   └── theme-toggle.jsx # Shared light/dark mode control
 │   │   ├── AuthPage.jsx
 │   │   ├── AccountPage.jsx
 │   │   ├── Dashboard.jsx        # Dashboard shell + data orchestration

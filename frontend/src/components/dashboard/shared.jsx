@@ -3,7 +3,7 @@ import { severityMeta } from './utils'
 
 export function Tooltip({ label }) {
   return (
-    <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden whitespace-nowrap rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-overlay)] px-2.5 py-1.5 text-xs font-semibold text-[var(--ink-1)] shadow-[var(--shadow-e3)] group-hover:block group-focus-within:block">
+    <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden whitespace-nowrap rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-overlay)] px-2.5 py-1.5 text-xs font-semibold text-[var(--ink-1)] shadow-[var(--shadow-e3)] group-hover:block">
       {label}
     </span>
   )

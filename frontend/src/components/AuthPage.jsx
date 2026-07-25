@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Activity,
   ArrowLeft,
@@ -14,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import AuroraBackground from './AuroraBackground'
+import { ThemeToggle } from './ui/theme-toggle'
 
 const fieldBase =
   'w-full rounded-[var(--r-sm)] border px-11 py-3.5 text-sm outline-none transition-all placeholder:text-[var(--ink-4)]'
@@ -374,22 +376,25 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
       <header className="relative z-10">
         <div className="cp-marketing flex h-16 items-center justify-between">
-          <a href="/" className="group flex items-center gap-2.5">
+          <Link to="/" className="group flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-[var(--r-sm)] bg-[var(--surface-2)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)] transition-shadow duration-300 group-hover:shadow-[var(--shadow-e2)]">
               <Activity size={17} strokeWidth={2.5} className="text-[var(--ink-1)]" />
             </span>
             <span className="text-lg font-bold tracking-tight text-[var(--ink-1)]">
               Code<span className="text-[var(--accent-ink)]">Pulse</span>
             </span>
-          </a>
+          </Link>
 
-          <a
-            href="/"
-            className="hidden items-center gap-2 rounded-[var(--r-sm)] px-3 py-2 text-sm font-medium text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)] sm:flex"
-          >
-            <ArrowLeft size={16} />
-            Home
-          </a>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link
+              to="/"
+              className="hidden items-center gap-2 rounded-[var(--r-sm)] px-3 py-2 text-sm font-medium text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)] sm:flex"
+            >
+              <ArrowLeft size={16} />
+              Home
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -606,9 +611,9 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                     </span>
                     Remember me
                   </button>
-                  <a href="/reset-password" className="text-sm font-semibold text-[var(--accent-ink)] hover:text-[var(--accent-ink)]">
+                  <Link to="/reset-password" className="text-sm font-semibold text-[var(--accent-ink)] hover:text-[var(--accent-ink)]">
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
               ) : null}
 
