@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cd": "^0.3.3",
+    "codepulse": "file:..",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongodb": "^7.4.0",
