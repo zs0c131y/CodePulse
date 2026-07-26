@@ -35,9 +35,9 @@ export default function CoveragePanel({
   const lowest = data.reduce((min, item) => (item.percent < min.percent ? item : min), data[0])
 
   return (
-    <section className="glass-panel p-6">
-      <h2 className="text-base font-semibold text-[var(--ink-1)]">{title}</h2>
-      <p className="mt-1 text-sm text-[var(--ink-3)]">{description}</p>
+    <section className="panel p-6">
+      <h2 className="text-sm font-semibold text-[var(--ink-1)]">{title}</h2>
+      <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">{description}</p>
 
       {/*
         One nominal series, so every bar wears slot 1. Colouring each bar by

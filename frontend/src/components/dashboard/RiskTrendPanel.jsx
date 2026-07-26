@@ -32,17 +32,17 @@ export default function RiskTrendPanel({
   const low = bars[values.indexOf(Math.min(...values))]
 
   return (
-    <section className="glass-panel p-6">
+    <section className="panel p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-[var(--ink-1)]">{title}</h2>
-          <p className="mt-1 text-sm text-[var(--ink-3)]">{description}</p>
+          <h2 className="text-sm font-semibold text-[var(--ink-1)]">{title}</h2>
+          <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">{description}</p>
         </div>
 
         {/* The table view is the accessibility relief channel and the
             copy-paste path into a document. Every chart gets one. */}
         <div
-          className="glass-panel inline-flex rounded-[var(--r-md)] p-1 shadow-inner"
+          className="inline-flex rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-2)] p-0.5"
           role="group"
           aria-label="Risk trend view"
         >
@@ -54,8 +54,8 @@ export default function RiskTrendPanel({
               aria-pressed={view === option}
               className={
                 view === option
-                  ? 'rounded-[var(--r-xs)] bg-[var(--surface-3)] px-2.5 py-1 text-xs font-semibold capitalize text-[var(--ink-1)]'
-                  : 'rounded-[var(--r-xs)] px-2.5 py-1 text-xs font-semibold capitalize text-[var(--ink-3)] transition-colors duration-[var(--d-1)] hover:text-[var(--ink-1)]'
+                  ? 'rounded-[var(--r-sm)] bg-[var(--surface-1)] px-2.5 py-1 text-xs font-medium capitalize text-[var(--ink-1)] shadow-[var(--shadow-e1)]'
+                  : 'rounded-[var(--r-sm)] px-2.5 py-1 text-xs font-medium capitalize text-[var(--ink-3)] transition-colors duration-[var(--d-1)] hover:text-[var(--ink-1)]'
               }
             >
               {option}

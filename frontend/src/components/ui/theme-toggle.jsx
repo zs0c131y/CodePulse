@@ -46,7 +46,7 @@ function ThemeToggle({ className = '', showLabel = false }) {
     <button
       type="button"
       onClick={toggleTheme}
-      className={`inline-flex h-10 items-center justify-center gap-2 rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-1)] px-3 text-sm font-medium text-[var(--ink-2)] transition-colors hover:border-[var(--line-3)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)] ${className}`}
+      className={`inline-flex h-9 items-center justify-center gap-2 rounded-[var(--r-md)] px-2.5 text-sm font-medium text-[var(--ink-3)] transition-colors duration-[var(--d-2)] hover:bg-[var(--surface-wash)] hover:text-[var(--ink-1)] ${className}`}
       aria-label={`Switch to ${nextTheme} mode`}
       title={`Switch to ${nextTheme} mode`}
     >

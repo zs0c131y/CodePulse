@@ -11,11 +11,11 @@ export default function RecommendationPanel({
   }
 
   return (
-    <section className="glass-panel p-6">
+    <section className="panel p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-[var(--ink-1)]">AI recommendations</h2>
-          <p className="mt-1 text-sm text-[var(--ink-3)]">
+          <h2 className="text-sm font-semibold text-[var(--ink-1)]">AI recommendations</h2>
+          <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">
             Prioritized remediation work with explainable evidence.
           </p>
         </div>
@@ -25,7 +25,7 @@ export default function RecommendationPanel({
       <ul className="mt-5 grid gap-4 xl:grid-cols-3">
         {items.map(item => (
           <li key={item.id || item.title}>
-            <article className="glass-panel h-full p-5 transition-all hover:-translate-y-[2px] hover:shadow-[var(--shadow-e3)]">
+            <article className="panel-2 panel-interactive h-full p-4">
               <div className="flex items-start justify-between gap-3">
                 <h3 className="font-semibold text-[var(--ink-1)]">{item.title}</h3>
                 {/* Impact reuses the severity scale: it grades consequence. */}

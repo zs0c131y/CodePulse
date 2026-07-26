@@ -41,12 +41,11 @@ CodePulse/
 │   ├── public/                # Static browser assets
 │   ├── src/                   # Frontend source code
 │   │   ├── api/               # Backend API client modules
-│   │   ├── assets/            # Images, fonts, and static SVGs
 │   │   ├── components/        # Reusable UI components (incl. dashboard/ panels)
 │   │   ├── demo/              # Dashboard demo-mode fallback data
+│   │   ├── lib/               # Token bridges, scroll reveal, class merging
 │   │   ├── App.jsx            # Client-side route controller
-│   │   ├── App.css            # Component and layout styling
-│   │   ├── index.css          # Global CSS and Tailwind imports
+│   │   ├── index.css          # Design tokens, Tailwind imports, utilities
 │   │   └── main.jsx           # React entry point
 │   ├── index.html             # Vite HTML shell
 │   └── vite.config.js         # Frontend build and dev proxy config

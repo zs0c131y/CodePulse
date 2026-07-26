@@ -3,7 +3,7 @@ import { severityMeta } from './utils'
 
 export function Tooltip({ label }) {
   return (
-    <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden whitespace-nowrap rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-overlay)] px-2.5 py-1.5 text-xs font-semibold text-[var(--ink-1)] shadow-[var(--shadow-e3)] group-hover:block">
+    <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden whitespace-nowrap rounded-[var(--r-sm)] bg-[var(--contrast)] px-2.5 py-1.5 text-xs font-medium text-[var(--contrast-on)] shadow-[var(--shadow-e2)] group-hover:block">
       {label}
     </span>
   )
@@ -128,8 +128,8 @@ export function EmptyPanel({ title, description, icon: Icon = CircleAlert, actio
       <div className="flex gap-3">
         <Icon size={18} className="mt-0.5 shrink-0 text-[var(--ink-4)]" aria-hidden="true" />
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-[var(--ink-1)]">{title}</h2>
-          <p className="mt-1 max-w-[52ch] text-sm leading-6 text-[var(--ink-3)]">{description}</p>
+          <h2 className="text-sm font-semibold text-[var(--ink-1)]">{title}</h2>
+          <p className="mt-1 max-w-[52ch] text-[0.8125rem] leading-6 text-[var(--ink-3)]">{description}</p>
           {action}
         </div>
       </div>

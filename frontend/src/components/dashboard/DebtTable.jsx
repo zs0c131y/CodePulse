@@ -13,11 +13,11 @@ export default function DebtTable({
   }
 
   return (
-    <section className="glass-panel overflow-hidden">
+    <section className="panel overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-1)] p-6">
         <div>
-          <h2 className="text-base font-semibold text-[var(--ink-1)]">{title}</h2>
-          <p className="mt-1 text-sm text-[var(--ink-3)]">{description}</p>
+          <h2 className="text-sm font-semibold text-[var(--ink-1)]">{title}</h2>
+          <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">{description}</p>
         </div>
       </div>
 

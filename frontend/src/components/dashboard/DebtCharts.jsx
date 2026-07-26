@@ -50,9 +50,9 @@ export default function DebtCharts({
 
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-      <section className="glass-panel p-6">
-        <h2 className="text-base font-semibold text-[var(--ink-1)]">Complexity by module</h2>
-        <p className="mt-1 text-sm text-[var(--ink-3)]">
+      <section className="panel p-6">
+        <h2 className="text-sm font-semibold text-[var(--ink-1)]">Complexity by module</h2>
+        <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">
           Ten highest-complexity modules. Risk level is in the table below.
         </p>
         {/*
@@ -99,9 +99,9 @@ export default function DebtCharts({
         </div>
       </section>
 
-      <section className="glass-panel p-6">
-        <h2 className="text-base font-semibold text-[var(--ink-1)]">Churn vs duplication</h2>
-        <p className="mt-1 text-sm text-[var(--ink-3)]">Change frequency and duplicated code per module.</p>
+      <section className="panel p-6">
+        <h2 className="text-sm font-semibold text-[var(--ink-1)]">Churn vs duplication</h2>
+        <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">Change frequency and duplicated code per module.</p>
 
         <div className="mt-6 h-72" role="img" aria-label="Churn versus duplication per module, as a percentage.">
           <ResponsiveContainer width="100%" height="100%">

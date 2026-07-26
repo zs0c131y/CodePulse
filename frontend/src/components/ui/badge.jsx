@@ -8,7 +8,7 @@ import { cn } from '../../lib/utils'
  * and label. Colour must never carry severity alone. Spec: docs/design.md §3.1
  */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[0.75rem] font-medium tracking-wide transition-colors',
+  'inline-flex items-center gap-1.5 rounded-[var(--r-xs)] border px-2 py-0.5 text-[0.75rem] font-medium transition-colors',
   {
     variants: {
       variant: {

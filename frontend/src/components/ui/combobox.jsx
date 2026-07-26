@@ -73,7 +73,7 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
         aria-expanded={open}
         aria-controls={listboxId}
         onClick={() => setOpen(current => !current)}
-        className="flex h-11 w-full items-center gap-3 rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-2)] px-3 text-left text-sm transition hover:border-[var(--line-3)] focus-visible:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-10 w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-1)] px-3 text-left text-sm transition-colors duration-[var(--d-2)] hover:border-[var(--line-3)] focus-visible:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Search size={16} className="shrink-0 text-[var(--ink-3)]" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate font-medium text-[var(--ink-1)]">{selected?.label || placeholder}</span>
@@ -82,7 +82,7 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-2 w-full min-w-[19rem] overflow-hidden rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-1)] p-2 shadow-[var(--shadow-e3)]">
+        <div className="absolute z-50 mt-2 w-full min-w-[19rem] overflow-hidden rounded-[var(--r-lg)] border border-[var(--line-2)] bg-[var(--surface-1)] p-1.5 shadow-[var(--shadow-e3)]">
           <div className="flex items-center gap-2 border-b border-[var(--line-1)] px-2 pb-2">
             <Search size={15} className="text-[var(--ink-3)]" aria-hidden="true" />
             <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} placeholder="Search repositories…" className="h-8 min-w-0 flex-1 bg-transparent text-sm text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-4)]" />
