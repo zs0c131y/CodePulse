@@ -145,6 +145,11 @@
   --pad-row: 0.5rem;
 }
 
+:root[data-density="spacious"] {
+  --pad-card: 1.5rem;
+  --pad-row: 1rem;
+}
+
 /* -- Light theme: paper-white workspace, same architecture ---------------- */
 
 :root[data-theme="light"] {
@@ -411,6 +416,11 @@
    ========================================================================== */
 
 @layer utilities {
+  /* Tailwind v4 spacing utilities resolve through --spacing. Scope the
+     account preference to authenticated product surfaces only. */
+  :root[data-density="compact"] .density-surface { --spacing: 0.22rem; }
+  :root[data-density="spacious"] .density-surface { --spacing: 0.28rem; }
+
   .cp-prose { width: min(100% - 2rem, 44rem); margin-inline: auto; }
   .cp-marketing { width: min(100% - 2rem, 76rem); margin-inline: auto; }
   .cp-app { width: min(100% - 2rem, 92rem); margin-inline: auto; }

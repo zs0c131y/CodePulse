@@ -182,7 +182,8 @@ backend from an API-only server into one that also serves the built frontend:
    (see [frontend/vite.config.js](../../frontend/vite.config.js)), so the
    compiled HTML/JS/CSS land in `dist/` at the project root, alongside
    `backend/` and `frontend/`.
-2. Start the backend with `NODE_ENV=production node backend/index.js`.
+2. Start the backend with `NODE_ENV=production npm start` from the repository
+   root (or `npm start` inside `backend/`).
    [backend/src/app.js](../../backend/src/app.js) then:
    * Serves static files (JS, CSS, images) from `dist/` via
      `express.static`.
@@ -207,8 +208,9 @@ starting the backend in production.
 
 Implemented in [backend/src/features/auth/controler/credentials.controller.js](../../backend/src/features/auth/controler/credentials.controller.js).
 
-The backend applies security headers, credentialed CORS for configured origins,
-global request rate limiting, auth-route rate limiting, and Mongo-backed
+The backend applies security headers, credentialed CORS for configured origins
+(`GET`, `POST`, `PATCH`, `DELETE`, and preflight requests), global request rate
+limiting, auth-route rate limiting, and Mongo-backed
 brute-force lockouts for repeated failed sign-in attempts. In production,
 startup fails before `app.listen()` if MongoDB indexes cannot be created,
 including the unique email index and auth token indexes. In local development,

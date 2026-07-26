@@ -52,9 +52,11 @@ wiring for CodePulse.
   via `prefers-color-scheme`. The shared `ThemeToggle` is available from
   authentication, dashboard, profile, and settings headers; it switches
   immediately, persists the device preference, and notifies the app so
-  authenticated account state stays synchronized. The Journal landing has a
-  fixed paper palette and intentionally ships no toggle. Density is exposed
-  the same way as `data-density="comfortable" | "compact"`.
+  authenticated account state stays synchronized. System theme changes are
+  followed while the preference is `system`. The Journal landing has a fixed
+  paper palette and intentionally ships no toggle. Density is exposed the same
+  way as `data-density="comfortable" | "compact" | "spacious"` and visibly
+  adjusts spacing across authenticated product surfaces.
 * **Charts**: recharts, themed through
   [frontend/src/lib/useChartTokens.js](../../frontend/src/lib/useChartTokens.js).
   SVG presentation attributes do not resolve `var()`, so that hook reads the
@@ -65,7 +67,8 @@ wiring for CodePulse.
   [dashboard/shared.jsx](../../frontend/src/components/dashboard/shared.jsx),
   which pairs the colour with a required icon and label. Colour must never
   carry severity alone.
-* **Routing**: Lightweight client-side path routing in
+* **Routing**: Lightweight, dependency-free client-side history routing in
+  [frontend/src/lib/router.jsx](../../frontend/src/lib/router.jsx), composed in
   [frontend/src/App.jsx](../../frontend/src/App.jsx). Legacy hash routes are
   normalized for backward compatibility. Authenticated screens (`Dashboard`,
   `AccountPage`) are lazy-loaded with `React.lazy` so the marketing bundle
@@ -133,9 +136,11 @@ frontend/
 │   │   │   ├── button.jsx
 │   │   │   ├── card.jsx
 │   │   │   ├── combobox.jsx     # Searchable, grouped repository picker
+│   │   │   ├── floating-menu.js # Viewport positioning shared by custom menus
 │   │   │   ├── input.jsx
+│   │   │   ├── provider-marks.jsx # Shared GitHub and GitLab brand marks
 │   │   │   ├── pulse-mark.jsx   # The CodePulse mark (product + journal variants)
-│   │   │   ├── select.jsx
+│   │   │   ├── select.jsx       # Keyboard-accessible custom select menu
 │   │   │   └── theme-toggle.jsx # Shared light/dark mode control
 │   │   ├── AppChrome.jsx        # Shared authenticated top bar
 │   │   ├── AuthPage.jsx
@@ -146,6 +151,8 @@ frontend/
 │   ├── demo/
 │   │   └── dashboardDemoData.js  # Demo-mode fallback data (never used in live mode)
 │   ├── lib/
+│   │   ├── router.jsx             # Dependency-free history router components
+│   │   ├── router-context.js      # Router context and location/navigation hooks
 │   │   ├── useChartTokens.js    # Token bridge for recharts SVG attributes
 │   │   ├── useReveal.js         # IntersectionObserver scroll reveal
 │   │   └── utils.js
@@ -234,6 +241,8 @@ API"):
   recently updated repository, and renders its persisted totals — so the
   last-scan view survives page refreshes (nothing is session-only).
 * The repository dropdown lists the user's real repositories from the API.
+  It renders in a viewport-positioned overlay so the searchable menu is not
+  clipped by the repository console or surrounding panels.
 * Each tab fetches its own analytics endpoint for the selected repository
   (`GET /api/repositories/:id/scores`, `/debt`, `/drift`,
   `/recommendations`). Every request settles independently: an endpoint that
@@ -280,9 +289,10 @@ mode never reads it.
 
 Authenticated screens share the [AppChrome.jsx](../../frontend/src/components/AppChrome.jsx)
 top bar (brand, workspace navigation, screen actions, theme toggle, avatar,
-sign-out). The dashboard adds a sticky underline tab strip (repository
-identity + analysis status on the right) and a terminal-framed **repository
-console** holding the picker, scan controls, scan output, and meta row. KPIs
+sign-out). The dashboard notification action opens the Notifications section
+of Settings. The dashboard adds a keyboard-navigable sticky underline tab
+strip (repository identity + analysis status on the right) and a terminal-framed
+**repository console** holding the picker, scan controls, scan output, and meta row. KPIs
 render as borderless [MetricStrip.jsx](../../frontend/src/components/dashboard/MetricStrip.jsx)
 cells separated by hairlines. Dashboard grids use single-column layouts until
 enough viewport width is available, and the highest-risk module table
@@ -304,10 +314,20 @@ reuse the protected-session flow and shared account layout.
 * **Settings**: Uses clustered Interface, Notifications, Connected code hosts,
   and Security cards. Theme, density, scan cadence, AI summary detail, and
   notification preferences persist through `PATCH /api/auth/settings`.
+  Timezone and settings choices use the shared custom select rather than
+  browser-native dropdowns. Notification switches use fixed geometry so their
+  thumbs remain aligned at every density. Theme and density preview
+  immediately; the screen tracks unsaved changes, provides a working discard
+  action, and only enables Save when there is something to persist. Turning
+  off the master email preference disables its dependent digest, risk, and
+  drift controls while preserving those saved sub-preferences.
 * **Connected code hosts**: GitHub and GitLab cards start OAuth with expanded
   repository-read scopes. The backend retains an encrypted provider token and
   the dashboard fetches available provider repositories into its “Connected
   repository” dropdown. Choosing one fills the scan URL; the existing analyzer
-  still accepts public GitHub URLs.
+  still accepts public GitHub URLs. OAuth connection success and failure
+  redirects are surfaced inline on Settings, and provider links honor
+  `VITE_API_BASE_URL` for split frontend/API deployments. Authentication and
+  connection cards share the official GitHub and GitLab brand marks.
 * The dashboard links to both routes from the sidebar and header controls.
 * Password changes continue to use the reset-email flow at `/reset-password`.

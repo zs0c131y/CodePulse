@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from './lib/router'
+import { useLocation, useNavigate } from './lib/router-context'
 import AuthPage from './components/AuthPage'
 import MarketingPage from './components/MarketingPage'
 
@@ -42,19 +43,23 @@ function apiUrl(path) {
   return `${import.meta.env.VITE_API_BASE_URL || ''}${path}`
 }
 
+function storedPreference(key) {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
 function withLocalTheme(user) {
   if (!user) return user
 
-  try {
-    const localTheme = localStorage.getItem('codepulse-theme')
-    if (localTheme === 'light' || localTheme === 'dark') {
-      return {
-        ...user,
-        settings: { ...(user.settings || {}), theme: localTheme },
-      }
+  const localTheme = storedPreference('codepulse-theme')
+  if (localTheme === 'light' || localTheme === 'dark') {
+    return {
+      ...user,
+      settings: { ...(user.settings || {}), theme: localTheme },
     }
-  } catch {
-    /* Use the server preference when browser storage is unavailable. */
   }
 
   return user
@@ -82,7 +87,8 @@ function ProtectedRoute({ authLoading, user, accessToken, children }) {
   return children
 }
 
-function PublicRoute({ user, accessToken, children }) {
+function PublicRoute({ authLoading, user, accessToken, children }) {
+  if (authLoading) return <LoadingScreen label="Loading session…" />
   if (user && accessToken) return <Navigate to="/dashboard" replace />
   return children
 }
@@ -95,15 +101,20 @@ function AppRoutes() {
   const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
-    const theme = localStorage.getItem('codepulse-theme') || user?.settings?.theme || 'system'
+    const theme = storedPreference('codepulse-theme') || user?.settings?.theme || 'system'
     const density = user?.settings?.density || 'comfortable'
     const root = document.documentElement
 
-    const resolvedTheme = theme === 'system'
-      ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
-      : theme
-    root.dataset.theme = resolvedTheme
-    root.dataset.density = density
+    const colorScheme = window.matchMedia('(prefers-color-scheme: light)')
+    const applyTheme = () => {
+      root.dataset.theme = theme === 'system'
+        ? (colorScheme.matches ? 'light' : 'dark')
+        : theme
+      root.dataset.density = density
+    }
+
+    applyTheme()
+    if (theme === 'system') colorScheme.addEventListener('change', applyTheme)
 
     // Persisted so the pre-paint script in index.html can stamp both before
     // first paint on the next load.
@@ -113,6 +124,8 @@ function AppRoutes() {
     } catch {
       /* Storage blocked; the in-memory stamp above still applies. */
     }
+
+    return () => colorScheme.removeEventListener('change', applyTheme)
   }, [user?.settings?.density, user?.settings?.theme])
 
   useEffect(() => {
@@ -204,14 +217,14 @@ function AppRoutes() {
     <>
       <LegacyHashRedirect />
       <Routes>
-        <Route path="/" element={<PublicRoute user={user} accessToken={accessToken}><MarketingPage /></PublicRoute>} />
+        <Route path="/" element={<PublicRoute authLoading={authLoading} user={user} accessToken={accessToken}><MarketingPage /></PublicRoute>} />
         <Route
           path="/signin"
-          element={<PublicRoute user={user} accessToken={accessToken}><AuthPage mode="signin" oauthError={authError} onAuthSuccess={handleAuthSuccess} /></PublicRoute>}
+          element={<PublicRoute authLoading={authLoading} user={user} accessToken={accessToken}><AuthPage mode="signin" oauthError={authError} onAuthSuccess={handleAuthSuccess} /></PublicRoute>}
         />
         <Route
           path="/signup"
-          element={<PublicRoute user={user} accessToken={accessToken}><AuthPage mode="signup" onAuthSuccess={handleAuthSuccess} /></PublicRoute>}
+          element={<PublicRoute authLoading={authLoading} user={user} accessToken={accessToken}><AuthPage mode="signup" onAuthSuccess={handleAuthSuccess} /></PublicRoute>}
         />
         <Route path="/reset-password" element={<AuthPage mode="reset-password" token={authToken} onAuthSuccess={handleAuthSuccess} />} />
         <Route path="/verify-email" element={<AuthPage mode="verify-email" token={authToken} onAuthSuccess={handleAuthSuccess} />} />

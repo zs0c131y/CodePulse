@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { Link } from '../lib/router'
+import { useLocation } from '../lib/router-context'
 import {
   AlertTriangle,
   Bell,
   BriefcaseBusiness,
   CheckCircle2,
-  ChevronDown,
   Clock3,
   Code2,
   Database,
   Gauge,
-  GitFork,
-  Boxes,
   KeyRound,
   LockKeyhole,
   Mail,
@@ -28,6 +26,7 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
+import { GitHubMark, GitLabMark } from './ui/provider-marks'
 import { getUsageSnapshot } from '../api/usage'
 import { listIntegrations } from '../api/integrations'
 import { cn } from '../lib/utils'
@@ -93,20 +92,12 @@ function TextInput({ className, ...props }) {
 }
 
 function SelectInput({ className, ...props }) {
-  return (
-    <span className="relative block">
-      <Select
-        {...props}
-        className={cn('appearance-none pr-10', className)}
-      />
-      <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-4)]" />
-    </span>
-  )
+  return <Select {...props} className={className} />
 }
 
-function Card({ title, description, children, footer = null }) {
+function Card({ id, title, description, children, footer = null }) {
   return (
-    <section className="panel overflow-hidden">
+    <section id={id} tabIndex={id ? -1 : undefined} className="panel scroll-mt-20 overflow-hidden">
       <div className="p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-[var(--ink-1)]">{title}</h2>
         {description && <p className="mt-1 text-[0.8125rem] leading-6 text-[var(--ink-3)]">{description}</p>}
@@ -121,9 +112,9 @@ function Card({ title, description, children, footer = null }) {
   )
 }
 
-function Toggle({ checked, onChange, title, description, icon: Icon }) {
+function Toggle({ checked, onChange, title, description, icon: Icon, disabled = false }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
+    <div className={`flex items-center justify-between gap-4 py-3 ${disabled ? 'opacity-50' : ''}`}>
       <span className="flex min-w-0 gap-3">
         {Icon && <Icon size={16} className="mt-0.5 shrink-0 text-[var(--ink-4)]" />}
         <span>
@@ -136,15 +127,22 @@ function Toggle({ checked, onChange, title, description, icon: Icon }) {
         role="switch"
         aria-checked={checked}
         aria-label={title}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-[var(--d-2)] ${
-          checked ? 'bg-[var(--accent)]' : 'bg-[var(--surface-3)]'
-        }`}
+        className="relative h-10 w-11 shrink-0 rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--accent-wash)] disabled:cursor-not-allowed"
       >
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-[var(--d-2)] ${
-            checked ? 'translate-x-4.5' : 'translate-x-0.5'
+          className={`absolute inset-x-0 top-2 h-6 rounded-full border transition-colors duration-[var(--d-2)] ${
+            checked
+              ? 'border-[var(--accent)] bg-[var(--accent)]'
+              : 'border-[var(--line-2)] bg-[var(--surface-3)]'
           }`}
+          aria-hidden="true"
+        />
+        <span
+          className="absolute top-2.5 h-5 w-5 rounded-full bg-[var(--accent-on)] shadow-[var(--shadow-e1)] transition-[left] duration-[var(--d-2)]"
+          style={{ left: checked ? 'calc(100% - 1.375rem)' : '0.125rem' }}
+          aria-hidden="true"
         />
       </button>
     </div>
@@ -255,14 +253,10 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
             <Field label="Timezone" icon={Clock3}>
               <SelectInput
                 value={profile.timezone}
-                onChange={event => setProfile(current => ({ ...current, timezone: event.target.value }))}
-              >
-                {timezones.map(zone => (
-                  <option key={zone} value={zone}>
-                    {zone}
-                  </option>
-                ))}
-              </SelectInput>
+                onChange={value => setProfile(current => ({ ...current, timezone: value }))}
+                options={timezones.map(zone => ({ value: zone, label: zone }))}
+                ariaLabel="Timezone"
+              />
             </Field>
             <Field label="Location" icon={MapPin}>
               <TextInput
@@ -334,7 +328,18 @@ function ProfilePage({ user, profile, setProfile, name, setName, onSave, saving,
   )
 }
 
-function SettingsPage({ settings, setSettings, onSave, saving, message, error, integrations, integrationsLoading }) {
+function SettingsPage({
+  settings,
+  setSettings,
+  onSave,
+  onDiscard,
+  dirty,
+  saving,
+  message,
+  error,
+  integrations,
+  integrationsLoading,
+}) {
   return (
     <div className="space-y-5">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -342,10 +347,15 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
           <h1 className="text-xl font-semibold tracking-[-0.02em] text-[var(--ink-1)]">Settings</h1>
           <p className="mt-1 text-sm text-[var(--ink-3)]">Density, scan cadence, AI answer shape, and notifications.</p>
         </div>
-        <Button type="button" onClick={onSave} disabled={saving} size="sm">
-          <Save size={14} />
-          {saving ? 'Saving…' : 'Save settings'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button type="button" onClick={onDiscard} disabled={saving || !dirty} variant="outline" size="sm">
+            Discard changes
+          </Button>
+          <Button type="button" onClick={onSave} disabled={saving || !dirty} size="sm">
+            <Save size={14} />
+            {saving ? 'Saving…' : dirty ? 'Save settings' : 'Settings saved'}
+          </Button>
+        </div>
       </div>
 
       <Card title="Interface" description="How the workspace looks and feels on this account.">
@@ -381,39 +391,45 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
           <Field label="Dashboard density" icon={SlidersHorizontal}>
             <SelectInput
               value={settings.density}
-              onChange={event => setSettings(current => ({ ...current, density: event.target.value }))}
-            >
-              <option value="compact">Compact</option>
-              <option value="comfortable">Comfortable</option>
-              <option value="spacious">Spacious</option>
-            </SelectInput>
+              onChange={value => setSettings(current => ({ ...current, density: value }))}
+              options={[
+                { value: 'compact', label: 'Compact' },
+                { value: 'comfortable', label: 'Comfortable' },
+                { value: 'spacious', label: 'Spacious' },
+              ]}
+              ariaLabel="Dashboard density"
+            />
           </Field>
 
           <Field label="Default scan frequency" icon={Gauge}>
             <SelectInput
               value={settings.scan_frequency}
-              onChange={event => setSettings(current => ({ ...current, scan_frequency: event.target.value }))}
-            >
-              <option value="manual">Manual only</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-            </SelectInput>
+              onChange={value => setSettings(current => ({ ...current, scan_frequency: value }))}
+              options={[
+                { value: 'manual', label: 'Manual only' },
+                { value: 'daily', label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
+              ]}
+              ariaLabel="Default scan frequency"
+            />
           </Field>
 
           <Field label="AI summary detail" icon={Sparkles}>
             <SelectInput
               value={settings.ai_summary_level}
-              onChange={event => setSettings(current => ({ ...current, ai_summary_level: event.target.value }))}
-            >
-              <option value="concise">Concise</option>
-              <option value="balanced">Balanced</option>
-              <option value="detailed">Detailed</option>
-            </SelectInput>
+              onChange={value => setSettings(current => ({ ...current, ai_summary_level: value }))}
+              options={[
+                { value: 'concise', label: 'Concise' },
+                { value: 'balanced', label: 'Balanced' },
+                { value: 'detailed', label: 'Detailed' },
+              ]}
+              ariaLabel="AI summary detail"
+            />
           </Field>
         </div>
       </Card>
 
-      <Card title="Notifications" description="What CodePulse emails you about.">
+      <Card id="notifications" title="Notifications" description="What CodePulse emails you about.">
         <div className="divide-y divide-[var(--line-1)]">
           <Toggle
             checked={settings.email_notifications}
@@ -428,6 +444,7 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
             title="Weekly engineering digest"
             description="Repository health movement, ownership risk, and drift closures."
             icon={Bell}
+            disabled={!settings.email_notifications}
           />
           <Toggle
             checked={settings.risk_alerts}
@@ -435,6 +452,7 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
             title="Risk threshold alerts"
             description="Modules crossing high or critical maintainability thresholds."
             icon={ShieldCheck}
+            disabled={!settings.email_notifications}
           />
           <Toggle
             checked={settings.drift_alerts}
@@ -442,13 +460,14 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
             title="Documentation drift alerts"
             description="Implementation changes that invalidate important docs or runbooks."
             icon={Code2}
+            disabled={!settings.email_notifications}
           />
         </div>
       </Card>
 
       <Card title="Connected code hosts" description="Connect a provider once, then pick its repositories from the dashboard.">
         <div className="grid gap-3 md:grid-cols-2">
-          {[{ provider: 'github', label: 'GitHub', icon: GitFork, href: '/auth/github' }, { provider: 'gitlab', label: 'GitLab', icon: Boxes, href: '/auth/gitlab' }].map(item => {
+          {[{ provider: 'github', label: 'GitHub', icon: GitHubMark, href: '/auth/github' }, { provider: 'gitlab', label: 'GitLab', icon: GitLabMark, href: '/auth/gitlab' }].map(item => {
             const integration = integrations.find(value => value.provider === item.provider)
             const connected = Boolean(integration?.connected)
             const Icon = item.icon
@@ -456,7 +475,7 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
               <div key={item.provider} className="panel-2 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <span className="flex h-9 w-9 items-center justify-center rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-1)] text-[var(--ink-1)]">
-                    <Icon size={17} />
+                    <Icon className={`h-[1.125rem] w-[1.125rem] ${item.provider === 'github' ? 'text-[var(--provider-github)]' : 'text-[var(--provider-gitlab)]'}`} />
                   </span>
                   <span className={`rounded-[var(--r-xs)] border px-1.5 py-0.5 text-[0.6875rem] font-medium ${connected ? 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]' : 'border-[var(--line-2)] bg-[var(--surface-1)] text-[var(--ink-3)]'}`}>
                     {integrationsLoading ? 'Checking…' : connected ? 'Connected' : 'Not connected'}
@@ -466,8 +485,8 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
                 <p className="mt-1 min-h-10 text-[0.8125rem] leading-5 text-[var(--ink-3)]">
                   {connected ? `Connected as ${integration.accountName || item.label}.` : `Bring your ${item.label} repositories into CodePulse.`}
                 </p>
-                <Button href={item.href} asChild variant={connected ? 'outline' : 'default'} size="sm" className="mt-3 w-full">
-                  <a href={item.href}>{connected ? 'Reconnect' : `Connect ${item.label}`}</a>
+                <Button asChild variant={connected ? 'outline' : 'default'} size="sm" className="mt-3 w-full">
+                  <a href={apiUrl(item.href)}>{connected ? 'Reconnect' : `Connect ${item.label}`}</a>
                 </Button>
               </div>
             )
@@ -495,6 +514,7 @@ function SettingsPage({ settings, setSettings, onSave, saving, message, error, i
 }
 
 export default function AccountPage({ mode, user, accessToken, onLogout, onUserUpdate }) {
+  const location = useLocation()
   const [name, setName] = useState(user.name || '')
   const [profile, setProfile] = useState(() => mergeProfile(user))
   const [settings, setSettings] = useState(() => mergeSettings(user))
@@ -505,12 +525,64 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
   const [usage, setUsage] = useState(null)
   const [integrations, setIntegrations] = useState([])
   const [integrationsLoading, setIntegrationsLoading] = useState(mode === 'settings')
+  const savedSettings = useMemo(() => mergeSettings(user), [user])
+  const settingsDirty = useMemo(
+    () => JSON.stringify(settings) !== JSON.stringify(savedSettings),
+    [savedSettings, settings],
+  )
 
   useEffect(() => {
     setName(user.name || '')
     setProfile(mergeProfile(user))
     setSettings(mergeSettings(user))
   }, [user])
+
+  useLayoutEffect(() => {
+    if (mode !== 'settings') return undefined
+
+    const root = document.documentElement
+    const colorScheme = window.matchMedia('(prefers-color-scheme: light)')
+    const apply = preference => {
+      root.dataset.theme = preference.theme === 'system'
+        ? (colorScheme.matches ? 'light' : 'dark')
+        : preference.theme
+      root.dataset.density = preference.density
+    }
+    const followSystemTheme = () => {
+      if (settings.theme === 'system') apply(settings)
+    }
+
+    apply(settings)
+    colorScheme.addEventListener('change', followSystemTheme)
+    return () => {
+      colorScheme.removeEventListener('change', followSystemTheme)
+      apply(savedSettings)
+    }
+  }, [mode, savedSettings, settings])
+
+  useEffect(() => {
+    if (mode !== 'settings') return
+
+    const params = new URLSearchParams(location.search)
+    const providerError = params.get('error')
+    const connectedProvider = params.get('connected')
+
+    if (providerError) {
+      setMessage('')
+      setError(providerError)
+    } else if (connectedProvider === 'github' || connectedProvider === 'gitlab') {
+      setError('')
+      setMessage(`${connectedProvider === 'github' ? 'GitHub' : 'GitLab'} connected successfully.`)
+    }
+
+    if (location.hash === '#notifications') {
+      requestAnimationFrame(() => {
+        const section = document.getElementById('notifications')
+        section?.scrollIntoView({ block: 'start' })
+        section?.focus({ preventScroll: true })
+      })
+    }
+  }, [location.hash, location.search, mode])
 
   useEffect(() => {
     let cancelled = false
@@ -618,13 +690,28 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
     submitUpdate('/api/auth/settings', { settings }, 'Settings saved.')
   }
 
+  function handleSettingsChange(updater) {
+    setSettings(current => typeof updater === 'function' ? updater(current) : updater)
+    setMessage('')
+    setError('')
+  }
+
+  function handleSettingsDiscard() {
+    setSettings(savedSettings)
+    setMessage('Unsaved changes discarded.')
+    setError('')
+  }
+
   return (
-    <AccountShell mode={mode} user={user} onLogout={onLogout}>
+    <div className="density-surface">
+      <AccountShell mode={mode} user={user} onLogout={onLogout}>
       {mode === 'settings' ? (
         <SettingsPage
           settings={settings}
-          setSettings={setSettings}
+          setSettings={handleSettingsChange}
           onSave={handleSettingsSave}
+          onDiscard={handleSettingsDiscard}
+          dirty={settingsDirty}
           saving={saving}
           message={message}
           error={error}
@@ -645,6 +732,7 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
           usage={usage}
         />
       )}
-    </AccountShell>
+      </AccountShell>
+    </div>
   )
 }

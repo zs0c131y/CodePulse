@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from '../lib/router'
 import { ArrowRight, ArrowUpRight, Menu, X } from 'lucide-react'
 import Reveal from './Reveal'
 import { PulseMark } from './ui/pulse-mark'

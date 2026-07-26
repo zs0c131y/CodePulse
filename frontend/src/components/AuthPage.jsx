@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from '../lib/router'
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { ThemeToggle } from './ui/theme-toggle'
 import { PulseMark } from './ui/pulse-mark'
+import { GitHubMark, GitLabMark } from './ui/provider-marks'
 
 /*
  * Product authentication — the quiet product aesthetic: one centered column,
@@ -31,29 +32,13 @@ const inputClass =
 
 const chipClass = 'border-[var(--line-2)] bg-[var(--surface-2)] text-[var(--ink-3)]'
 
-function GitHubMark({ className }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-      <path
-        fillRule="evenodd"
-        d="M12 2C6.48 2 2 6.59 2 12.25c0 4.52 2.86 8.36 6.84 9.72.5.09.68-.22.68-.49 0-.24-.01-1.05-.01-1.9-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.36-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.98c.85 0 1.7.12 2.5.34 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.48-.01 2.81 0 .27.18.59.69.49A10.18 10.18 0 0 0 22 12.25C22 6.59 17.52 2 12 2Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
-
-function GitLabMark({ className }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-      <path d="m23.6 9.59-.03-.09L20.3.98a.85.85 0 0 0-.34-.4.87.87 0 0 0-1.19.3l-2.2 6.75H7.43L5.23.88A.87.87 0 0 0 4.04.58a.85.85 0 0 0-.34.4L.43 9.5l-.03.09a6.07 6.07 0 0 0 2.01 7.01l.04.03 4.98 3.73 2.46 1.86 1.5 1.13a1.01 1.01 0 0 0 1.22 0l1.5-1.13 2.46-1.86 5.01-3.75.01-.01A6.07 6.07 0 0 0 23.6 9.59Z" />
-    </svg>
-  )
-}
-
 function getRememberedEmail() {
   if (typeof window === 'undefined') return ''
-  return window.localStorage.getItem('codepulse-remembered-email') || ''
+  try {
+    return window.localStorage.getItem('codepulse-remembered-email') || ''
+  } catch {
+    return ''
+  }
 }
 
 export default function AuthPage({ mode = 'signin', token = '', oauthError = '', onAuthSuccess }) {
@@ -73,19 +58,55 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
   const [successDialog, setSuccessDialog] = useState(null)
   const [canResendVerification, setCanResendVerification] = useState(false)
   const [isResendingVerification, setIsResendingVerification] = useState(false)
+  const successDialogRef = useRef(null)
 
   useEffect(() => {
     if (isSignup || isPasswordReset || isEmailVerify) return
 
-    if (rememberMe && email.trim()) {
-      window.localStorage.setItem('codepulse-remembered-email', email.trim())
-      return
-    }
+    try {
+      if (rememberMe && email.trim()) {
+        window.localStorage.setItem('codepulse-remembered-email', email.trim())
+        return
+      }
 
-    if (!rememberMe) {
-      window.localStorage.removeItem('codepulse-remembered-email')
+      if (!rememberMe) {
+        window.localStorage.removeItem('codepulse-remembered-email')
+      }
+    } catch {
+      /* Remember-me is optional when browser storage is unavailable. */
     }
   }, [email, isEmailVerify, isPasswordReset, isSignup, rememberMe])
+
+  useEffect(() => {
+    if (!successDialog) return undefined
+
+    const dialog = successDialogRef.current
+    dialog?.querySelector('[data-dialog-primary]')?.focus()
+
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        setSuccessDialog(null)
+        return
+      }
+      if (event.key !== 'Tab' || !dialog) return
+
+      const focusable = [...dialog.querySelectorAll('a[href], button:not([disabled])')]
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [successDialog])
 
   useEffect(() => {
     setAuthError(oauthError || '')
@@ -570,9 +591,9 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
           <p className="mt-5 text-center text-sm text-[var(--ink-3)]">
             {copy.swapText}{' '}
-            <a href={copy.swapHref} className="font-medium text-[var(--accent-ink)] hover:underline">
+            <Link to={copy.swapHref} className="font-medium text-[var(--accent-ink)] hover:underline">
               {copy.swapLabel}
-            </a>
+            </Link>
           </p>
         </div>
       </main>
@@ -586,6 +607,7 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
           style={{ animation: 'cp-fade-in var(--d-2) var(--ease-out)' }}
         >
           <div
+            ref={successDialogRef}
             className="panel w-full max-w-sm p-6 text-[var(--ink-1)] shadow-[var(--shadow-e4)]"
             style={{ animation: 'cp-dialog-in var(--d-3) var(--ease-out)' }}
           >
@@ -607,12 +629,13 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
             </h2>
             <p className="mt-2 text-sm leading-6 text-[var(--ink-3)]">{successDialog.message}</p>
             <div className="mt-6 flex flex-col gap-2">
-              <a
-                href={successDialog.actionHref}
+              <Link
+                data-dialog-primary
+                to={successDialog.actionHref}
                 className="inline-flex h-10 items-center justify-center rounded-[var(--r-md)] bg-[var(--contrast)] px-4 text-sm font-medium text-[var(--contrast-on)] transition-colors hover:bg-[var(--contrast-hover)]"
               >
                 {successDialog.actionLabel}
-              </a>
+              </Link>
               <button
                 type="button"
                 onClick={() => setSuccessDialog(null)}

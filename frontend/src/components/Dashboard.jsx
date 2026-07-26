@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from '../lib/router'
 import {
   AlertTriangle,
   Bell,
   BookOpenCheck,
   CheckCircle2,
-  ChevronDown,
   CircleAlert,
   Clock3,
   Code2,
@@ -711,6 +711,22 @@ export default function Dashboard({ user, accessToken, onLogout }) {
     }
   }
 
+  function handleTabKeyDown(event, index) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+
+    event.preventDefault()
+    const lastIndex = navItems.length - 1
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? lastIndex
+        : event.key === 'ArrowRight'
+          ? (index + 1) % navItems.length
+          : (index - 1 + navItems.length) % navItems.length
+    setActiveTab(navItems[nextIndex].label)
+    event.currentTarget.parentElement?.querySelectorAll('[role="tab"]')[nextIndex]?.focus()
+  }
+
   const demoRepository = demoRepositories.find(item => item.name === demoRepoName) || demoRepositories[0]
   const displayedRepository = demoMode ? demoRepository : selectedRepo
   const hasLiveRepository = Boolean(selectedRepo)
@@ -791,7 +807,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const scanActive = selectedRepoStatus === 'queued' || selectedRepoStatus === 'running' || scanLoading
 
   return (
-    <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-1)]">
+    <div className="density-surface min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-1)]">
       <AppTopBar
         user={user}
         onLogout={onLogout}
@@ -814,10 +830,12 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <Tooltip label={demoMode ? 'Demo data — click for live' : 'Live data — click for demo'} />
             </span>
             <span className="group relative inline-flex">
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Notifications" title="Notifications">
-                <Bell size={15} />
+              <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                <Link to="/settings#notifications" aria-label="Notification settings" title="Notification settings">
+                  <Bell size={15} />
+                </Link>
               </Button>
-              <Tooltip label="Notifications" />
+              <Tooltip label="Notification settings" />
             </span>
           </>
         )}
@@ -835,7 +853,10 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                   type="button"
                   role="tab"
                   aria-selected={selected}
+                  aria-controls="dashboard-tab-panel"
+                  tabIndex={selected ? 0 : -1}
                   onClick={() => setActiveTab(item.label)}
+                  onKeyDown={event => handleTabKeyDown(event, navItems.indexOf(item))}
                   className={`relative h-full whitespace-nowrap px-3 text-sm transition-colors duration-[var(--d-2)] ${
                     selected
                       ? 'font-medium text-[var(--ink-1)] after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-[var(--contrast)]'
@@ -895,20 +916,12 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <span className="overline mb-1.5 block text-[var(--ink-4)]">Target</span>
               <span className="relative block">
                 {demoMode ? (
-                  <>
-                    <Select
-                      value={demoRepoName}
-                      onChange={event => setDemoRepoName(event.target.value)}
-                      className="appearance-none pr-10"
-                    >
-                      {demoRepositories.map(item => (
-                        <option key={item.name} value={item.name}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </Select>
-                    <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-4)]" />
-                  </>
+                  <Select
+                    value={demoRepoName}
+                    onChange={setDemoRepoName}
+                    options={demoRepositories.map(item => ({ value: item.name, label: item.name }))}
+                    ariaLabel="Choose a demo repository"
+                  />
                 ) : (
                   <Combobox
                     value={repositoryPickerValue}
@@ -1037,7 +1050,9 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             icon={GitBranch}
           />
         ) : (
-          <MainContent activeTab={activeTab} view={view} liveMode={liveMode} />
+          <div id="dashboard-tab-panel" role="tabpanel" tabIndex={0}>
+            <MainContent activeTab={activeTab} view={view} liveMode={liveMode} />
+          </div>
         )}
       </main>
     </div>
