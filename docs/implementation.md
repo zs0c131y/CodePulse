@@ -1,5 +1,8 @@
 # CodePulse - Feature-Based Implementation Roadmap
 
+<!-- markdownlint-configure-file {"MD013": {"tables": false}} -->
+<!-- markdownlint-configure-file {"MD024": {"siblings_only": true}} -->
+
 This document defines the implementation roadmap for CodePulse by product
 feature area. It is intended to guide backend, frontend, database, and AI
 engine work without mixing implementation details into a single large task.
@@ -204,7 +207,7 @@ Measures missing or outdated engineering knowledge.
 ### Implementation Notes
 
 * Knowledge debt should combine documentation coverage, architecture clarity,
-  setup completeness, and module explainability.
+  setup completeness, and module understandability.
 * Scores should link back to concrete missing or outdated documentation.
 
 ---
