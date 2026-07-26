@@ -712,3 +712,64 @@
     animation-iteration-count: infinite !important;
   }
 }
+
+/* ==========================================================================
+   Print-ready repository reports
+   ========================================================================== */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  :root {
+    color-scheme: light;
+    --surface-canvas: #ffffff;
+    --surface-1: #ffffff;
+    --surface-2: #f5f5f5;
+    --surface-3: #e8e8e8;
+    --surface-sunken: #f7f7f7;
+    --ink-1: #111111;
+    --ink-2: #3f3f46;
+    --ink-3: #62626b;
+    --ink-4: #808089;
+    --line-1: rgba(0, 0, 0, 0.1);
+    --line-2: rgba(0, 0, 0, 0.16);
+    --shadow-e1: none;
+    --shadow-e2: none;
+    --shadow-e3: none;
+    --shadow-e4: none;
+  }
+
+  body,
+  .report-page {
+    background: var(--surface-canvas) !important;
+  }
+
+  .report-screen-only {
+    display: none !important;
+  }
+
+  .report-page .cp-prose {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  .report-header {
+    margin-bottom: 8mm;
+  }
+
+  .report-section,
+  .report-cover,
+  .report-section li,
+  .report-section tr {
+    break-inside: avoid;
+  }
+
+  .report-section,
+  .report-cover {
+    box-shadow: none !important;
+  }
+}

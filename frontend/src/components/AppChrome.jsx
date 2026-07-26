@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Dashboard', href: '/dashboard', key: 'dashboard' },
   { label: 'Profile', href: '/profile', key: 'profile' },
   { label: 'Settings', href: '/settings', key: 'settings' },
+  { label: 'Reports', href: '/reports', key: 'reports' },
 ]
 
 function initials(name, email) {

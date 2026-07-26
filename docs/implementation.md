@@ -25,6 +25,28 @@ engine work without mixing implementation details into a single large task.
 
 ---
 
+## Frontend Delivery Status
+
+The frontend now provides a complete, production-bundled surface for every
+roadmap phase. Data-backed phases render persisted results when their endpoint
+is available and an explicit unavailable or empty state when the corresponding
+backend engine has not shipped or has not run.
+
+| Roadmap Area | Frontend Surface | Status |
+| :--- | :--- | :--- |
+| Authentication and onboarding | Auth flows, repository picker, scan console | Implemented |
+| Repository Intelligence | Inventory, dependency graph/table, activity, documentation, manifests | Implemented |
+| Code/documentation/debt/drift/risk engines | Charts, findings, heatmap, score and pipeline panels | Implemented; live content depends on phases 4–9 APIs |
+| AI Recommendations | Evidence-aware recommendation cards and report section | Implemented; live content depends on phase 10 API |
+| Dashboard | Five responsive, keyboard-accessible analysis workspaces | Implemented |
+| Reports | Protected, print-ready report with browser PDF export | Implemented; stored/share-link report service remains backend work |
+
+Interaction and visual acceptance criteria for the newly completed surfaces
+are recorded in
+[docs/frontend/PENDING_UI_HANDOFF.md](frontend/PENDING_UI_HANDOFF.md).
+
+---
+
 ## 1. Authentication
 
 Allows users to securely access the platform and own their repository data.
@@ -240,6 +262,7 @@ Visualizes all analysis results.
 * Dependency graph.
 * Risk heatmap.
 * Recommendations page.
+* Repository intelligence workspace.
 
 ### Implementation Notes
 
@@ -267,6 +290,8 @@ Creates final shareable output.
 * Reports should reuse the same persisted findings shown in the dashboard.
 * Generated report content should include timestamps, repository identity,
   scoring summaries, evidence, and recommendations.
+* The current frontend supports browser-native print/PDF export. Durable report
+  artifacts and share links require a future backend report-generation API.
 
 ---
 

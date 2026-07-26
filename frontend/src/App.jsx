@@ -8,6 +8,7 @@ import MarketingPage from './components/MarketingPage'
 // are code-split and only downloaded after sign-in.
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const AccountPage = lazy(() => import('./components/AccountPage'))
+const ReportsPage = lazy(() => import('./components/ReportsPage'))
 
 const legacyRoutes = new Set([
   'signin',
@@ -17,6 +18,7 @@ const legacyRoutes = new Set([
   'dashboard',
   'profile',
   'settings',
+  'reports',
 ])
 
 function LoadingScreen({ label }) {
@@ -254,6 +256,16 @@ function AppRoutes() {
             <ProtectedRoute authLoading={authLoading} user={user} accessToken={accessToken}>
               <Suspense fallback={<ProtectedScreenFallback />}>
                 <AccountPage mode="settings" user={user} accessToken={accessToken} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
+              </Suspense>
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/reports"
+          element={(
+            <ProtectedRoute authLoading={authLoading} user={user} accessToken={accessToken}>
+              <Suspense fallback={<ProtectedScreenFallback />}>
+                <ReportsPage user={user} accessToken={accessToken} onLogout={handleLogout} />
               </Suspense>
             </ProtectedRoute>
           )}

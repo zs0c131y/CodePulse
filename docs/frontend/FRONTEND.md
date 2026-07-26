@@ -124,10 +124,13 @@ frontend/
 │   │   │   ├── CoveragePanel.jsx    # recharts horizontal documentation-coverage bars
 │   │   │   ├── DebtCharts.jsx       # recharts complexity + churn/duplication charts
 │   │   │   ├── DebtTable.jsx        # Ranked module debt table (cards on small screens)
+│   │   │   ├── DependencyGraphPanel.jsx # SVG/table dependency explorer
 │   │   │   ├── DriftPanel.jsx       # Knowledge drift findings queue
 │   │   │   ├── MetricStrip.jsx      # KPI strip: borderless cells, hairline dividers
 │   │   │   ├── PipelinePanel.jsx    # Analysis pipeline status list
 │   │   │   ├── RecommendationPanel.jsx # AI recommendation cards
+│   │   │   ├── RepositoryIntelligencePanel.jsx # Files, imports, activity, docs, manifests
+│   │   │   ├── RiskHeatmapPanel.jsx # Responsive module-risk heatmap
 │   │   │   ├── RiskTrendPanel.jsx   # recharts risk-trend area chart + table toggle
 │   │   │   ├── shared.jsx           # Tooltip, Sparkline, EmptyPanel components
 │   │   │   └── utils.js             # severity/status classes, clamp, formatRelativeTime
@@ -147,6 +150,7 @@ frontend/
 │   │   ├── AccountPage.jsx
 │   │   ├── Dashboard.jsx        # Dashboard shell + data orchestration
 │   │   ├── MarketingPage.jsx    # The Journal marketing broadsheet
+│   │   ├── ReportsPage.jsx      # Print-ready persisted-evidence report
 │   │   └── Reveal.jsx           # Scroll-reveal wrapper (Journal)
 │   ├── demo/
 │   │   └── dashboardDemoData.js  # Demo-mode fallback data (never used in live mode)
@@ -208,8 +212,8 @@ routes.
   The refresh token is held by the backend as a MongoDB session and sent to the
   browser as an `HttpOnly` cookie.
 * [frontend/src/App.jsx](../../frontend/src/App.jsx) refreshes the session on
-  load with `POST /api/auth/refresh`, gates `/dashboard`, `/profile`, and
-  `/settings`, checks
+  load with `POST /api/auth/refresh`, gates `/dashboard`, `/reports`,
+  `/profile`, and `/settings`, checks
   `GET /api/auth/me` with a bearer token, and calls `POST /api/auth/logout` to
   revoke the refresh session. After a GitHub/GitLab login the backend redirects
   the browser straight to `#dashboard`; the refresh-on-load call picks up the
@@ -258,23 +262,26 @@ API"):
   repository does the same when its provider URL is supported. A successful
   scan switches the dashboard to live mode, selects the new repository, and
   reloads list + analytics.
-* Until the read API ships on the backend, live mode degrades gracefully: it
-  shows the current session's scan summary and marks the remaining panels as
-  unavailable.
-
-Four dashboard tabs:
+Five dashboard tabs:
 
 * **Overview**: Score KPIs (health, critical risks, drift findings, AI
   actions) when the scores engine responds, otherwise real scan totals (files,
   docs, commits, dependency edges); analysis pipeline driven by the real
   analysis status; risk-trend area chart; top debt modules and drift findings.
 * **Technical Debt**: Debt-metric KPIs, recharts complexity and
-  churn/duplication bar charts, and the ranked module table from
+  churn/duplication bar charts, a responsive module risk heatmap, and the
+  ranked module table from
   `GET /api/repositories/:id/debt`.
 * **Knowledge Drift & Debt**: Drift findings queue and recharts documentation
   coverage bars from `GET /api/repositories/:id/drift`.
 * **Risk & AI Recommendations**: Risk trend, pipeline state, and AI
-  recommendation cards from `GET /api/repositories/:id/recommendations`.
+  recommendation cards from `GET /api/repositories/:id/recommendations`, plus
+  the same module heatmap when debt findings are available.
+* **Repository Intelligence**: Searchable file inventory, dependency graph
+  with an accessible table alternative, commit and contributor activity,
+  documentation summaries, and detected manifests. Its six evidence requests
+  settle independently so a missing optional source does not suppress the
+  evidence that did load.
 
 Repositories with no completed analysis render a dedicated empty state
 prompting the user to start a scan.
@@ -286,6 +293,21 @@ The header demo toggle switches the whole dashboard to the sample data in
 (repositories, KPIs, pipeline, debt modules, drift findings, coverage,
 recommendations, risk trend). Demo data never leaves this module, and live
 mode never reads it.
+
+### Reports
+
+The protected `/reports` route renders
+[ReportsPage.jsx](../../frontend/src/components/ReportsPage.jsx). It selects
+from the user's persisted repositories, requests the same health, debt, drift,
+recommendation, and contributor sources used elsewhere, and labels every
+section as included or unavailable according to the endpoint response. Empty
+successful results remain valid empty states rather than being mislabeled as
+missing engines.
+
+The report is formatted for both screen review and A4 printing. **Print / Save
+as PDF** opens the browser print dialog; screen-only navigation and controls
+are removed by print styles. This is a frontend export surface, not a claim
+that the backend currently stores or distributes generated PDF artifacts.
 
 Authenticated screens share the [AppChrome.jsx](../../frontend/src/components/AppChrome.jsx)
 top bar (brand, workspace navigation, screen actions, theme toggle, avatar,

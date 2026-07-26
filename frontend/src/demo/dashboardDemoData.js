@@ -227,3 +227,60 @@ export const demoRiskTrend = [
   { label: 'Sat', value: 54 },
   { label: 'Sun', value: 49 },
 ]
+
+export const demoRepositoryIntelligence = {
+  files: {
+    total: 14286,
+    items: [
+      { path: 'src/billing/InvoicePipeline.ts', name: 'InvoicePipeline.ts', extension: '.ts', fileType: 'code', language: 'TypeScript', size: 18420, depth: 3 },
+      { path: 'src/auth/sessionStore.ts', name: 'sessionStore.ts', extension: '.ts', fileType: 'code', language: 'TypeScript', size: 9860, depth: 3 },
+      { path: 'src/api/reportRoutes.ts', name: 'reportRoutes.ts', extension: '.ts', fileType: 'code', language: 'TypeScript', size: 7340, depth: 3 },
+      { path: 'docs/architecture/system.md', name: 'system.md', extension: '.md', fileType: 'documentation', language: 'Markdown', size: 12100, depth: 3 },
+      { path: 'package.json', name: 'package.json', extension: '.json', fileType: 'config', language: 'JSON', size: 2650, depth: 1 },
+    ],
+  },
+  dependencies: {
+    total: 812,
+    items: [
+      { sourceFile: 'src/billing/InvoicePipeline.ts', targetFile: 'src/billing/tax.ts', type: 'import', importPath: './tax', resolved: true },
+      { sourceFile: 'src/billing/InvoicePipeline.ts', targetFile: 'src/queue/retryPolicy.ts', type: 'import', importPath: '../queue/retryPolicy', resolved: true },
+      { sourceFile: 'src/auth/sessionStore.ts', targetFile: 'src/db/redis.ts', type: 'import', importPath: '../db/redis', resolved: true },
+      { sourceFile: 'src/api/reportRoutes.ts', targetFile: 'src/reports/generator.ts', type: 'import', importPath: '../reports/generator', resolved: true },
+      { sourceFile: 'src/reports/generator.ts', targetFile: 'src/billing/InvoicePipeline.ts', type: 'import', importPath: '../billing/InvoicePipeline', resolved: true },
+    ],
+  },
+  commits: {
+    total: 100,
+    items: [
+      { hash: 'b91a4f2', author: 'Maya Chen', message: 'Remove legacy webhook orchestration', date: '2026-07-25T10:30:00.000Z', changedFiles: ['src/billing/InvoicePipeline.ts'] },
+      { hash: '8c4d129', author: 'Noah Williams', message: 'Add repository health report route', date: '2026-07-24T08:10:00.000Z', changedFiles: ['src/api/reportRoutes.ts'] },
+      { hash: '72f1ea0', author: 'Maya Chen', message: 'Harden session refresh handling', date: '2026-07-22T14:45:00.000Z', changedFiles: ['src/auth/sessionStore.ts'] },
+    ],
+  },
+  documentation: {
+    total: 94,
+    items: [
+      { path: 'README.md', fileName: 'README.md', type: 'readme', summary: 'Platform setup, local development, and service overview.', size: 8400 },
+      { path: 'docs/architecture/system.md', fileName: 'system.md', type: 'architecture', summary: 'Core services and data movement across the platform.', size: 12100 },
+      { path: 'docs/api/authentication.md', fileName: 'authentication.md', type: 'api', summary: 'Authentication endpoints and session lifecycle.', size: 6700 },
+    ],
+  },
+  contributors: [
+    { name: 'Maya Chen', email: 'maya@acme.dev', commitCount: 42, firstCommitAt: '2025-10-05T00:00:00.000Z', lastCommitAt: '2026-07-25T10:30:00.000Z' },
+    { name: 'Noah Williams', email: 'noah@acme.dev', commitCount: 31, firstCommitAt: '2025-11-18T00:00:00.000Z', lastCommitAt: '2026-07-24T08:10:00.000Z' },
+    { name: 'Priya Shah', email: 'priya@acme.dev', commitCount: 19, firstCommitAt: '2026-01-09T00:00:00.000Z', lastCommitAt: '2026-07-19T16:20:00.000Z' },
+  ],
+  manifests: [
+    {
+      path: 'package.json',
+      type: 'npm',
+      name: '@acme/platform',
+      version: '4.8.0',
+      dependencies: [
+        { name: 'react', version: '^19.2.0', kind: 'dependency' },
+        { name: 'express', version: '^5.2.0', kind: 'dependency' },
+        { name: 'vite', version: '^8.1.0', kind: 'devDependency' },
+      ],
+    },
+  ],
+}

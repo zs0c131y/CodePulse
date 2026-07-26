@@ -27,8 +27,14 @@ import { Combobox } from './ui/combobox'
 import { ApiError, apiFetch } from '../api/client'
 import {
   analyzeRepository,
+  getRepositoryCommits,
+  getRepositoryContributors,
   getRepositoryDebt,
+  getRepositoryDependencies,
+  getRepositoryDocumentation,
   getRepositoryDrift,
+  getRepositoryFiles,
+  getRepositoryManifest,
   getRepositoryRecommendations,
   getRepositoryScores,
   getRepositoryStatus,
@@ -43,6 +49,7 @@ import {
   demoKpis,
   demoPipeline,
   demoRecommendations,
+  demoRepositoryIntelligence,
   demoRepositories,
   demoRiskTrend,
 } from '../demo/dashboardDemoData'
@@ -54,6 +61,8 @@ import DriftPanel from './dashboard/DriftPanel'
 import MetricStrip from './dashboard/MetricStrip'
 import PipelinePanel from './dashboard/PipelinePanel'
 import RecommendationPanel from './dashboard/RecommendationPanel'
+import RepositoryIntelligencePanel from './dashboard/RepositoryIntelligencePanel'
+import RiskHeatmapPanel from './dashboard/RiskHeatmapPanel'
 import RiskTrendPanel from './dashboard/RiskTrendPanel'
 import { EmptyPanel, Tooltip } from './dashboard/shared'
 import { ANALYSIS_STATUS_META, analysisStatusClass, formatRelativeTime, severityClass } from './dashboard/utils'
@@ -64,6 +73,7 @@ const GITHUB_REPO_URL_PATTERN = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-
 
 const navItems = [
   { label: 'Overview' },
+  { label: 'Repository Intelligence' },
   { label: 'Technical Debt' },
   { label: 'Knowledge Drift' },
   { label: 'Risk & AI' },
@@ -71,6 +81,7 @@ const navItems = [
 
 const EMPTY_ANALYTICS = { scores: null, debt: null, drift: null, recommendations: [] }
 const EMPTY_ANALYTICS_ERRORS = { scores: null, debt: null, drift: null, recommendations: null }
+const EMPTY_PAGE = { items: [], total: 0 }
 
 function getDocumentationCoverage(repository) {
   const files = Number(repository?.totalFiles || 0)
@@ -371,6 +382,16 @@ function OverviewContent({ view, liveMode }) {
 }
 
 function MainContent({ activeTab, view, liveMode }) {
+  if (activeTab === 'Repository Intelligence') {
+    return (
+      <RepositoryIntelligencePanel
+        data={view.intelligence}
+        loading={view.intelligenceLoading}
+        error={view.intelligenceError}
+      />
+    )
+  }
+
   if (activeTab === 'Technical Debt') {
     if (liveMode && view.debtUnavailable) {
       return (
@@ -386,6 +407,7 @@ function MainContent({ activeTab, view, liveMode }) {
       <div className="space-y-5">
         {view.debtKpis.length > 0 && <MetricStrip items={view.debtKpis} />}
         <DebtCharts items={view.debtItems} emptyTitle={view.debtEmptyTitle} emptyDescription={view.debtEmptyDescription} />
+        <RiskHeatmapPanel items={view.debtItems} />
         <DebtTable
           items={view.debtItems}
           emptyTitle={view.debtEmptyTitle}
@@ -422,6 +444,7 @@ function MainContent({ activeTab, view, liveMode }) {
           />
           <PipelinePanel items={view.pipelineItems} />
         </div>
+        <RiskHeatmapPanel items={view.debtItems} description="Prioritized module risk combining the available debt evidence." />
         <RecommendationPanel items={view.recommendations} emptyTitle={view.recommendationsEmptyTitle} emptyDescription={view.recommendationsEmptyDescription} />
       </div>
     )
@@ -448,6 +471,9 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS)
   const [analyticsErrors, setAnalyticsErrors] = useState(EMPTY_ANALYTICS_ERRORS)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [intelligence, setIntelligence] = useState(null)
+  const [intelligenceLoading, setIntelligenceLoading] = useState(false)
+  const [intelligenceError, setIntelligenceError] = useState('')
   const [dataVersion, setDataVersion] = useState(0)
   const [connectedRepos, setConnectedRepos] = useState([])
   const [repositoryPickerValue, setRepositoryPickerValue] = useState('')
@@ -631,6 +657,49 @@ export default function Dashboard({ user, accessToken, onLogout }) {
     }
   }, [accessToken, demoMode, selectedRepoId, dataVersion])
 
+  useEffect(() => {
+    if (demoMode || activeTab !== 'Repository Intelligence') return undefined
+    if (!accessToken || !selectedRepoId) {
+      setIntelligence(null)
+      setIntelligenceError('')
+      return undefined
+    }
+
+    let cancelled = false
+
+    async function loadIntelligence() {
+      setIntelligenceLoading(true)
+      setIntelligenceError('')
+      const results = await Promise.allSettled([
+        getRepositoryFiles(accessToken, selectedRepoId),
+        getRepositoryDependencies(accessToken, selectedRepoId),
+        getRepositoryCommits(accessToken, selectedRepoId),
+        getRepositoryDocumentation(accessToken, selectedRepoId),
+        getRepositoryContributors(accessToken, selectedRepoId),
+        getRepositoryManifest(accessToken, selectedRepoId),
+      ])
+      if (cancelled) return
+
+      const [files, dependencies, commits, documentation, contributors, manifests] = results
+      const failures = results.filter(result => result.status === 'rejected')
+      setIntelligence({
+        files: settledValue(files, EMPTY_PAGE),
+        dependencies: settledValue(dependencies, EMPTY_PAGE),
+        commits: settledValue(commits, EMPTY_PAGE),
+        documentation: settledValue(documentation, EMPTY_PAGE),
+        contributors: settledValue(contributors, []),
+        manifests: settledValue(manifests, []),
+      })
+      setIntelligenceError(failures.length === results.length
+        ? (failures[0].reason instanceof Error ? failures[0].reason.message : 'Repository evidence could not be loaded.')
+        : '')
+      setIntelligenceLoading(false)
+    }
+
+    loadIntelligence()
+    return () => { cancelled = true }
+  }, [accessToken, activeTab, dataVersion, demoMode, selectedRepoId])
+
   // Poll the analysis status endpoint while the selected repository is queued
   // or running. This also resumes polling after a page refresh mid-scan.
   useEffect(() => {
@@ -742,6 +811,9 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         driftItems: demoDriftFindings,
         coverageItems: demoCoverage,
         recommendations: demoRecommendations,
+        intelligence: demoRepositoryIntelligence,
+        intelligenceLoading: false,
+        intelligenceError: '',
       }
     }
 
@@ -766,6 +838,9 @@ export default function Dashboard({ user, accessToken, onLogout }) {
             ? [{ label: 'Overall documentation', percent: getDocumentationCoverage(selectedRepo) }]
             : [],
       recommendations: mapRecommendations(analytics.recommendations),
+      intelligence,
+      intelligenceLoading,
+      intelligenceError,
       debtUnavailable: !analyticsLoading && !debt,
       debtEmptyTitle: 'No module debt data yet',
       debtEmptyDescription: availabilityMessage(
@@ -793,7 +868,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         'AI recommendations appear here after the Risk Intelligence and AI Explainability engines have processed this repository.',
       ),
     }
-  }, [analytics, analyticsErrors, analyticsLoading, demoMode, hasLiveRepository, scanLoading, selectedRepo])
+  }, [analytics, analyticsErrors, analyticsLoading, demoMode, hasLiveRepository, intelligence, intelligenceError, intelligenceLoading, scanLoading, selectedRepo])
 
   const bannerMessage = demoMode
     ? 'Demo mode — sample analytics. Toggle live mode to use your analyzed repositories.'
