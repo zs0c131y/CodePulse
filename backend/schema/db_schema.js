@@ -622,6 +622,7 @@ db.createCollection("drift_findings", {
             bsonType: "object",
             required: [
                 "repository_id",
+                "finding_key",
                 "drift_type",
                 "severity"
             ],
@@ -631,6 +632,18 @@ db.createCollection("drift_findings", {
                 },
                 drift_type: {
                     bsonType: "string"
+                },
+                finding_key: {
+                    bsonType: "string"
+                },
+                title: {
+                    bsonType: "string"
+                },
+                file_path: {
+                    bsonType: ["string", "null"]
+                },
+                module_path: {
+                    bsonType: ["string", "null"]
                 },
                 description: {
                     bsonType: "string"
@@ -643,13 +656,54 @@ db.createCollection("drift_findings", {
                         "Critical"
                     ]
                 },
-                evidence: {}
+                evidence: {},
+                age_days: {
+                    bsonType: ["number", "null"]
+                },
+                created_at: {
+                    bsonType: "date"
+                },
+                updated_at: {
+                    bsonType: "date"
+                }
             }
         }
     }
 });
 
-db.drift_findings.createIndex({ repository_id: 1 });
+db.drift_findings.createIndex({ repository_id: 1, finding_key: 1 }, { unique: true });
+db.drift_findings.createIndex({ repository_id: 1, severity: 1 });
+
+// =========================================
+// RECOMMENDATIONS
+// =========================================
+
+db.createCollection("recommendations", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id", "recommendation_key", "title", "impact"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                recommendation_key: { bsonType: "string" },
+                title: { bsonType: "string" },
+                impact: { enum: ["Low", "Medium", "High", "Critical"] },
+                effort: { bsonType: "string" },
+                reason: { bsonType: "string" },
+                steps: {
+                    bsonType: "array",
+                    items: { bsonType: "string" }
+                },
+                order: { bsonType: "int" },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.recommendations.createIndex({ repository_id: 1, recommendation_key: 1 }, { unique: true });
+db.recommendations.createIndex({ repository_id: 1, impact: 1 });
 
 // =========================================
 // FINISHED
@@ -674,4 +728,5 @@ print("- repository_scores");
 print("- technical_debt_metrics");
 print("- knowledge_debt_metrics");
 print("- drift_findings");
+print("- recommendations");
 print("==================================");

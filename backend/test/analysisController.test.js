@@ -74,3 +74,31 @@ test('debt reads return 404 when an owned repository has not been scored', async
 
   assert.equal(response.statusCode, 404)
 })
+
+test('status, drift, and recommendation reads return stored analysis for an owned repository', async () => {
+  const deps = {
+    async findRepositoryForUser() {
+      return { _id: 'repo-1', status: 'completed', updated_at: '2026-07-28T00:00:00.000Z' }
+    },
+    async getRepositoryKnowledgeDrift() {
+      return { score: { _id: 'score-1' }, findings: [{ finding_key: 'drift-1' }] }
+    },
+    async getRepositoryScore() { return { _id: 'score-1' } },
+    async getRepositoryRecommendations() { return [{ recommendation_key: 'recommendation-1' }] },
+    serializeKnowledgeDrift() { return { findings: [{ id: 'drift-1' }], coverage: [] } },
+    serializeRecommendations() { return [{ id: 'recommendation-1' }] },
+  }
+  const controller = createAnalysisController(deps)
+
+  const statusResponse = createResponse()
+  await controller.getRepositoryStatus(ownedRequest, statusResponse, () => assert.fail('next should not be called'))
+  assert.equal(statusResponse.body.status, 'completed')
+
+  const driftResponse = createResponse()
+  await controller.getRepositoryDrift(ownedRequest, driftResponse, () => assert.fail('next should not be called'))
+  assert.deepEqual(driftResponse.body, { findings: [{ id: 'drift-1' }], coverage: [] })
+
+  const recommendationResponse = createResponse()
+  await controller.getRepositoryRecommendationList(ownedRequest, recommendationResponse, () => assert.fail('next should not be called'))
+  assert.deepEqual(recommendationResponse.body, { recommendations: [{ id: 'recommendation-1' }] })
+})

@@ -126,6 +126,8 @@ export async function deleteRepositoryForUserWithCollections(userId, repositoryI
     collections.repositoryScores?.deleteMany({ repository_id: repository._id }),
     collections.technicalDebtMetrics?.deleteMany({ repository_id: repository._id }),
     collections.knowledgeDebtMetrics?.deleteMany({ repository_id: repository._id }),
+    collections.driftFindings?.deleteMany({ repository_id: repository._id }),
+    collections.recommendations?.deleteMany({ repository_id: repository._id }),
   ])
   await collections.repositories.deleteOne({ _id: repository._id })
 

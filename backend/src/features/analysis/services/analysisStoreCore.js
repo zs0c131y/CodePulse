@@ -64,11 +64,45 @@ function knowledgeMetricRecord(repositoryId, module, now) {
   }
 }
 
+function driftFindingRecord(repositoryId, finding, now) {
+  return {
+    repository_id: repositoryId,
+    finding_key: finding.key,
+    drift_type: finding.type,
+    title: finding.title,
+    file_path: finding.filePath,
+    module_path: finding.modulePath,
+    description: finding.title,
+    severity: finding.severity,
+    evidence: finding.evidence,
+    age_days: finding.ageDays,
+    created_at: now,
+    updated_at: now,
+  }
+}
+
+function recommendationRecord(repositoryId, recommendation, now) {
+  return {
+    repository_id: repositoryId,
+    recommendation_key: recommendation.id,
+    title: recommendation.title,
+    impact: recommendation.impact,
+    effort: recommendation.effort,
+    reason: recommendation.reason,
+    steps: recommendation.steps,
+    order: recommendation.order,
+    created_at: now,
+    updated_at: now,
+  }
+}
+
 export async function persistAnalysisResultsWithCollections({ repositoryId, results, now }, collections) {
   const analyzedAt = toDate(now) || new Date()
   const scores = results.scores
   const technicalDebt = results.technicalDebt
   const knowledgeDebt = results.knowledgeDebt
+  const drift = results.drift || { findings: [] }
+  const recommendations = results.recommendations || []
 
   const repositoryScore = await upsertByRepository(
     collections.repositoryScores,
@@ -107,11 +141,23 @@ export async function persistAnalysisResultsWithCollections({ repositoryId, resu
     repositoryId,
     knowledgeDebt.moduleMetrics.map(module => knowledgeMetricRecord(repositoryId, module, analyzedAt)),
   )
+  await replaceModuleMetrics(
+    collections.driftFindings,
+    repositoryId,
+    drift.findings.map(finding => driftFindingRecord(repositoryId, finding, analyzedAt)),
+  )
+  await replaceModuleMetrics(
+    collections.recommendations,
+    repositoryId,
+    recommendations.map(recommendation => recommendationRecord(repositoryId, recommendation, analyzedAt)),
+  )
 
   return {
     repositoryScore,
     technicalDebtMetricCount: technicalDebt.modules.length,
     knowledgeDebtMetricCount: knowledgeDebt.moduleMetrics.length,
+    driftFindingCount: drift.findings.length,
+    recommendationCount: recommendations.length,
   }
 }
 
@@ -196,4 +242,54 @@ export function serializeTechnicalDebt(scoreRecord, metricRecords) {
       .sort((left, right) => right.debtScore - left.debtScore || left.path.localeCompare(right.path)),
     generatedAt: toIso(scoreRecord.analyzed_at || scoreRecord.updated_at),
   }
+}
+
+function ageLabel(value) {
+  const days = Number(value)
+  if (!Number.isFinite(days)) return 'Unknown'
+  if (days <= 0) return 'today'
+  return `${days} day${days === 1 ? '' : 's'}`
+}
+
+function driftSeverityRank(severity) {
+  return ({ Critical: 4, High: 3, Medium: 2, Low: 1 })[severity] || 0
+}
+
+export function serializeKnowledgeDrift(scoreRecord, findingRecords) {
+  if (!scoreRecord) return null
+
+  const knowledgeDebt = scoreRecord.knowledge_debt || {}
+  const knowledgeMetrics = knowledgeDebt.metrics || {}
+  return {
+    findings: (findingRecords || [])
+      .map(record => ({
+        id: record._id?.toString?.() || record.finding_key,
+        title: record.title || record.description || 'Documentation drift finding',
+        filePath: record.file_path || record.module_path || 'Unknown file',
+        severity: record.severity || 'Low',
+        evidence: record.evidence || 'No evidence recorded.',
+        age: ageLabel(record.age_days),
+      }))
+      .sort((left, right) => driftSeverityRank(right.severity) - driftSeverityRank(left.severity) || left.filePath.localeCompare(right.filePath)),
+    coverage: [
+      { label: 'Module documentation', percent: knowledgeMetrics.documentationCoverage ?? 100 },
+      { label: 'Setup guidance', percent: knowledgeMetrics.hasSetupDocumentation ? 100 : 0 },
+      { label: 'Architecture docs', percent: knowledgeMetrics.hasArchitectureDocumentation ? 100 : 0 },
+    ],
+    generatedAt: toIso(scoreRecord.analyzed_at || scoreRecord.updated_at),
+  }
+}
+
+export function serializeRecommendations(records) {
+  return (records || [])
+    .map(record => ({
+      id: record._id?.toString?.() || record.recommendation_key,
+      title: record.title,
+      impact: record.impact || 'Low',
+      effort: record.effort || 'Unknown',
+      reason: record.reason || 'No evidence recorded.',
+      steps: Array.isArray(record.steps) ? record.steps : [],
+      order: record.order ?? 0,
+    }))
+    .sort((left, right) => left.order - right.order || left.title.localeCompare(right.title))
 }

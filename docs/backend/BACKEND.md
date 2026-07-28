@@ -818,8 +818,10 @@ Large repositories are guarded before and during analysis:
 Every successful `POST /api/repositories/analyze` scan persists raw repository
 facts first, then runs the scoring engines. The current snapshot is stored in
 `repository_scores`; per-file Technical Debt evidence in
-`technical_debt_metrics`; and per-source-directory Knowledge Debt evidence in
-`knowledge_debt_metrics`. A re-scan replaces these current metrics.
+`technical_debt_metrics`; per-source-directory Knowledge Debt evidence in
+`knowledge_debt_metrics`; structural drift findings in `drift_findings`; and
+ranked remediation actions in `recommendations`. A re-scan replaces these
+current snapshots.
 
 ### Technical Debt
 
@@ -857,6 +859,24 @@ not all nested modules. The score combines the module documentation coverage
 gap with the absence of setup and architecture documentation; it also returns
 an onboarding-difficulty score and module-level documentation evidence.
 
+### Knowledge Drift, Risk, and Recommendations
+
+[knowledgeDriftAnalyzer.js](../../backend/src/features/analysis/services/knowledgeDriftAnalyzer.js)
+compares stored source, documentation, and commit facts. It finds undocumented
+modules, module documentation older than its associated source changes, and
+backticked source-file references that no longer resolve. These deterministic
+findings are stored in `drift_findings` with evidence and severity.
+
+[riskIntelligenceEngine.js](../../backend/src/features/analysis/services/riskIntelligenceEngine.js)
+combines file debt (60%), absent module documentation (20%), highest related
+drift severity (15%), and available churn (5%) into an explainable module
+risk. Repository risk combines the average and maximum module risk.
+
+[recommendationEngine.js](../../backend/src/features/analysis/services/recommendationEngine.js)
+turns high-risk debt and drift evidence into ranked remediation actions. This
+is a local deterministic fallback, not an external LLM call; no repository
+content is sent outside the configured database and scan sources.
+
 ### `GET /api/repositories/:repositoryId/scores`
 
 Returns the latest score snapshot for an owned repository. It returns `400`
@@ -875,17 +895,16 @@ or has not completed scoring yet.
       "onboardingDifficulty": 12,
       "onboardingDifficultyScore": 12
     },
-    "drift": { "total": 0, "critical": 0, "high": 0, "medium": 0, "low": 0 },
+    "drift": { "total": 3, "critical": 0, "high": 1, "medium": 1, "low": 1 },
     "risk": { "score": 30, "criticalModules": 1, "trend": [] },
-    "recommendationsReady": 0,
+    "recommendationsReady": 2,
     "generatedAt": "2026-07-25T00:00:00.000Z"
   }
 }
 ```
 
 Historical score and risk trends are intentionally empty until score-history
-persistence is added. Drift and recommendation counts are compatible
-placeholders for their not-yet-implemented engines.
+persistence is added.
 
 ### `GET /api/repositories/:repositoryId/debt`
 
@@ -931,13 +950,13 @@ scores endpoint.
 
 ---
 
-## 📡 Remaining Repository Read & Analytics API (Planned Contract)
+## 📡 Analysis Status, Drift, and Recommendation API
 
-`/scores` and `/debt` are implemented above. The following endpoints remain
-the agreed contract for the status, drift, and recommendation milestones. All
-endpoints require `Authorization: Bearer <accessToken>` and only ever return
-repositories owned by the signed-in user. The frontend degrades to empty
-states when any of them returns `404`.
+All of the following endpoints require `Authorization: Bearer <accessToken>`
+and only return repositories owned by the signed-in user. They return `400`
+for malformed repository IDs and `404` for unavailable repositories; drift
+and recommendation reads also return `404` until a completed scan has
+persisted a score snapshot.
 
 ### `GET /api/repositories/:repositoryId/status`
 
@@ -950,8 +969,8 @@ Response:
 ```json
 {
   "repositoryId": "mongodb-object-id",
-  "status": "running",
-  "message": "optional human-readable detail",
+  "status": "completed",
+  "message": null,
   "updatedAt": "2026-07-21T09:15:00.000Z"
 }
 ```
@@ -967,23 +986,25 @@ Response:
   "findings": [
     {
       "id": "finding-id",
-      "title": "README references removed webhook flow",
-      "filePath": "docs/auth/README.md",
+      "title": "Module is undocumented",
+      "filePath": "src/auth",
       "severity": "High",
-      "age": "18 days",
-      "evidence": "Payment webhook handler was removed in commit b91a4f2."
+      "age": null,
+      "evidence": "No adjacent or module-named documentation was found."
     }
   ],
   "coverage": [
-    { "label": "API routes", "percent": 84 },
-    { "label": "Domain modules", "percent": 63 }
+    { "label": "Module documentation", "percent": 63 },
+    { "label": "Setup documentation", "percent": 100 },
+    { "label": "Architecture documentation", "percent": 0 }
   ]
 }
 ```
 
 ### `GET /api/repositories/:repositoryId/recommendations`
 
-AI-generated, evidence-backed remediation recommendations.
+Evidence-backed remediation recommendations generated from the local risk and
+drift analysis; they do not require an external LLM provider.
 
 Response:
 
@@ -992,11 +1013,11 @@ Response:
   "recommendations": [
     {
       "id": "recommendation-id",
-      "title": "Split InvoicePipeline into orchestration and calculation units",
+      "title": "Break the circular dependency around src/billing/invoice.js",
       "impact": "High",
-      "effort": "2-3 days",
-      "reason": "The module combines retry orchestration, tax calculation, and notification side effects.",
-      "steps": ["Extract pure invoice calculator", "Move retry policy into queue worker"]
+      "effort": "Medium",
+      "reason": "A resolved internal dependency cycle increases change risk.",
+      "steps": ["Choose one dependency direction", "Extract shared contracts if needed"]
     }
   ]
 }
@@ -1004,7 +1025,9 @@ Response:
 
 ### `GET /api/auth/usage`
 
-Account-level usage snapshot shown on the profile page.
+Account-level usage snapshot shown on the profile page. `aiActions` is the
+number of currently available evidence-based recommendation actions; it is
+kept under that name for the existing frontend contract.
 
 Response:
 
@@ -1039,16 +1062,11 @@ OAuth requests include repository-read scopes (`repo` on GitHub and
 `read_api` on GitLab). The provider calls never send access tokens to the
 frontend.
 
-## ⚙️ Planned Analytical Services
+## ⚙️ Current Analysis Boundaries
 
-Repository Intelligence is implemented. The following services are still
-planned and should remain behind backend API boundaries when implemented:
-
-* **Knowledge Drift Detection Engine**: Compare documentation against current
-  source structure and flag drift findings.
-* **Technical Debt Analyzer**: Compute complexity, churn, duplication, and
-  circular dependency signals.
-* **Knowledge Debt Analyzer**: Measure documentation coverage and onboarding
-  completeness.
-* **Risk Intelligence Engine**: Combine debt, drift, and activity signals into
-  module-level risk scores.
+The implemented engines operate on the repository facts gathered during a
+scan. AST-level cyclomatic complexity, source-duplication detection,
+embedding/semantic drift, contributor-concentration risk, score history, and
+external LLM/RAG recommendations remain future integrations. The current
+interfaces retain the required API boundaries so those capabilities can be
+added without changing frontend consumers.

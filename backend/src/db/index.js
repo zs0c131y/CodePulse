@@ -86,6 +86,16 @@ export async function getKnowledgeDebtMetricsCollection() {
   return db.collection('knowledge_debt_metrics')
 }
 
+export async function getDriftFindingsCollection() {
+  const db = await getDatabase()
+  return db.collection('drift_findings')
+}
+
+export async function getRecommendationsCollection() {
+  const db = await getDatabase()
+  return db.collection('recommendations')
+}
+
 export async function ensureIndexes() {
   const users = await getUsersCollection()
   await users.createIndex({ email: 1 }, { unique: true })
@@ -140,6 +150,14 @@ export async function ensureIndexes() {
 
   const knowledgeDebtMetrics = await getKnowledgeDebtMetricsCollection()
   await knowledgeDebtMetrics.createIndex({ repository_id: 1, module_path: 1 }, { unique: true })
+
+  const driftFindings = await getDriftFindingsCollection()
+  await driftFindings.createIndex({ repository_id: 1, finding_key: 1 }, { unique: true })
+  await driftFindings.createIndex({ repository_id: 1, severity: 1 })
+
+  const recommendations = await getRecommendationsCollection()
+  await recommendations.createIndex({ repository_id: 1, recommendation_key: 1 }, { unique: true })
+  await recommendations.createIndex({ repository_id: 1, impact: 1 })
 }
 
 export async function pingDatabase() {

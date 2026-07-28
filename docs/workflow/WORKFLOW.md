@@ -103,16 +103,19 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
 ### Vertical 2 — Knowledge Drift Detection
 
 * **Objective**: Detect inconsistencies where code implementation and documentation have diverged.
-* **Process**:
-  * Compare semantic content of directories and source files with associated documentation.
-  * Scan for changes in function signatures or APIs not updated in markdown files.
-  * Identify documentation references pointing to deleted modules/files.
+* **Current Process**:
+  * Match source-directory modules to adjacent or module-named documentation.
+  * Compare module source-change timestamps with matching documentation
+    timestamps (a 30-day gap is stale documentation).
+  * Identify backticked source paths in documentation that no longer exist.
 * **Drift Classifications**:
   * **Missing Documentation**: A module lacks any README or descriptive files.
   * **Outdated Documentation**: The code has changed recently, but documentation was updated months ago.
   * **Incorrect Documentation**: Documentation describes features or variables that do not match the codebase.
   * **Dead Documentation**: Document exists for a module that has been deleted or fully refactored.
-* **Output**: Knowledge Drift Report (stored in `drift_findings`).
+* **Output**: Reproducible structural Knowledge Drift Report (stored in
+  `drift_findings`). Semantic/code-signature comparison remains a future
+  enhancement.
 
 ### Vertical 3 — Technical Debt Analysis
 
@@ -170,6 +173,10 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   ```
 
 * **Output**: Risk scores, Risk categories, and Refactoring Priorities.
+* **Current implementation**: The risk engine uses Technical Debt (60%),
+  missing module documentation (20%), related drift severity (15%), and
+  available churn (5%). Repository risk combines average and maximum module
+  risk; contributor concentration and duplication are future signals.
 
 ### Vertical 6 — AI Explainability Engine
 
@@ -178,6 +185,9 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * Explain **why** a module is considered risky using evidence.
   * Summarize repository health highlights.
   * Recommend concrete, actionable remediation steps.
+* **Current implementation**: A deterministic local recommendation engine
+  turns stored risk and drift evidence into ranked actions. An external LLM or
+  RAG provider is not configured, so no repository content is sent to one.
 * **Example AI Output**:
 
   ```text

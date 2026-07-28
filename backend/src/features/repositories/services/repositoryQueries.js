@@ -4,6 +4,8 @@ import {
   getRepositoryScoresCollection,
   getTechnicalDebtMetricsCollection,
   getKnowledgeDebtMetricsCollection,
+  getDriftFindingsCollection,
+  getRecommendationsCollection,
 } from '../../../db/index.js'
 import {
   serializeRepository,
@@ -36,16 +38,18 @@ export async function findRepositoryForUser(userId, repositoryId) {
 }
 
 export async function deleteRepositoryForUser(userId, repositoryId) {
-  const [collections, repositoryScores, technicalDebtMetrics, knowledgeDebtMetrics] = await Promise.all([
+  const [collections, repositoryScores, technicalDebtMetrics, knowledgeDebtMetrics, driftFindings, recommendations] = await Promise.all([
     getRepositoryCollections(),
     getRepositoryScoresCollection(),
     getTechnicalDebtMetricsCollection(),
     getKnowledgeDebtMetricsCollection(),
+    getDriftFindingsCollection(),
+    getRecommendationsCollection(),
   ])
   return deleteRepositoryForUserWithCollections(
     normalizeMongoId(userId),
     normalizeMongoId(repositoryId),
-    { ...collections, repositoryScores, technicalDebtMetrics, knowledgeDebtMetrics },
+    { ...collections, repositoryScores, technicalDebtMetrics, knowledgeDebtMetrics, driftFindings, recommendations },
   )
 }
 

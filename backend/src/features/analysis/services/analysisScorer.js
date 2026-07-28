@@ -1,5 +1,8 @@
 import { analyzeTechnicalDebt } from './technicalDebtAnalyzer.js'
 import { analyzeKnowledgeDebt } from './knowledgeDebtAnalyzer.js'
+import { analyzeKnowledgeDrift } from './knowledgeDriftAnalyzer.js'
+import { analyzeRiskIntelligence } from './riskIntelligenceEngine.js'
+import { buildRecommendations } from './recommendationEngine.js'
 import { persistAnalysisResults } from './analysisStore.js'
 
 function clamp(value, minimum, maximum) {
@@ -19,9 +22,21 @@ function round(value) {
 export function buildAnalysisResults(analysis, options = {}) {
   const technicalDebt = analyzeTechnicalDebt(analysis, options)
   const knowledgeDebt = analyzeKnowledgeDebt(analysis, options)
-  const compositeDebt = technicalDebt.score * 0.65 + knowledgeDebt.score * 0.35
+  const drift = analyzeKnowledgeDrift(analysis, knowledgeDebt, options)
+  const risk = analyzeRiskIntelligence({ technicalDebt, knowledgeDebt, drift })
+  const riskByPath = new Map(risk.modules.map(module => [module.path, module]))
+  const technicalDebtWithRisk = {
+    ...technicalDebt,
+    modules: technicalDebt.modules.map(module => {
+      const moduleRisk = riskByPath.get(module.path)
+      return moduleRisk
+        ? { ...module, risk: moduleRisk.level, riskScore: moduleRisk.score, reasons: moduleRisk.reasons }
+        : module
+    }),
+  }
+  const recommendations = buildRecommendations({ risk, drift })
+  const compositeDebt = technicalDebt.score * 0.55 + knowledgeDebt.score * 0.3 + drift.score * 0.15
   const healthScore = round(clamp(100 - compositeDebt, 0, 100))
-  const riskScore = round(clamp(compositeDebt, 0, 100))
 
   return {
     scores: {
@@ -41,21 +56,22 @@ export function buildAnalysisResults(analysis, options = {}) {
         onboardingDifficultyScore: knowledgeDebt.metrics.onboardingDifficultyScore,
       },
       drift: {
-        total: 0,
-        critical: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
+        ...drift.metrics,
       },
       risk: {
-        score: riskScore,
-        criticalModules: technicalDebt.metrics.criticalModules,
+        score: risk.score,
+        level: risk.level,
+        criticalModules: risk.metrics.criticalModules,
+        highModules: risk.metrics.highModules,
         trend: [],
       },
-      recommendationsReady: 0,
+      recommendationsReady: recommendations.length,
     },
-    technicalDebt,
+    technicalDebt: technicalDebtWithRisk,
     knowledgeDebt,
+    drift,
+    risk,
+    recommendations,
   }
 }
 

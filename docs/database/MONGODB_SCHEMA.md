@@ -22,10 +22,11 @@ persistent storage.
 | `commits` | Stores git commit metadata. | `repository_id`, `commit_hash` unique, `commit_date` descending |
 | `dependencies` | Stores file-to-file dependency edges. | `repository_id` |
 | `documentation` | Stores parsed documentation entries. | `repository_id` |
-| `repository_scores` | Stores the latest Technical/Knowledge Debt summary. | `repository_id` unique |
+| `repository_scores` | Stores the latest debt, drift, health, and risk summary. | `repository_id` unique |
 | `technical_debt_metrics` | Stores per-code-file Technical Debt evidence. | `repository_id`+`file_path` unique; score ranking |
 | `knowledge_debt_metrics` | Stores per-module documentation evidence. | `repository_id`+`module_path` unique |
-| `drift_findings` | Stores documentation drift findings. | `repository_id` |
+| `drift_findings` | Stores current structural documentation-drift findings. | `repository_id`+`finding_key` unique; severity |
+| `recommendations` | Stores ranked, evidence-based remediation actions. | `repository_id`+`recommendation_key` unique; impact |
 
 ---
 
@@ -46,6 +47,7 @@ erDiagram
     repositories ||--o{ technical_debt_metrics : ranks
     repositories ||--o{ knowledge_debt_metrics : documents
     repositories ||--o{ drift_findings : reports
+    repositories ||--o{ recommendations : prioritizes
 ```
 
 References use `objectId` values in the draft MongoDB schema.
@@ -301,9 +303,10 @@ Optional fields:
   metrics.
 * `knowledge_debt` (`object`): Score, documentation coverage, onboarding
   difficulty, and aggregate Knowledge Debt metrics.
-* `drift`, `risk` (`object`): Current compatible dashboard summaries.
-* `recommendations_ready` (`int`): Number of AI recommendations, currently
-  zero until that engine persists results.
+* `drift`, `risk` (`object`): Current structural drift and calculated-risk
+  summaries.
+* `recommendations_ready` (`int`): Number of persisted evidence-based
+  remediation actions.
 * `analyzed_at`, `created_at`, `updated_at` (`date`): Score timestamps.
 
 Indexes:
@@ -360,14 +363,42 @@ Indexes:
 Required fields:
 
 * `repository_id` (`objectId`): Parent repository reference.
+* `finding_key` (`string`): Stable finding identifier within the repository.
 * `drift_type` (`string`): Drift classification.
 * `severity` (`enum`): `Low`, `Medium`, `High`, or `Critical`.
 
 Optional fields:
 
-* `description` (`string`): Human-readable finding summary.
+* `title`, `description` (`string`): Human-readable finding summary.
+* `file_path`, `module_path` (`string|null`): Affected documentation or code
+  location when known.
 * `evidence` (`mixed`): Supporting snippets, metadata, or references.
+* `age_days` (`number|null`): Documentation/code age difference when known.
+* `created_at`, `updated_at` (`date`): Snapshot timestamps.
 
 Indexes:
 
-* `{ repository_id: 1 }`.
+* `{ repository_id: 1, finding_key: 1 }`, unique.
+* `{ repository_id: 1, severity: 1 }`.
+
+### `recommendations`
+
+Required fields:
+
+* `repository_id` (`objectId`): Parent repository reference.
+* `recommendation_key` (`string`): Stable recommendation identifier within the
+  repository.
+* `title` (`string`): Remediation action title.
+* `impact` (`enum`): `Low`, `Medium`, `High`, or `Critical`.
+
+Optional fields:
+
+* `effort`, `reason` (`string`): Effort band and evidence-based explanation.
+* `steps` (`array<string>`): Ordered remediation steps.
+* `order` (`int`): Current display priority.
+* `created_at`, `updated_at` (`date`): Snapshot timestamps.
+
+Indexes:
+
+* `{ repository_id: 1, recommendation_key: 1 }`, unique.
+* `{ repository_id: 1, impact: 1 }`.

@@ -56,6 +56,7 @@ erDiagram
     repositories ||--o{ technical_debt_metrics : ranks
     repositories ||--o{ knowledge_debt_metrics : documents
     repositories ||--o{ drift_findings : reports
+    repositories ||--o{ recommendations : prioritizes
 ```
 
 ---
@@ -218,13 +219,15 @@ unique `repository_id`, so a completed re-scan replaces rather than appends a
 snapshot.
 
 * `analysis_version`: Version of the scoring contract.
-* `health_score`: Inverse weighted combination of Technical and Knowledge
-  Debt (0 is poorest health; 100 is healthiest).
+* `health_score`: Inverse weighted combination of Technical Debt, Knowledge
+  Debt, and documentation drift (0 is poorest health; 100 is healthiest).
 * `technical_debt`: Technical Debt score, grade, and aggregate metrics.
 * `knowledge_debt`: Knowledge Debt score, coverage, onboarding difficulty,
   and aggregate metrics.
+* `drift`: Current structural documentation-drift totals and coverage.
 * `risk`: Current score-derived risk summary. Historical risk and health
   trends remain empty until a history feature is introduced.
+* `recommendations_ready`: Count of persisted evidence-based recommendations.
 * `analyzed_at`, `created_at`, `updated_at`: Score timing metadata.
 
 ### `technical_debt_metrics`
@@ -253,7 +256,30 @@ module identifies `documented` and, when absent, `missing_reason`.
 Stores documentation drift findings.
 
 * `repository_id`: Parent repository reference.
+* `finding_key`: Stable per-scan finding identifier; unique with the repository.
 * `drift_type`: Drift classification.
-* `description`: Human-readable finding summary.
+* `title`, `description`: Human-readable finding summary.
+* `file_path`, `module_path`: Affected documentation or code location when known.
 * `severity`: `Low`, `Medium`, `High`, or `Critical`.
 * `evidence`: Supporting snippets, metadata, or references.
+* `age_days`: Documentation/code age gap when applicable.
+* `created_at`, `updated_at`: Snapshot timestamps.
+
+Structural findings currently cover undocumented modules, documentation that is
+older than its associated source module, and backticked source paths in
+documentation that no longer exist.
+
+### `recommendations`
+
+Stores the current ranked remediation suggestions. They are generated from
+persisted debt, drift, and risk evidence without sending repository content to
+an external model.
+
+* `repository_id`: Parent repository reference.
+* `recommendation_key`: Stable per-scan recommendation identifier; unique with
+  the repository.
+* `title`, `reason`, `steps`: Evidence-backed action and remediation steps.
+* `impact`: `Low`, `Medium`, `High`, or `Critical`.
+* `effort`: Human-readable estimated effort band.
+* `order`: Current display priority.
+* `created_at`, `updated_at`: Snapshot timestamps.

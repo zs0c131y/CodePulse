@@ -165,10 +165,12 @@ Finds mismatches between documentation and code.
 
 ### Implementation Notes
 
-* Drift findings should include evidence, affected files, severity, and a
-  recommended owner action.
-* Findings should be reproducible from stored repository, code, and
-  documentation facts.
+* Implemented in [knowledgeDriftAnalyzer.js](../backend/src/features/analysis/services/knowledgeDriftAnalyzer.js).
+  It produces reproducible structural findings from stored repository facts:
+  undocumented source modules, documentation older than its associated module,
+  and backticked source paths that no longer exist.
+* Findings store affected paths, severity, age evidence where available, and
+  are replaced on each completed scan.
 
 ---
 
@@ -237,10 +239,12 @@ Combines all scores into repository health.
 
 ### Implementation Notes
 
-* Risk scoring should combine technical debt, knowledge debt, drift findings,
-  code churn, and contributor concentration.
-* Every risk score should preserve evidence for dashboard and AI explanation
-  flows.
+* Implemented in [riskIntelligenceEngine.js](../backend/src/features/analysis/services/riskIntelligenceEngine.js).
+  File risk combines technical debt (60%), missing module documentation (20%),
+  related drift severity (15%), and available churn (5%).
+* The repository risk uses the average and maximum file risk. The current
+  engine preserves concrete reasons for dashboard and recommendation flows;
+  contributor concentration is a future signal.
 
 ---
 
@@ -258,8 +262,12 @@ Explains findings in human-readable form.
 
 ### Implementation Notes
 
-* AI output must be grounded in stored analysis facts.
-* Recommendation prompts and context construction should stay documented in
+* Implemented fallback: [recommendationEngine.js](../backend/src/features/analysis/services/recommendationEngine.js)
+  creates ranked, evidence-based remediation actions from persisted risk and
+  drift findings. It does not call an external model or transmit repository
+  content.
+* An optional LLM/RAG explanation layer can later use the same stored facts;
+  its prompt and context construction should stay documented in
   [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md).
 
 ---
