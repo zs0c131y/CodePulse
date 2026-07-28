@@ -99,7 +99,10 @@ function readNonNegativeIntegerEnv(name, fallback) {
 }
 
 export const REPOSITORY_CLONE_TIMEOUT_MS = readPositiveIntegerEnv('REPOSITORY_CLONE_TIMEOUT_MS', 10 * 60 * 1000)
-export const REPOSITORY_CLONE_DEPTH = readPositiveIntegerEnv('REPOSITORY_CLONE_DEPTH', 1)
+// Five commits is the minimum history window used by Technical Debt churn and
+// staleness scoring. This remains a shallow clone while allowing those signals
+// to be available on a normal scan.
+export const REPOSITORY_CLONE_DEPTH = readPositiveIntegerEnv('REPOSITORY_CLONE_DEPTH', 5)
 export const REPOSITORY_MAX_SIZE_KB = readNonNegativeIntegerEnv(
   'REPOSITORY_MAX_SIZE_KB',
   IS_PRODUCTION ? 0 : 1024 * 1024,

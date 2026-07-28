@@ -516,6 +516,103 @@ db.createCollection("documentation", {
 db.documentation.createIndex({ repository_id: 1 });
 
 // =========================================
+// ANALYSIS SCORES
+// =========================================
+
+db.createCollection("repository_scores", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                analysis_version: { bsonType: "int" },
+                health_score: { bsonType: "number" },
+                health_trend: {
+                    bsonType: "array",
+                    items: { bsonType: "number" }
+                },
+                technical_debt: { bsonType: "object" },
+                knowledge_debt: { bsonType: "object" },
+                drift: { bsonType: "object" },
+                risk: { bsonType: "object" },
+                recommendations_ready: { bsonType: "int" },
+                analyzed_at: { bsonType: "date" },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.repository_scores.createIndex({ repository_id: 1 }, { unique: true });
+
+// =========================================
+// TECHNICAL DEBT METRICS
+// =========================================
+
+db.createCollection("technical_debt_metrics", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id", "file_path"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                file_path: { bsonType: "string" },
+                owner: { bsonType: "string" },
+                size: { bsonType: "number" },
+                complexity: { bsonType: "number" },
+                churn_percent: { bsonType: "number" },
+                observed_churn_percent: { bsonType: "number" },
+                churn_available: { bsonType: "bool" },
+                duplication_percent: { bsonType: ["number", "null"] },
+                last_changed_at: { bsonType: ["date", "null"] },
+                is_large_file: { bsonType: "bool" },
+                is_high_complexity: { bsonType: "bool" },
+                is_circular: { bsonType: "bool" },
+                is_orphan: { bsonType: "bool" },
+                is_stale: { bsonType: "bool" },
+                dependency_graph_available: { bsonType: "bool" },
+                debt_score: { bsonType: "number" },
+                risk: { bsonType: "string" },
+                reasons: {
+                    bsonType: "array",
+                    items: { bsonType: "string" }
+                },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.technical_debt_metrics.createIndex({ repository_id: 1, file_path: 1 }, { unique: true });
+db.technical_debt_metrics.createIndex({ repository_id: 1, debt_score: -1, file_path: 1 });
+
+// =========================================
+// KNOWLEDGE DEBT METRICS
+// =========================================
+
+db.createCollection("knowledge_debt_metrics", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id", "module_path"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                module_path: { bsonType: "string" },
+                documented: { bsonType: "bool" },
+                missing_reason: { bsonType: ["string", "null"] },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.knowledge_debt_metrics.createIndex({ repository_id: 1, module_path: 1 }, { unique: true });
+
+// =========================================
 // DRIFT FINDINGS
 // =========================================
 
@@ -573,5 +670,8 @@ print("- repo_files");
 print("- commits");
 print("- dependencies");
 print("- documentation");
+print("- repository_scores");
+print("- technical_debt_metrics");
+print("- knowledge_debt_metrics");
 print("- drift_findings");
 print("==================================");

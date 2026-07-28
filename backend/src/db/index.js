@@ -71,6 +71,21 @@ export async function getDocumentationCollection() {
   return db.collection('documentation')
 }
 
+export async function getRepositoryScoresCollection() {
+  const db = await getDatabase()
+  return db.collection('repository_scores')
+}
+
+export async function getTechnicalDebtMetricsCollection() {
+  const db = await getDatabase()
+  return db.collection('technical_debt_metrics')
+}
+
+export async function getKnowledgeDebtMetricsCollection() {
+  const db = await getDatabase()
+  return db.collection('knowledge_debt_metrics')
+}
+
 export async function ensureIndexes() {
   const users = await getUsersCollection()
   await users.createIndex({ email: 1 }, { unique: true })
@@ -115,6 +130,16 @@ export async function ensureIndexes() {
 
   const documentation = await getDocumentationCollection()
   await documentation.createIndex({ repository_id: 1 })
+
+  const repositoryScores = await getRepositoryScoresCollection()
+  await repositoryScores.createIndex({ repository_id: 1 }, { unique: true })
+
+  const technicalDebtMetrics = await getTechnicalDebtMetricsCollection()
+  await technicalDebtMetrics.createIndex({ repository_id: 1, file_path: 1 }, { unique: true })
+  await technicalDebtMetrics.createIndex({ repository_id: 1, debt_score: -1, file_path: 1 })
+
+  const knowledgeDebtMetrics = await getKnowledgeDebtMetricsCollection()
+  await knowledgeDebtMetrics.createIndex({ repository_id: 1, module_path: 1 }, { unique: true })
 }
 
 export async function pingDatabase() {

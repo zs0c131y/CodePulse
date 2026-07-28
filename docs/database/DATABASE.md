@@ -32,7 +32,10 @@ Repository Intelligence metadata is written by
 [backend/src/features/repositories/services/repositoryStore.js](../../backend/src/features/repositories/services/repositoryStore.js).
 Repeated scans of the same `user_id` and `repo_url` update the repository
 record and replace the related file, documentation, commit, and dependency
-records for that repository.
+records for that repository. Immediately afterward,
+[analysisScorer.js](../../backend/src/features/analysis/services/analysisScorer.js)
+replaces that repository's current score snapshot and module-level Technical
+and Knowledge Debt metrics.
 
 ---
 
@@ -49,6 +52,9 @@ erDiagram
     repositories ||--o{ commits : records
     repositories ||--o{ dependencies : maps
     repositories ||--o{ documentation : parses
+    repositories ||--|| repository_scores : summarizes
+    repositories ||--o{ technical_debt_metrics : ranks
+    repositories ||--o{ knowledge_debt_metrics : documents
     repositories ||--o{ drift_findings : reports
 ```
 
@@ -204,6 +210,43 @@ Stores parsed documentation entries.
 * `content`: Extracted documentation text, capped for large files.
 * `size`: Source file size in bytes.
 * `truncated`: Whether stored content was capped during extraction.
+
+### `repository_scores`
+
+Stores the latest generated score snapshot for one repository. It has a
+unique `repository_id`, so a completed re-scan replaces rather than appends a
+snapshot.
+
+* `analysis_version`: Version of the scoring contract.
+* `health_score`: Inverse weighted combination of Technical and Knowledge
+  Debt (0 is poorest health; 100 is healthiest).
+* `technical_debt`: Technical Debt score, grade, and aggregate metrics.
+* `knowledge_debt`: Knowledge Debt score, coverage, onboarding difficulty,
+  and aggregate metrics.
+* `risk`: Current score-derived risk summary. Historical risk and health
+  trends remain empty until a history feature is introduced.
+* `analyzed_at`, `created_at`, `updated_at`: Score timing metadata.
+
+### `technical_debt_metrics`
+
+Stores the latest per-code-file Technical Debt evidence. The compound
+`repository_id` + `file_path` index is unique; the score index supports debt
+rankings.
+
+* `complexity`: Transparent metadata heuristic using file size plus resolved
+  internal dependency fan-in/fan-out, not AST cyclomatic complexity.
+* `churn_percent`, `observed_churn_percent`, `churn_available`: Commit-based
+  churn. Scores only use churn once at least five commits are available.
+* `is_large_file`, `is_high_complexity`, `is_circular`, `is_orphan`,
+  `is_stale`: Detection flags supporting the score.
+* `debt_score`, `risk`, `reasons`: Module ranking and explainable evidence.
+* `duplication_percent`: Currently `null`; a source-duplication detector has
+  not been implemented.
+
+### `knowledge_debt_metrics`
+
+Stores current module documentation evidence. One record per repository
+module identifies `documented` and, when absent, `missing_reason`.
 
 ### `drift_findings`
 

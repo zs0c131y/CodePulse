@@ -96,6 +96,9 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
     JavaScript/TypeScript imports, JavaScript `require`, and Python imports.
   * The pipeline stores metadata only; it does not store a cloned repository
     after analysis.
+  * After raw repository facts are persisted, Technical and Knowledge Debt
+    scores and their module metrics are generated before the temporary clone
+    is removed.
 
 ### Vertical 2 — Knowledge Drift Detection
 
@@ -122,6 +125,15 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * **High Code Churn**: Files modified frequently indicating instability.
   * **Frequent Bug Fixes**: Files appearing often in bug-fix commit patterns.
 * **Output**: Technical Debt Score, Repository Health Metrics, and Maintainability Index.
+* **Current Implementation Notes**:
+  * `backend/src/features/analysis` detects files at or above 50 KiB, a
+    metadata complexity heuristic, resolved internal dependency cycles,
+    supported-language orphan modules, commit churn, and stale modules.
+  * The complexity value is not AST cyclomatic complexity. It combines file
+    size with resolved dependency fan-in/fan-out, making the initial score
+    reproducible from stored repository facts.
+  * Churn and stale signals remain unavailable when fewer than five commits
+    are captured. Duplication is returned as unavailable (`null`).
 
 ### Vertical 4 — Knowledge Debt Analysis
 
@@ -133,6 +145,13 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * **Module Explainability**: Ease of parsing codebase files for onboarding.
   * **Onboarding Complexity**: Overall score summarizing documentation accessibility for new hires.
 * **Output**: Knowledge Debt Score and Documentation Coverage reports.
+* **Current Implementation Notes**:
+  * A module is a source-code directory. Coverage is based on adjacent or
+    module-named documentation; a root README covers only root code, not every
+    nested source directory.
+  * Knowledge Debt and onboarding difficulty combine the coverage gap with
+    detected setup and architecture documentation. Module evidence is stored
+    in `knowledge_debt_metrics`.
 
 ### Vertical 5 — Risk Intelligence Engine
 

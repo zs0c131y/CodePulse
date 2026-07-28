@@ -189,6 +189,13 @@ Measures code maintainability issues.
 
 * Separate raw metrics from final scoring.
 * Keep scoring rules documented so dashboard values can be explained.
+* Implemented in [technicalDebtAnalyzer.js](../backend/src/features/analysis/services/technicalDebtAnalyzer.js).
+  Every completed repository scan now stores a current score, per-file
+  evidence, circular dependency groups, and resolved internal graph signals.
+  The first complexity value is an explainable metadata heuristic; AST-level
+  cyclomatic complexity and source duplication remain follow-up work.
+* Churn and stale scoring require at least five captured commits so shallow
+  history does not produce a misleading signal.
 
 ---
 
@@ -209,6 +216,10 @@ Measures missing or outdated engineering knowledge.
 * Knowledge debt should combine documentation coverage, architecture clarity,
   setup completeness, and module understandability.
 * Scores should link back to concrete missing or outdated documentation.
+* Implemented in [knowledgeDebtAnalyzer.js](../backend/src/features/analysis/services/knowledgeDebtAnalyzer.js).
+  It scores source-directory coverage and stores document/absence evidence per
+  module, along with architecture and setup-document checks used by the
+  onboarding difficulty score.
 
 ---
 

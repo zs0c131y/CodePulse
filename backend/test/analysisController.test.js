@@ -1,0 +1,76 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createAnalysisController } from '../src/features/analysis/controller.js'
+
+function createResponse() {
+  return {
+    statusCode: 200,
+    body: undefined,
+    status(code) {
+      this.statusCode = code
+      return this
+    },
+    json(payload) {
+      this.body = payload
+      return this
+    },
+  }
+}
+
+const ownedRequest = {
+  user: { _id: 'user-1' },
+  params: { repositoryId: '507f1f77bcf86cd799439011' },
+}
+
+test('score reads reject malformed and unowned repository ids before accessing score data', async () => {
+  const { getRepositoryScores } = createAnalysisController({
+    async findRepositoryForUser() { return null },
+  })
+
+  const malformedResponse = createResponse()
+  await getRepositoryScores(
+    { ...ownedRequest, params: { repositoryId: 'invalid' } },
+    malformedResponse,
+    () => assert.fail('next should not be called'),
+  )
+  assert.equal(malformedResponse.statusCode, 400)
+
+  const unownedResponse = createResponse()
+  await getRepositoryScores(ownedRequest, unownedResponse, () => assert.fail('next should not be called'))
+  assert.equal(unownedResponse.statusCode, 404)
+})
+
+test('score and debt reads return the frontend contracts for an owned repository', async () => {
+  const deps = {
+    async findRepositoryForUser() { return { _id: 'repo-1' } },
+    async getRepositoryScore() { return { _id: 'score-1' } },
+    async getRepositoryTechnicalDebt() { return { score: { _id: 'score-1' }, metrics: [{ file_path: 'src/app.js' }] } },
+    serializeAnalysisScores(score) { return { healthScore: 70, source: score._id } },
+    serializeTechnicalDebt(score, metrics) { return { metrics: { technicalDebtScore: 30 }, modules: metrics.map(metric => ({ path: metric.file_path })), source: score._id } },
+  }
+  const { getRepositoryScores, getRepositoryDebt } = createAnalysisController(deps)
+
+  const scoresResponse = createResponse()
+  await getRepositoryScores(ownedRequest, scoresResponse, () => assert.fail('next should not be called'))
+  assert.deepEqual(scoresResponse.body, { scores: { healthScore: 70, source: 'score-1' } })
+
+  const debtResponse = createResponse()
+  await getRepositoryDebt(ownedRequest, debtResponse, () => assert.fail('next should not be called'))
+  assert.deepEqual(debtResponse.body, {
+    metrics: { technicalDebtScore: 30 },
+    modules: [{ path: 'src/app.js' }],
+    source: 'score-1',
+  })
+})
+
+test('debt reads return 404 when an owned repository has not been scored', async () => {
+  const { getRepositoryDebt } = createAnalysisController({
+    async findRepositoryForUser() { return { _id: 'repo-1' } },
+    async getRepositoryTechnicalDebt() { return { score: null, metrics: [] } },
+  })
+  const response = createResponse()
+
+  await getRepositoryDebt(ownedRequest, response, () => assert.fail('next should not be called'))
+
+  assert.equal(response.statusCode, 404)
+})
