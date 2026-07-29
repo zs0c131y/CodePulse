@@ -1,6 +1,10 @@
 import { pingDatabase, getUsersCollection } from '../../db/index.js'
 
-export async function checkHealth(_request, response, next) {
+export function checkLiveness(_request, response) {
+  response.json({ status: 'ok' })
+}
+
+export async function checkHealth(_request, response) {
   try {
     await pingDatabase()
     const users = await getUsersCollection()
@@ -10,6 +14,11 @@ export async function checkHealth(_request, response, next) {
       users: await users.estimatedDocumentCount(),
     })
   } catch (error) {
-    next(error)
+    response.status(503).json({
+      status: 'degraded',
+      store: 'mongodb',
+      message: 'Database is unavailable.',
+      error: error.message,
+    })
   }
 }
