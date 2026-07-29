@@ -1,5 +1,8 @@
 # CodePulse - Feature-Based Implementation Roadmap
 
+<!-- markdownlint-configure-file {"MD013": {"tables": false}} -->
+<!-- markdownlint-configure-file {"MD024": {"siblings_only": true}} -->
+
 This document defines the implementation roadmap for CodePulse by product
 feature area. It is intended to guide backend, frontend, database, and AI
 engine work without mixing implementation details into a single large task.
@@ -22,6 +25,28 @@ engine work without mixing implementation details into a single large task.
 | 10 | AI Recommendations | Findings are explained with evidence-backed actions |
 | 11 | Dashboard | Analysis results are visualized for users |
 | 12 | Reports | Shareable repository health reports are generated |
+
+---
+
+## Frontend Delivery Status
+
+The frontend now provides a complete, production-bundled surface for every
+roadmap phase. Data-backed phases render persisted results when their endpoint
+is available and an explicit unavailable or empty state when the corresponding
+backend engine has not shipped or has not run.
+
+| Roadmap Area | Frontend Surface | Status |
+| :--- | :--- | :--- |
+| Authentication and onboarding | Auth flows, repository picker, scan console | Implemented |
+| Repository Intelligence | Inventory, dependency graph/table, activity, documentation, manifests | Implemented |
+| Code/documentation/debt/drift/risk engines | Charts, findings, heatmap, score and pipeline panels | Implemented; live content depends on phases 4–9 APIs |
+| AI Recommendations | Evidence-aware recommendation cards and report section | Implemented; live content depends on phase 10 API |
+| Dashboard | Five responsive, keyboard-accessible analysis workspaces | Implemented |
+| Reports | Protected, print-ready report with browser PDF export | Implemented; stored/share-link report service remains backend work |
+
+Interaction and visual acceptance criteria for the newly completed surfaces
+are recorded in
+[docs/frontend/PENDING_UI_HANDOFF.md](frontend/PENDING_UI_HANDOFF.md).
 
 ---
 
@@ -140,10 +165,12 @@ Finds mismatches between documentation and code.
 
 ### Implementation Notes
 
-* Drift findings should include evidence, affected files, severity, and a
-  recommended owner action.
-* Findings should be reproducible from stored repository, code, and
-  documentation facts.
+* Implemented in [knowledgeDriftAnalyzer.js](../backend/src/features/analysis/services/knowledgeDriftAnalyzer.js).
+  It produces reproducible structural findings from stored repository facts:
+  undocumented source modules, documentation older than its associated module,
+  and backticked source paths that no longer exist.
+* Findings store affected paths, severity, age evidence where available, and
+  are replaced on each completed scan.
 
 ---
 
@@ -164,6 +191,13 @@ Measures code maintainability issues.
 
 * Separate raw metrics from final scoring.
 * Keep scoring rules documented so dashboard values can be explained.
+* Implemented in [technicalDebtAnalyzer.js](../backend/src/features/analysis/services/technicalDebtAnalyzer.js).
+  Every completed repository scan now stores a current score, per-file
+  evidence, circular dependency groups, and resolved internal graph signals.
+  The first complexity value is an explainable metadata heuristic; AST-level
+  cyclomatic complexity and source duplication remain follow-up work.
+* Churn and stale scoring require at least five captured commits so shallow
+  history does not produce a misleading signal.
 
 ---
 
@@ -182,8 +216,12 @@ Measures missing or outdated engineering knowledge.
 ### Implementation Notes
 
 * Knowledge debt should combine documentation coverage, architecture clarity,
-  setup completeness, and module explainability.
+  setup completeness, and module understandability.
 * Scores should link back to concrete missing or outdated documentation.
+* Implemented in [knowledgeDebtAnalyzer.js](../backend/src/features/analysis/services/knowledgeDebtAnalyzer.js).
+  It scores source-directory coverage and stores document/absence evidence per
+  module, along with architecture and setup-document checks used by the
+  onboarding difficulty score.
 
 ---
 
@@ -201,10 +239,12 @@ Combines all scores into repository health.
 
 ### Implementation Notes
 
-* Risk scoring should combine technical debt, knowledge debt, drift findings,
-  code churn, and contributor concentration.
-* Every risk score should preserve evidence for dashboard and AI explanation
-  flows.
+* Implemented in [riskIntelligenceEngine.js](../backend/src/features/analysis/services/riskIntelligenceEngine.js).
+  File risk combines technical debt (60%), missing module documentation (20%),
+  related drift severity (15%), and available churn (5%).
+* The repository risk uses the average and maximum file risk. The current
+  engine preserves concrete reasons for dashboard and recommendation flows;
+  contributor concentration is a future signal.
 
 ---
 
@@ -222,8 +262,12 @@ Explains findings in human-readable form.
 
 ### Implementation Notes
 
-* AI output must be grounded in stored analysis facts.
-* Recommendation prompts and context construction should stay documented in
+* Implemented fallback: [recommendationEngine.js](../backend/src/features/analysis/services/recommendationEngine.js)
+  creates ranked, evidence-based remediation actions from persisted risk and
+  drift findings. It does not call an external model or transmit repository
+  content.
+* An optional LLM/RAG explanation layer can later use the same stored facts;
+  its prompt and context construction should stay documented in
   [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md).
 
 ---
@@ -240,6 +284,7 @@ Visualizes all analysis results.
 * Dependency graph.
 * Risk heatmap.
 * Recommendations page.
+* Repository intelligence workspace.
 
 ### Implementation Notes
 
@@ -267,6 +312,8 @@ Creates final shareable output.
 * Reports should reuse the same persisted findings shown in the dashboard.
 * Generated report content should include timestamps, repository identity,
   scoring summaries, evidence, and recommendations.
+* The current frontend supports browser-native print/PDF export. Durable report
+  artifacts and share links require a future backend report-generation API.
 
 ---
 

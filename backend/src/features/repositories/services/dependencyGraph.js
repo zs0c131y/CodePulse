@@ -124,19 +124,31 @@ function resolvePythonImportPath(sourceFile, importPath, fileIndex) {
   }
 }
 
-function isDependencySource(file) {
+export function isDependencyGraphSource(file) {
   return ['code', 'test'].includes(file.file_type) && ['JavaScript', 'JavaScript JSX', 'TypeScript', 'TypeScript JSX', 'Python'].includes(file.language)
 }
 
-export async function generateDependencyGraph(repositoryPath, files, options = {}) {
+export function getDependencyGraphCoverage(files, options = {}) {
   const maxSourceFiles = options.maxSourceFiles || REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES
   const maxFileBytes = options.maxFileBytes || REPOSITORY_MAX_DEPENDENCY_FILE_BYTES
+  const candidates = files.filter(isDependencyGraphSource)
+  const sizeEligibleFiles = candidates.filter(file => !maxFileBytes || file.size <= maxFileBytes)
+  const sourceFiles = sizeEligibleFiles.slice(0, maxSourceFiles)
+
+  return {
+    scannedFilePaths: sourceFiles.map(file => file.path),
+    candidateFileCount: candidates.length,
+    skippedOversizedFileCount: candidates.length - sizeEligibleFiles.length,
+    skippedByLimitFileCount: Math.max(sizeEligibleFiles.length - sourceFiles.length, 0),
+  }
+}
+
+export async function generateDependencyGraph(repositoryPath, files, options = {}) {
   const fileIndex = createFileIndex(files)
   const edges = []
-  const sourceFiles = files
-    .filter(isDependencySource)
-    .filter(file => !maxFileBytes || file.size <= maxFileBytes)
-    .slice(0, maxSourceFiles)
+  const coverage = getDependencyGraphCoverage(files, options)
+  const sourcePathSet = new Set(coverage.scannedFilePaths)
+  const sourceFiles = files.filter(file => sourcePathSet.has(file.path))
 
   for (const file of sourceFiles) {
     const content = await readFile(absolutePathFromRepo(repositoryPath, file.path), 'utf8')

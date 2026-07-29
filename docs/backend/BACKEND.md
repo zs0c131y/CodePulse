@@ -130,7 +130,8 @@ Repository Intelligence also reads:
 
 * `REPOSITORY_CLONE_TIMEOUT_MS`: git clone timeout in milliseconds. Defaults
   to `600000` for local analysis.
-* `REPOSITORY_CLONE_DEPTH`: shallow clone depth. Defaults to `1`.
+* `REPOSITORY_CLONE_DEPTH`: shallow clone depth. Defaults to `5`, the minimum
+  history window used before commit churn and stale-module signals are scored.
 * `REPOSITORY_MAX_SIZE_KB`: maximum GitHub repository size allowed for
   interactive analysis. Defaults to `1048576` KB (1 GB) in local development
   and `0` in production/cloud, where `0` means unlimited.
@@ -182,7 +183,8 @@ backend from an API-only server into one that also serves the built frontend:
    (see [frontend/vite.config.js](../../frontend/vite.config.js)), so the
    compiled HTML/JS/CSS land in `dist/` at the project root, alongside
    `backend/` and `frontend/`.
-2. Start the backend with `NODE_ENV=production node backend/index.js`.
+2. Start the backend with `NODE_ENV=production npm start` from the repository
+   root (or `npm start` inside `backend/`).
    [backend/src/app.js](../../backend/src/app.js) then:
    * Serves static files (JS, CSS, images) from `dist/` via
      `express.static`.
@@ -207,8 +209,9 @@ starting the backend in production.
 
 Implemented in [backend/src/features/auth/controler/credentials.controller.js](../../backend/src/features/auth/controler/credentials.controller.js).
 
-The backend applies security headers, credentialed CORS for configured origins,
-global request rate limiting, auth-route rate limiting, and Mongo-backed
+The backend applies security headers, credentialed CORS for configured origins
+(`GET`, `POST`, `PATCH`, `DELETE`, and preflight requests), global request rate
+limiting, auth-route rate limiting, and Mongo-backed
 brute-force lockouts for repeated failed sign-in attempts. In production,
 startup fails before `app.listen()` if MongoDB indexes cannot be created,
 including the unique email index and auth token indexes. In local development,
@@ -646,7 +649,12 @@ Implementation modules:
   persists repository, file, documentation, commit, and dependency records in
   MongoDB.
 * [repositoryAnalyzer.js](../../backend/src/features/repositories/services/repositoryAnalyzer.js):
-  orchestrates the full scan pipeline and cleans up temporary clone folders.
+  orchestrates the full scan pipeline, persists raw facts, triggers scoring,
+  and cleans up temporary clone folders.
+* [analysisScorer.js](../../backend/src/features/analysis/services/analysisScorer.js):
+  runs the Technical and Knowledge Debt engines after a successful raw scan.
+* [analysisStore.js](../../backend/src/features/analysis/services/analysisStore.js):
+  maintains score snapshots and per-module evidence collections.
 
 The public API validates `https://github.com/...` URLs only. Local fixture
 repositories are supported only in tests through an internal option, not
@@ -686,7 +694,9 @@ and `404` when the repository does not exist or belongs to another user.
 ### `DELETE /api/repositories/:repositoryId`
 
 Deletes a repository owned by the signed-in user and cascades the delete to
-its `repo_files`, `commits`, `dependencies`, and `documentation` records.
+its `repo_files`, `commits`, `dependencies`, `documentation`,
+`repository_scores`, `technical_debt_metrics`, and `knowledge_debt_metrics`
+records.
 Returns `404` when the repository does not exist or belongs to another user.
 
 ### `GET /api/repositories/:repositoryId/files`
@@ -793,7 +803,7 @@ Large repositories are guarded before and during analysis:
 * GitHub repository size is checked before cloning when public metadata is
   available. Repositories above `REPOSITORY_MAX_SIZE_KB` return `413`. A value
   of `0` disables this size check, which is the production/cloud default.
-* Clones are shallow by default (`REPOSITORY_CLONE_DEPTH=1`) and skip tags.
+* Clones are shallow by default (`REPOSITORY_CLONE_DEPTH=5`) and skip tags.
 * File parsing stops with `413` above `REPOSITORY_MAX_FILES`.
 * Dependency extraction skips oversized files and only scans up to
   `REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES` source files.
@@ -803,17 +813,150 @@ Large repositories are guarded before and during analysis:
 
 ---
 
-## 📡 Repository Read & Analytics API (Planned Contract)
+## Analysis Engines (Implemented)
 
-The frontend dashboard is wired against the following read-only endpoints.
-**These are not implemented yet** — they are the agreed contract for the
-analysis-engine milestones (`status`, `scores`, `debt`, `drift`,
-`recommendations`). `GET /api/repositories` and
-`GET /api/repositories/:repositoryId` are now implemented — see the
-"Repository Intelligence API" section above. All endpoints below require
-`Authorization: Bearer <accessToken>` and only ever return repositories
-owned by the signed-in user. The frontend degrades to empty states when any
-of them returns `404`.
+Every successful `POST /api/repositories/analyze` scan persists raw repository
+facts first, then runs the scoring engines. The current snapshot is stored in
+`repository_scores`; per-file Technical Debt evidence in
+`technical_debt_metrics`; per-source-directory Knowledge Debt evidence in
+`knowledge_debt_metrics`; structural drift findings in `drift_findings`; and
+ranked remediation actions in `recommendations`. A re-scan replaces these
+current snapshots.
+
+### Technical Debt
+
+[technicalDebtAnalyzer.js](../../backend/src/features/analysis/services/technicalDebtAnalyzer.js)
+scores code files from normalized scan facts:
+
+* Files of at least 50 KiB are large-file signals.
+* Complexity is an explicit metadata heuristic: `1 + ceil(sizeKiB) +
+  2 × resolved outbound edges + resolved inbound edges`, capped at 100. It is
+  deliberately not AST/cyclomatic complexity.
+* Churn is the percentage of captured commits touching a file. It is scored
+  only with at least five captured commits; otherwise `observedChurnPercent`
+  is informational and `churnAvailable` is `false`.
+* Circular dependencies use strongly connected groups of resolved internal
+  edges, including resolved self-imports.
+* Orphans are supported JavaScript/TypeScript/Python code files actually
+  scanned for dependencies, with no resolved internal edge and no conventional
+  entry-point name such as `index.*` or `main.*`. Files skipped by dependency
+  file-size or count limits are never marked orphaned.
+* A stale module has a captured last change older than 180 days while the
+  repository has a recent captured commit; it uses the same five-commit
+  minimum.
+
+The module debt score combines these signals into a 0–100 score where higher
+is worse. Repository grades are `A` (0–20), `B` (21–40), `C` (41–60), `D`
+(61–80), and `F` (81–100). Source duplication is not yet analyzed and is
+represented as `null`, not a misleading zero.
+
+### Knowledge Debt
+
+[knowledgeDebtAnalyzer.js](../../backend/src/features/analysis/services/knowledgeDebtAnalyzer.js)
+groups production code by source directory. A module is covered when it has
+adjacent or module-named documentation. A root README covers only root code,
+not all nested modules. The score combines the module documentation coverage
+gap with the absence of setup and architecture documentation; it also returns
+an onboarding-difficulty score and module-level documentation evidence.
+
+### Knowledge Drift, Risk, and Recommendations
+
+[knowledgeDriftAnalyzer.js](../../backend/src/features/analysis/services/knowledgeDriftAnalyzer.js)
+compares stored source, documentation, and commit facts. It finds undocumented
+modules, module documentation older than its associated source changes, and
+backticked source-file references that no longer resolve. These deterministic
+findings are stored in `drift_findings` with evidence and severity.
+
+[riskIntelligenceEngine.js](../../backend/src/features/analysis/services/riskIntelligenceEngine.js)
+combines file debt (60%), absent module documentation (20%), highest related
+drift severity (15%), and available churn (5%) into an explainable module
+risk. Repository risk combines the average and maximum module risk.
+
+[recommendationEngine.js](../../backend/src/features/analysis/services/recommendationEngine.js)
+turns high-risk debt and drift evidence into ranked remediation actions. This
+is a local deterministic fallback, not an external LLM call; no repository
+content is sent outside the configured database and scan sources.
+
+### `GET /api/repositories/:repositoryId/scores`
+
+Returns the latest score snapshot for an owned repository. It returns `400`
+for an invalid id and `404` when the repository is unavailable to the caller
+or has not completed scoring yet.
+
+```json
+{
+  "scores": {
+    "healthScore": 72,
+    "healthTrend": [],
+    "technicalDebt": { "score": 36, "grade": "B" },
+    "knowledgeDebt": {
+      "score": 20,
+      "documentationCoverage": 80,
+      "onboardingDifficulty": 12,
+      "onboardingDifficultyScore": 12
+    },
+    "drift": { "total": 3, "critical": 0, "high": 1, "medium": 1, "low": 1 },
+    "risk": { "score": 30, "criticalModules": 1, "trend": [] },
+    "recommendationsReady": 2,
+    "generatedAt": "2026-07-25T00:00:00.000Z"
+  }
+}
+```
+
+Historical score and risk trends are intentionally empty until score-history
+persistence is added.
+
+### `GET /api/repositories/:repositoryId/debt`
+
+Returns the latest Technical Debt aggregate and ordered per-file evidence for
+an owned scored repository. It uses the same `400`/`404` behavior as the
+scores endpoint.
+
+```json
+{
+  "metrics": {
+    "technicalDebtScore": 36,
+    "grade": "B",
+    "averageComplexity": 8.2,
+    "duplicationPercent": null,
+    "circularDependencies": 1,
+    "largeFiles": 2,
+    "orphanModules": 1,
+    "staleModules": 0,
+    "churnSampleSize": 5,
+    "churnAvailable": true
+  },
+  "modules": [
+    {
+      "path": "src/billing/invoice.js",
+      "owner": "Ada Lovelace",
+      "complexity": 22,
+      "churnPercent": 60,
+      "observedChurnPercent": 60,
+      "churnAvailable": true,
+      "duplicationPercent": null,
+      "isLargeFile": true,
+      "inCircularDependency": true,
+      "isOrphan": false,
+      "isStale": false,
+      "debtScore": 74,
+      "risk": "High",
+      "reasons": ["Large source file (65536 bytes)"]
+    }
+  ],
+  "generatedAt": "2026-07-25T00:00:00.000Z"
+}
+```
+
+---
+
+## 📡 Analysis Status, Drift, and Recommendation API
+
+All of the following endpoints require `Authorization: Bearer <accessToken>`
+and only return repositories owned by the signed-in user. They return `400`
+for malformed repository IDs and `404` for unavailable repositories; drift
+and recommendation reads also return `404` until a completed scan has
+persisted a score snapshot.
 
 ### `GET /api/repositories/:repositoryId/status`
 
@@ -826,61 +969,9 @@ Response:
 ```json
 {
   "repositoryId": "mongodb-object-id",
-  "status": "running",
-  "message": "optional human-readable detail",
+  "status": "completed",
+  "message": null,
   "updatedAt": "2026-07-21T09:15:00.000Z"
-}
-```
-
-### `GET /api/repositories/:repositoryId/scores`
-
-Aggregated dashboard scores for the Overview and Risk & AI tabs. Produced by
-the Technical Debt, Knowledge Debt, and Risk Intelligence engines.
-
-Response:
-
-```json
-{
-  "scores": {
-    "healthScore": 86,
-    "healthTrend": [78, 79, 80, 79, 81, 82, 83, 84, 83, 85, 86, 86],
-    "technicalDebt": { "score": 41, "grade": "B" },
-    "knowledgeDebt": { "score": 32, "documentationCoverage": 63 },
-    "drift": { "total": 19, "critical": 2, "high": 5, "medium": 8, "low": 4 },
-    "risk": {
-      "criticalModules": 7,
-      "trend": [{ "label": "Mon", "value": 62 }]
-    },
-    "recommendationsReady": 12
-  }
-}
-```
-
-### `GET /api/repositories/:repositoryId/debt`
-
-Module-level technical debt table and headline metrics.
-
-Response:
-
-```json
-{
-  "metrics": {
-    "technicalDebtScore": 41,
-    "grade": "B",
-    "averageComplexity": 41,
-    "duplicationPercent": 8.7,
-    "circularDependencies": 5
-  },
-  "modules": [
-    {
-      "path": "src/billing/InvoicePipeline.ts",
-      "owner": "Payments",
-      "complexity": 91,
-      "churnPercent": 84,
-      "duplicationPercent": 18,
-      "risk": "Critical"
-    }
-  ]
 }
 ```
 
@@ -895,23 +986,25 @@ Response:
   "findings": [
     {
       "id": "finding-id",
-      "title": "README references removed webhook flow",
-      "filePath": "docs/auth/README.md",
+      "title": "Module is undocumented",
+      "filePath": "src/auth",
       "severity": "High",
-      "age": "18 days",
-      "evidence": "Payment webhook handler was removed in commit b91a4f2."
+      "age": null,
+      "evidence": "No adjacent or module-named documentation was found."
     }
   ],
   "coverage": [
-    { "label": "API routes", "percent": 84 },
-    { "label": "Domain modules", "percent": 63 }
+    { "label": "Module documentation", "percent": 63 },
+    { "label": "Setup documentation", "percent": 100 },
+    { "label": "Architecture documentation", "percent": 0 }
   ]
 }
 ```
 
 ### `GET /api/repositories/:repositoryId/recommendations`
 
-AI-generated, evidence-backed remediation recommendations.
+Evidence-backed remediation recommendations generated from the local risk and
+drift analysis; they do not require an external LLM provider.
 
 Response:
 
@@ -920,11 +1013,11 @@ Response:
   "recommendations": [
     {
       "id": "recommendation-id",
-      "title": "Split InvoicePipeline into orchestration and calculation units",
+      "title": "Break the circular dependency around src/billing/invoice.js",
       "impact": "High",
-      "effort": "2-3 days",
-      "reason": "The module combines retry orchestration, tax calculation, and notification side effects.",
-      "steps": ["Extract pure invoice calculator", "Move retry policy into queue worker"]
+      "effort": "Medium",
+      "reason": "A resolved internal dependency cycle increases change risk.",
+      "steps": ["Choose one dependency direction", "Extract shared contracts if needed"]
     }
   ]
 }
@@ -932,7 +1025,9 @@ Response:
 
 ### `GET /api/auth/usage`
 
-Account-level usage snapshot shown on the profile page.
+Account-level usage snapshot shown on the profile page. `aiActions` is the
+number of currently available evidence-based recommendation actions; it is
+kept under that name for the existing frontend contract.
 
 Response:
 
@@ -967,16 +1062,11 @@ OAuth requests include repository-read scopes (`repo` on GitHub and
 `read_api` on GitLab). The provider calls never send access tokens to the
 frontend.
 
-## ⚙️ Planned Analytical Services
+## ⚙️ Current Analysis Boundaries
 
-Repository Intelligence is implemented. The following services are still
-planned and should remain behind backend API boundaries when implemented:
-
-* **Knowledge Drift Detection Engine**: Compare documentation against current
-  source structure and flag drift findings.
-* **Technical Debt Analyzer**: Compute complexity, churn, duplication, and
-  circular dependency signals.
-* **Knowledge Debt Analyzer**: Measure documentation coverage and onboarding
-  completeness.
-* **Risk Intelligence Engine**: Combine debt, drift, and activity signals into
-  module-level risk scores.
+The implemented engines operate on the repository facts gathered during a
+scan. AST-level cyclomatic complexity, source-duplication detection,
+embedding/semantic drift, contributor-concentration risk, score history, and
+external LLM/RAG recommendations remain future integrations. The current
+interfaces retain the required API boundaries so those capabilities can be
+added without changing frontend consumers.

@@ -9,55 +9,66 @@ wiring for CodePulse.
 
 * **Framework**: React with Vite.
 * **Build Config**: [frontend/vite.config.js](../../frontend/vite.config.js).
-* **Styling**: The **Signal** design system — full specification in
-  [docs/design.md](../design.md). Semantic dark/light tokens live in
-  [frontend/src/index.css](../../frontend/src/index.css) and are bridged into
-  Tailwind through `@theme inline`. Local shadcn-style primitives are in
+* **Styling**: The 2026 **dual design system** — full specification in
+  [docs/design.md](../design.md). One token architecture in
+  [frontend/src/index.css](../../frontend/src/index.css) powers two worlds:
+  **The Product** (app + auth: neutral zinc surfaces, hairline borders,
+  inverted-contrast primary actions, one blue interactive accent) and **The
+  Journal** (marketing: an editorial broadsheet scoped under `.mk` — warm
+  paper, ink rules, one hot orange, Archivo + Instrument Serif + Geist Mono).
+  Tokens are bridged into Tailwind through `@theme inline`. Local
+  shadcn-style primitives are in
   [frontend/src/components/ui](../../frontend/src/components/ui), with class
   merging in [frontend/src/lib/utils.js](../../frontend/src/lib/utils.js).
 
-  **Rule: component code uses semantic tokens only** — `var(--surface-1)`,
+  **Rule: product components use semantic tokens only** — `var(--surface-1)`,
   `var(--ink-2)`, `var(--sev-high)`, `var(--series-1)`. Never a Tailwind colour
   literal (`text-white`, `bg-violet-600`), because a literal cannot follow the
-  theme and cannot be re-checked for contrast. Token groups:
+  theme and cannot be re-checked for contrast. Journal markup uses the fixed
+  `--mk-*` tokens instead. Token groups:
 
   | Group | Tokens | Meaning |
   | :--- | :--- | :--- |
   | Surfaces | `--surface-canvas`, `--surface-1..3`, `--surface-overlay`, `--surface-sunken` | Elevation planes |
   | Ink | `--ink-1..4` | Text. `--ink-4` is below 4.5:1 in both themes — non-text only |
-  | Lines | `--line-1..3` | Hairline, divider, emphasis |
-  | Accent | `--accent`, `--accent-ink`, `--accent-on`, `--accent-wash`, `--accent-line` | Interactive only, never decoration |
+  | Lines | `--line-1..3` | Hairlines do layout work instead of shadows |
+  | Accent | `--accent`, `--accent-ink`, `--accent-on`, `--accent-wash`, `--accent-line` | Interactive state only, never decoration |
+  | Contrast | `--contrast`, `--contrast-hover`, `--contrast-on` | The primary action: an inverted surface |
   | Providers | `--provider-github`, `--provider-gitlab` | Provider identity, only beside an explicit GitHub/GitLab action |
-  | Severity | `--sev-{nominal,low,medium,high,critical}` + `-ink`/`-wash`/`-line` | Fixed in both themes; always paired with an icon + label |
+  | Severity | `--sev-{nominal,low,medium,high,critical}` + `-ink`/`-wash`/`-line` | Always paired with an icon + label |
   | Series | `--series-1..6` | Chart identity, fixed assignment order |
   | Heat | `--heat-1..5` | Single-hue risk ramp |
-  | Elevation | `--shadow-e1..e4` | One light source |
+  | Elevation | `--shadow-e1..e4` | Borders first; shadows only for floating layers |
   | Motion | `--d-1..5`, `--ease-out/in/inout` | One easing family |
 
-  The palette is a midnight-blue workspace with a signal-blue interactive
-  accent. Surfaces intentionally become nearly opaque at overlay elevation so
-  menus, sticky headers, and dialogs remain visually separate from scrolling
-  content. Severity and chart colors are supporting semantic signals, never
-  decorative page colors.
-
+* **Typography**: two type systems from one stylesheet in
+  [frontend/index.html](../../frontend/index.html) — **Geist + Geist Mono**
+  for the product (UI + data) and **Archivo + Instrument Serif** for the
+  Journal (display + accent).
 * **Theming**: `data-theme="light" | "dark"` on `<html>`, stamped before first
   paint by an inline script in [frontend/index.html](../../frontend/index.html)
   reading `localStorage`, then re-synced from user settings in
   [App.jsx](../../frontend/src/App.jsx). With no stamp, the OS preference wins
-  via `prefers-color-scheme`. Density is exposed the same way as
-  `data-density="comfortable" | "compact"`.
+  via `prefers-color-scheme`. The shared `ThemeToggle` is available from
+  authentication, dashboard, profile, and settings headers; it switches
+  immediately, persists the device preference, and notifies the app so
+  authenticated account state stays synchronized. System theme changes are
+  followed while the preference is `system`. The Journal landing has a fixed
+  paper palette and intentionally ships no toggle. Density is exposed the same
+  way as `data-density="comfortable" | "compact" | "spacious"` and visibly
+  adjusts spacing across authenticated product surfaces.
 * **Charts**: recharts, themed through
   [frontend/src/lib/useChartTokens.js](../../frontend/src/lib/useChartTokens.js).
   SVG presentation attributes do not resolve `var()`, so that hook reads the
-  computed custom properties and re-reads them on theme change. The categorical
-  palette and heat ramp are **validated, not chosen** (colourblind separation
-  and contrast measured — see [docs/design.md](../design.md) §5); re-run those
-  checks before altering any `--series-*` or `--heat-*` value.
+  computed custom properties and re-reads them on theme change. Re-run the
+  contrast checks in [docs/design.md](../design.md) §5 before altering any
+  `--series-*` or `--heat-*` value.
 * **Severity in the UI**: render with `SeverityBadge` from
   [dashboard/shared.jsx](../../frontend/src/components/dashboard/shared.jsx),
   which pairs the colour with a required icon and label. Colour must never
   carry severity alone.
-* **Routing**: Lightweight client-side path routing in
+* **Routing**: Lightweight, dependency-free client-side history routing in
+  [frontend/src/lib/router.jsx](../../frontend/src/lib/router.jsx), composed in
   [frontend/src/App.jsx](../../frontend/src/App.jsx). Legacy hash routes are
   normalized for backward compatibility. Authenticated screens (`Dashboard`,
   `AccountPage`) are lazy-loaded with `React.lazy` so the marketing bundle
@@ -101,24 +112,25 @@ instead of forcing page-level horizontal scrolling.
 ```text
 frontend/
 ├── public/
-│   └── favicon.svg
+│   └── favicon.svg             # Pulse-mark app icon
 ├── src/
 │   ├── api/                    # Backend API client modules
 │   │   ├── client.js           # apiUrl + authenticated apiFetch (ApiError carries HTTP status)
-  │   │   ├── repositories.js     # Repository analyze + read/analytics endpoints
-  │   │   └── integrations.js     # Connected GitHub/GitLab source APIs
+│   │   ├── repositories.js     # Repository analyze + read/analytics endpoints
+│   │   ├── integrations.js     # Connected GitHub/GitLab source APIs
 │   │   └── usage.js            # Account usage snapshot endpoint
-│   ├── assets/
-│   │   └── hero.png
 │   ├── components/
 │   │   ├── dashboard/          # Dashboard panels (presentational)
 │   │   │   ├── CoveragePanel.jsx    # recharts horizontal documentation-coverage bars
 │   │   │   ├── DebtCharts.jsx       # recharts complexity + churn/duplication charts
 │   │   │   ├── DebtTable.jsx        # Ranked module debt table (cards on small screens)
+│   │   │   ├── DependencyGraphPanel.jsx # SVG/table dependency explorer
 │   │   │   ├── DriftPanel.jsx       # Knowledge drift findings queue
-│   │   │   ├── KpiCard.jsx          # KPI stat card with sparkline
+│   │   │   ├── MetricStrip.jsx      # KPI strip: borderless cells, hairline dividers
 │   │   │   ├── PipelinePanel.jsx    # Analysis pipeline status list
 │   │   │   ├── RecommendationPanel.jsx # AI recommendation cards
+│   │   │   ├── RepositoryIntelligencePanel.jsx # Files, imports, activity, docs, manifests
+│   │   │   ├── RiskHeatmapPanel.jsx # Responsive module-risk heatmap
 │   │   │   ├── RiskTrendPanel.jsx   # recharts risk-trend area chart + table toggle
 │   │   │   ├── shared.jsx           # Tooltip, Sparkline, EmptyPanel components
 │   │   │   └── utils.js             # severity/status classes, clamp, formatRelativeTime
@@ -127,27 +139,27 @@ frontend/
 │   │   │   ├── button.jsx
 │   │   │   ├── card.jsx
 │   │   │   ├── combobox.jsx     # Searchable, grouped repository picker
+│   │   │   ├── floating-menu.js # Viewport positioning shared by custom menus
 │   │   │   ├── input.jsx
-│   │   │   └── select.jsx
+│   │   │   ├── provider-marks.jsx # Shared GitHub and GitLab brand marks
+│   │   │   ├── pulse-mark.jsx   # The CodePulse mark (product + journal variants)
+│   │   │   ├── select.jsx       # Keyboard-accessible custom select menu
+│   │   │   └── theme-toggle.jsx # Shared light/dark mode control
+│   │   ├── AppChrome.jsx        # Shared authenticated top bar
 │   │   ├── AuthPage.jsx
 │   │   ├── AccountPage.jsx
 │   │   ├── Dashboard.jsx        # Dashboard shell + data orchestration
-│   │   ├── MarketingPage.jsx   # Customer-facing marketing experience
-│   │   ├── Features.jsx        # Legacy, not mounted by App.jsx
-│   │   ├── FinalCTA.jsx        # Legacy, not mounted by App.jsx
-│   │   ├── Footer.jsx          # Legacy, not mounted by App.jsx
-│   │   ├── Hero.jsx            # Legacy, not mounted by App.jsx
-│   │   ├── HowItWorks.jsx      # Legacy, not mounted by App.jsx
-│   │   ├── LogoBar.jsx         # Legacy, not mounted by App.jsx
-│   │   ├── Navbar.jsx          # Legacy, not mounted by App.jsx
-│   │   ├── Problems.jsx        # Legacy, not mounted by App.jsx
-│   │   ├── Stats.jsx           # Legacy, not mounted by App.jsx
-│   │   └── Testimonials.jsx    # Legacy, not mounted by App.jsx
+│   │   ├── MarketingPage.jsx    # The Journal marketing broadsheet
+│   │   ├── ReportsPage.jsx      # Print-ready persisted-evidence report
+│   │   └── Reveal.jsx           # Scroll-reveal wrapper (Journal)
 │   ├── demo/
 │   │   └── dashboardDemoData.js  # Demo-mode fallback data (never used in live mode)
 │   ├── lib/
+│   │   ├── router.jsx             # Dependency-free history router components
+│   │   ├── router-context.js      # Router context and location/navigation hooks
+│   │   ├── useChartTokens.js    # Token bridge for recharts SVG attributes
+│   │   ├── useReveal.js         # IntersectionObserver scroll reveal
 │   │   └── utils.js
-│   ├── App.css
 │   ├── App.jsx
 │   ├── index.css
 │   └── main.jsx
@@ -160,9 +172,14 @@ frontend/
 ## 🏛️ Landing Page Flow
 
 The landing page is composed by
-[MarketingPage.jsx](../../frontend/src/components/MarketingPage.jsx). It
-includes responsive navigation, a repository-instrument preview clearly marked
-as illustrative, product capabilities, workflow, and conversion sections.
+[MarketingPage.jsx](../../frontend/src/components/MarketingPage.jsx) as an
+editorial broadsheet ("The Journal", spec: [docs/design.md](../design.md) §2):
+sticky ruled navigation, a giant Archivo/serif hero with an animated
+ECG-trace instrument preview clearly marked as illustrative, an ink marquee
+band, numbered ledger sections (`01 / Signals` with hover inversion,
+`02 / Workflow`, `03 / Evidence` on an inverted ink band), a final CTA, and a
+broadsheet footer. The palette is fixed paper — the Journal does not follow
+the app theme and ships no theme toggle.
 
 ---
 
@@ -195,8 +212,8 @@ routes.
   The refresh token is held by the backend as a MongoDB session and sent to the
   browser as an `HttpOnly` cookie.
 * [frontend/src/App.jsx](../../frontend/src/App.jsx) refreshes the session on
-  load with `POST /api/auth/refresh`, gates `/dashboard`, `/profile`, and
-  `/settings`, checks
+  load with `POST /api/auth/refresh`, gates `/dashboard`, `/reports`,
+  `/profile`, and `/settings`, checks
   `GET /api/auth/me` with a bearer token, and calls `POST /api/auth/logout` to
   revoke the refresh session. After a GitHub/GitLab login the backend redirects
   the browser straight to `#dashboard`; the refresh-on-load call picks up the
@@ -228,6 +245,8 @@ API"):
   recently updated repository, and renders its persisted totals — so the
   last-scan view survives page refreshes (nothing is session-only).
 * The repository dropdown lists the user's real repositories from the API.
+  It renders in a viewport-positioned overlay so the searchable menu is not
+  clipped by the repository console or surrounding panels.
 * Each tab fetches its own analytics endpoint for the selected repository
   (`GET /api/repositories/:id/scores`, `/debt`, `/drift`,
   `/recommendations`). Every request settles independently: an endpoint that
@@ -243,23 +262,26 @@ API"):
   repository does the same when its provider URL is supported. A successful
   scan switches the dashboard to live mode, selects the new repository, and
   reloads list + analytics.
-* Until the read API ships on the backend, live mode degrades gracefully: it
-  shows the current session's scan summary and marks the remaining panels as
-  unavailable.
-
-Four dashboard tabs:
+Five dashboard tabs:
 
 * **Overview**: Score KPIs (health, critical risks, drift findings, AI
   actions) when the scores engine responds, otherwise real scan totals (files,
   docs, commits, dependency edges); analysis pipeline driven by the real
   analysis status; risk-trend area chart; top debt modules and drift findings.
 * **Technical Debt**: Debt-metric KPIs, recharts complexity and
-  churn/duplication bar charts, and the ranked module table from
+  churn/duplication bar charts, a responsive module risk heatmap, and the
+  ranked module table from
   `GET /api/repositories/:id/debt`.
 * **Knowledge Drift & Debt**: Drift findings queue and recharts documentation
   coverage bars from `GET /api/repositories/:id/drift`.
 * **Risk & AI Recommendations**: Risk trend, pipeline state, and AI
-  recommendation cards from `GET /api/repositories/:id/recommendations`.
+  recommendation cards from `GET /api/repositories/:id/recommendations`, plus
+  the same module heatmap when debt findings are available.
+* **Repository Intelligence**: Searchable file inventory, dependency graph
+  with an accessible table alternative, commit and contributor activity,
+  documentation summaries, and detected manifests. Its six evidence requests
+  settle independently so a missing optional source does not suppress the
+  evidence that did load.
 
 Repositories with no completed analysis render a dedicated empty state
 prompting the user to start a scan.
@@ -272,13 +294,32 @@ The header demo toggle switches the whole dashboard to the sample data in
 recommendations, risk trend). Demo data never leaves this module, and live
 mode never reads it.
 
-Authenticated screens share a compact fixed 64px icon rail, sticky header,
-responsive content width, and shadcn-style buttons, badges, inputs, and selects.
-The account identity remains available through the avatar rail control instead
-of a persistent session-status card. Dashboard grids use
-single-column layouts until enough viewport width is available, and the
-highest-risk module table switches to compact cards on smaller screens to avoid
-page-level horizontal scrolling.
+### Reports
+
+The protected `/reports` route renders
+[ReportsPage.jsx](../../frontend/src/components/ReportsPage.jsx). It selects
+from the user's persisted repositories, requests the same health, debt, drift,
+recommendation, and contributor sources used elsewhere, and labels every
+section as included or unavailable according to the endpoint response. Empty
+successful results remain valid empty states rather than being mislabeled as
+missing engines.
+
+The report is formatted for both screen review and A4 printing. **Print / Save
+as PDF** opens the browser print dialog; screen-only navigation and controls
+are removed by print styles. This is a frontend export surface, not a claim
+that the backend currently stores or distributes generated PDF artifacts.
+
+Authenticated screens share the [AppChrome.jsx](../../frontend/src/components/AppChrome.jsx)
+top bar (brand, workspace navigation, screen actions, theme toggle, avatar,
+sign-out). The dashboard notification action opens the Notifications section
+of Settings. The dashboard adds a keyboard-navigable sticky underline tab
+strip (repository identity + analysis status on the right) and a terminal-framed
+**repository console** holding the picker, scan controls, scan output, and meta row. KPIs
+render as borderless [MetricStrip.jsx](../../frontend/src/components/dashboard/MetricStrip.jsx)
+cells separated by hairlines. Dashboard grids use single-column layouts until
+enough viewport width is available, and the highest-risk module table
+switches to compact cards on smaller screens to avoid page-level horizontal
+scrolling.
 
 ---
 
@@ -295,10 +336,20 @@ reuse the protected-session flow and shared account layout.
 * **Settings**: Uses clustered Interface, Notifications, Connected code hosts,
   and Security cards. Theme, density, scan cadence, AI summary detail, and
   notification preferences persist through `PATCH /api/auth/settings`.
+  Timezone and settings choices use the shared custom select rather than
+  browser-native dropdowns. Notification switches use fixed geometry so their
+  thumbs remain aligned at every density. Theme and density preview
+  immediately; the screen tracks unsaved changes, provides a working discard
+  action, and only enables Save when there is something to persist. Turning
+  off the master email preference disables its dependent digest, risk, and
+  drift controls while preserving those saved sub-preferences.
 * **Connected code hosts**: GitHub and GitLab cards start OAuth with expanded
   repository-read scopes. The backend retains an encrypted provider token and
   the dashboard fetches available provider repositories into its “Connected
   repository” dropdown. Choosing one fills the scan URL; the existing analyzer
-  still accepts public GitHub URLs.
+  still accepts public GitHub URLs. OAuth connection success and failure
+  redirects are surfaced inline on Settings, and provider links honor
+  `VITE_API_BASE_URL` for split frontend/API deployments. Authentication and
+  connection cards share the official GitHub and GitLab brand marks.
 * The dashboard links to both routes from the sidebar and header controls.
 * Password changes continue to use the reset-email flow at `/reset-password`.

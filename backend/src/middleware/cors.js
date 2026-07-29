@@ -8,7 +8,7 @@ export function cors(request, response, next) {
     response.setHeader('Vary', 'Origin')
     response.setHeader('Access-Control-Allow-Credentials', 'true')
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS')
+    response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS')
   }
 
   if (request.method === 'OPTIONS') {

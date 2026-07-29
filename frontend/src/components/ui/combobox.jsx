@@ -1,6 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useFloatingMenu } from './floating-menu'
 
 /**
  * Keyboard-first, grouped combobox for product entities such as repositories.
@@ -14,22 +16,31 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
+  const { triggerRef, menuRef, floatingStyle } = useFloatingMenu(open, 304)
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return options.filter(option => !needle || `${option.label} ${option.description || ''} ${option.group || ''}`.toLowerCase().includes(needle))
   }, [options, query])
   const selected = options.find(option => option.value === value)
+  const activeOptionId = open && filtered[activeIndex]
+    ? `${listboxId}-option-${activeIndex}`
+    : undefined
 
   useEffect(() => {
     if (!open) return undefined
-    inputRef.current?.focus()
+    inputRef.current?.focus({ preventScroll: true })
     const onPointerDown = event => {
-      if (!containerRef.current?.contains(event.target)) setOpen(false)
+      if (
+        !containerRef.current?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        setOpen(false)
+      }
     }
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [open])
+  }, [menuRef, open])
 
   useEffect(() => {
     if (!open) return
@@ -43,6 +54,7 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
     onChange?.(option.value, option)
     setOpen(false)
     setQuery('')
+    requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }))
   }
 
   function onKeyDown(event) {
@@ -59,6 +71,7 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
     } else if (event.key === 'Escape') {
       setOpen(false)
       setQuery('')
+      requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }))
     }
   }
 
@@ -66,6 +79,7 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
   return (
     <div ref={containerRef} className={cn('relative', className)} onKeyDown={onKeyDown}>
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         aria-label={ariaLabel || placeholder}
@@ -73,7 +87,7 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
         aria-expanded={open}
         aria-controls={listboxId}
         onClick={() => setOpen(current => !current)}
-        className="flex h-11 w-full items-center gap-3 rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-2)] px-3 text-left text-sm transition hover:border-[var(--line-3)] focus-visible:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-10 w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-1)] px-3 text-left text-sm transition-colors duration-[var(--d-2)] hover:border-[var(--line-3)] focus-visible:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Search size={16} className="shrink-0 text-[var(--ink-3)]" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate font-medium text-[var(--ink-1)]">{selected?.label || placeholder}</span>
@@ -81,14 +95,30 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
         <ChevronDown size={16} className={cn('shrink-0 text-[var(--ink-3)] transition-transform duration-180', open && 'rotate-180')} aria-hidden="true" />
       </button>
 
-      {open && (
-        <div className="absolute z-50 mt-2 w-full min-w-[19rem] overflow-hidden rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-1)] p-2 shadow-[var(--shadow-e3)]">
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          style={floatingStyle}
+          className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--line-2)] bg-[var(--surface-1)] p-1.5 shadow-[var(--shadow-e3)]"
+        >
           <div className="flex items-center gap-2 border-b border-[var(--line-1)] px-2 pb-2">
             <Search size={15} className="text-[var(--ink-3)]" aria-hidden="true" />
-            <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} placeholder="Search repositories…" className="h-8 min-w-0 flex-1 bg-transparent text-sm text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-4)]" />
+            <input
+              ref={inputRef}
+              role="combobox"
+              aria-label="Search repositories"
+              aria-autocomplete="list"
+              aria-controls={listboxId}
+              aria-expanded={open}
+              aria-activedescendant={activeOptionId}
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="Search repositories…"
+              className="h-8 min-w-0 flex-1 bg-transparent text-sm text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-4)]"
+            />
             <kbd className="rounded-[var(--r-xs)] border border-[var(--line-2)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--ink-3)]">Esc</kbd>
           </div>
-          <div id={listboxId} role="listbox" className="mt-1 max-h-72 overflow-y-auto py-1">
+          <div id={listboxId} role="listbox" className="mt-1 min-h-0 flex-1 overflow-y-auto py-1">
             {filtered.length === 0 && <p className="px-2 py-6 text-center text-sm text-[var(--ink-3)]">No repositories found.</p>}
             {filtered.map((option, index) => {
               const groupLabel = option.group && option.group !== currentGroup ? option.group : ''
@@ -98,6 +128,7 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
                 <div key={option.value}>
                   {groupLabel && <p className="px-2 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-4)]">{groupLabel}</p>}
                   <button
+                    id={`${listboxId}-option-${index}`}
                     type="button"
                     role="option"
                     aria-selected={isSelected}
@@ -121,7 +152,8 @@ function Combobox({ value, onChange, options, placeholder = 'Select an option', 
               )
             })}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

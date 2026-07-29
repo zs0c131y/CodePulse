@@ -102,6 +102,11 @@ function createCollections() {
     commits: new FakeCollection(),
     dependencies: new FakeCollection(),
     documentation: new FakeCollection(),
+    repositoryScores: new FakeCollection(),
+    technicalDebtMetrics: new FakeCollection(),
+    knowledgeDebtMetrics: new FakeCollection(),
+    driftFindings: new FakeCollection(),
+    recommendations: new FakeCollection(),
   }
 }
 
@@ -130,6 +135,11 @@ test('deleteRepositoryForUserWithCollections cascades child records and reports 
   collections.commits.records.push({ repository_id: 'repo-1', commit_hash: 'abc' })
   collections.dependencies.records.push({ repository_id: 'repo-1', source_file: 'a.js', target_file: 'b.js' })
   collections.documentation.records.push({ repository_id: 'repo-1', doc_path: 'README.md' })
+  collections.repositoryScores.records.push({ repository_id: 'repo-1', health_score: 80 })
+  collections.technicalDebtMetrics.records.push({ repository_id: 'repo-1', file_path: 'a.js' })
+  collections.knowledgeDebtMetrics.records.push({ repository_id: 'repo-1', module_path: 'src' })
+  collections.driftFindings.records.push({ repository_id: 'repo-1', finding_key: 'missing:src' })
+  collections.recommendations.records.push({ repository_id: 'repo-1', recommendation_key: 'document:src' })
 
   const deletedForWrongUser = await deleteRepositoryForUserWithCollections('user-2', 'repo-1', collections)
   assert.equal(deletedForWrongUser, false)
@@ -142,6 +152,11 @@ test('deleteRepositoryForUserWithCollections cascades child records and reports 
   assert.equal(collections.commits.records.length, 0)
   assert.equal(collections.dependencies.records.length, 0)
   assert.equal(collections.documentation.records.length, 0)
+  assert.equal(collections.repositoryScores.records.length, 0)
+  assert.equal(collections.technicalDebtMetrics.records.length, 0)
+  assert.equal(collections.knowledgeDebtMetrics.records.length, 0)
+  assert.equal(collections.driftFindings.records.length, 0)
+  assert.equal(collections.recommendations.records.length, 0)
 
   const deletedAgain = await deleteRepositoryForUserWithCollections('user-1', 'repo-1', collections)
   assert.equal(deletedAgain, false)

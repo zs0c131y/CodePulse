@@ -11,11 +11,11 @@ export default function DriftPanel({
   }
 
   return (
-    <section className="glass-panel p-6">
+    <section className="panel p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-[var(--ink-1)]">Knowledge drift queue</h2>
-          <p className="mt-1 text-sm text-[var(--ink-3)]">Documentation conflicts that need owner review.</p>
+          <h2 className="text-sm font-semibold text-[var(--ink-1)]">Knowledge drift queue</h2>
+          <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">Documentation conflicts that need owner review.</p>
         </div>
         <FileWarning size={18} className="text-[var(--ink-4)]" aria-hidden="true" />
       </div>
@@ -23,7 +23,7 @@ export default function DriftPanel({
       <ul className="mt-5 space-y-3">
         {items.map(item => (
           <li key={item.id || item.title}>
-            <article className="glass-panel p-5 transition-all hover:-translate-y-[2px] hover:shadow-[var(--shadow-e3)]">
+            <article className="panel-2 panel-interactive p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="font-semibold text-[var(--ink-1)]">{item.title}</h3>

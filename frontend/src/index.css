@@ -1,203 +1,265 @@
 @import "tailwindcss";
 
 /*
- * CodePulse — 2026 "Calm Intelligence" design system
- * ---------------------------------------------------------------------------
- * A premium, low-stimulus design system emphasizing generous whitespace,
- * subtle glassmorphism, fluid typography, and calm, purposeful motion.
+ * CodePulse — 2026 dual design system
+ * ===========================================================================
+ * Two worlds, one token architecture:
+ *
+ * 1. THE PRODUCT (default tokens, theme-aware)
+ *    A precision instrument: neutral zinc surfaces, hairline borders, small
+ *    radii, high-contrast inverted primary actions, and one blue accent used
+ *    only for interactive state. Quiet like a Vercel/Linear workspace.
+ *
+ * 2. THE JOURNAL (.mk scope, fixed palette)
+ *    The marketing surface: an editorial broadsheet — warm paper, ink black,
+ *    one hot orange, oversized grotesk headlines cut with italic serif,
+ *    solid rules, hard offset shadows, mono metadata. Spec: docs/design.md
+ * ===========================================================================
  */
 
 :root {
   color-scheme: dark;
 
-  /* -- Surfaces: midnight blue, tuned for long engineering sessions ------ */
-  --surface-canvas: #0a0f1d;
-  --surface-1: #111827;
-  --surface-2: #172033;
-  --surface-3: #22304a;
-  /* Deliberately near-opaque: menus and sticky controls never leak content. */
-  --surface-overlay: rgba(17, 24, 39, 0.94);
-  --surface-sunken: #070b15;
-  --surface-wash: rgba(148, 163, 184, 0.08);
+  /* -- Surfaces: neutral zinc, elevation by 4% steps --------------------- */
+  --surface-canvas: #0a0a0a;
+  --surface-1: #101010;
+  --surface-2: #171717;
+  --surface-3: #1f1f1f;
+  /* Overlays blur over scrolling content; keep them nearly opaque. */
+  --surface-overlay: rgba(16, 16, 16, 0.86);
+  --surface-sunken: #060606;
+  --surface-wash: rgba(255, 255, 255, 0.05);
 
-  /* -- Ink: High legibility, calm contrast ------------------------------- */
-  --ink-1: #f8fafc;
-  --ink-2: #c4cede;
-  --ink-3: #93a0b8;
-  --ink-4: #66748d;
+  /* -- Ink --------------------------------------------------------------- */
+  --ink-1: #fafafa;
+  --ink-2: #a3a3a3;
+  --ink-3: #737373;
+  /* Below 4.5:1 on all surfaces — icons and placeholders only, never text. */
+  --ink-4: #525252;
 
-  /* -- Lines: Soft, subtle dividers -------------------------------------- */
-  --line-1: rgba(148, 163, 184, 0.11);
-  --line-2: rgba(148, 163, 184, 0.19);
-  --line-3: rgba(196, 206, 222, 0.3);
+  /* -- Lines: hairlines do the layout work, not shadows ------------------ */
+  --line-1: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.12);
+  --line-3: rgba(255, 255, 255, 0.2);
 
-  /* -- Accent: CodePulse signal blue ------------------------------------- */
-  --accent: #5369d6;
-  --accent-hover: #6d80ed;
-  --accent-ink: #b6c0ff;
+  /* -- Accent: one blue, interactive state only -------------------------- */
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-ink: #6ea0ff;
   --accent-on: #ffffff;
-  --accent-wash: rgba(83, 105, 214, 0.16);
-  --accent-line: rgba(83, 105, 214, 0.4);
+  --accent-wash: rgba(59, 130, 246, 0.12);
+  --accent-line: rgba(59, 130, 246, 0.45);
+
+  /* -- Contrast: the primary action is an inverted surface --------------- */
+  --contrast: #ededed;
+  --contrast-hover: #d4d4d4;
+  --contrast-on: #0a0a0a;
 
   /* Provider marks are reserved for explicit connection actions only. */
-  --provider-github: #dbe4f3;
-  --provider-gitlab: #fc8d52;
+  --provider-github: #e5e5e5;
+  --provider-gitlab: #fc6d26;
 
-  /* -- Severity marks: Muted, elegant indicators ------------------------- */
-  --sev-nominal: #41ca97;
-  --sev-low: #41ca97;
-  --sev-medium: #f5bd57;
-  --sev-high: #f49370;
-  --sev-critical: #f26f73;
-  --sev-critical-on: #17080b;
+  /* -- Severity: the product's real palette, fixed hues ------------------ */
+  --sev-nominal: #34d399;
+  --sev-low: #34d399;
+  --sev-medium: #fbbf24;
+  --sev-high: #fb923c;
+  --sev-critical: #f87171;
+  --sev-critical-on: #ffffff;
 
-  /* -- Severity washes + lines ------------------------------------------- */
-  --sev-nominal-wash: rgba(65, 202, 151, 0.12);
-  --sev-low-wash: rgba(65, 202, 151, 0.12);
-  --sev-medium-wash: rgba(245, 189, 87, 0.12);
-  --sev-high-wash: rgba(244, 147, 112, 0.12);
-  --sev-critical-wash: rgba(242, 111, 115, 0.12);
+  --sev-nominal-ink: #34d399;
+  --sev-low-ink: #34d399;
+  --sev-medium-ink: #fbbf24;
+  --sev-high-ink: #fb923c;
+  --sev-critical-ink: #f87171;
 
-  --sev-nominal-line: rgba(65, 202, 151, 0.32);
-  --sev-low-line: rgba(65, 202, 151, 0.32);
-  --sev-medium-line: rgba(245, 189, 87, 0.32);
-  --sev-high-line: rgba(244, 147, 112, 0.32);
-  --sev-critical-line: rgba(242, 111, 115, 0.32);
+  --sev-nominal-wash: rgba(52, 211, 153, 0.1);
+  --sev-low-wash: rgba(52, 211, 153, 0.1);
+  --sev-medium-wash: rgba(251, 191, 36, 0.1);
+  --sev-high-wash: rgba(251, 146, 60, 0.1);
+  --sev-critical-wash: rgba(248, 113, 113, 0.1);
+
+  --sev-nominal-line: rgba(52, 211, 153, 0.32);
+  --sev-low-line: rgba(52, 211, 153, 0.32);
+  --sev-medium-line: rgba(251, 191, 36, 0.32);
+  --sev-high-line: rgba(251, 146, 60, 0.32);
+  --sev-critical-line: rgba(248, 113, 113, 0.32);
 
   /* -- Deltas ------------------------------------------------------------ */
   --delta-up: var(--sev-nominal);
   --delta-down: var(--sev-critical);
   --delta-flat: var(--ink-3);
 
-  /* -- Chart series — Refined calm palette ------------------------------- */
-  --series-1: #8294ff;
-  --series-2: #45c9bd;
-  --series-3: #e78bb6;
-  --series-4: #eec76d;
-  --series-5: #b29cf9;
-  --series-6: #ee9b79;
+  /* -- Chart series: categorical identity, fixed assignment order -------- */
+  --series-1: #4f8ff7;
+  --series-2: #2dd4bf;
+  --series-3: #a78bfa;
+  --series-4: #fbbf24;
+  --series-5: #f472b6;
+  --series-6: #fb923c;
 
   /* -- Risk heat ramp (ordinal, single hue) ------------------------------ */
-  --heat-1: #443141;
-  --heat-2: #704252;
-  --heat-3: #9d5161;
-  --heat-4: #ca626b;
-  --heat-5: #f26f73;
+  --heat-1: #33272b;
+  --heat-2: #5c3740;
+  --heat-3: #854753;
+  --heat-4: #ad5a66;
+  --heat-5: #f87171;
 
   /* -- Chart chrome ------------------------------------------------------ */
-  --chart-grid: rgba(148, 163, 184, 0.12);
-  --chart-axis: rgba(148, 163, 184, 0.22);
+  --chart-grid: rgba(255, 255, 255, 0.05);
+  --chart-axis: rgba(255, 255, 255, 0.12);
 
-  /* -- Elevation: Soft shadow & glassmorphism ---------------------------- */
-  --shadow-e1: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --shadow-e2: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --shadow-e3: 0 16px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --shadow-e4: 0 24px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  /* -- Elevation: borders first, shadows only for floating layers -------- */
+  --shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-e2: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-e3: 0 12px 32px rgba(0, 0, 0, 0.6);
+  --shadow-e4: 0 24px 64px rgba(0, 0, 0, 0.7);
 
-  --scrim: rgba(7, 11, 21, 0.74);
-  --backdrop: rgba(7, 11, 21, 0.56);
+  --scrim: rgba(10, 10, 10, 0.72);
+  --backdrop: rgba(0, 0, 0, 0.6);
 
-  /* -- Radius: Slightly more generous rounding --------------------------- */
-  --r-xs: 0.375rem;
-  --r-sm: 0.5rem;
-  --r-md: 0.75rem;
-  --r-lg: 1rem;
-  --r-xl: 1.5rem;
+  /* -- Radius: small, sharp, engineered ---------------------------------- */
+  --r-xs: 0.25rem;
+  --r-sm: 0.375rem;
+  --r-md: 0.5rem;
+  --r-lg: 0.75rem;
+  --r-xl: 1rem;
 
-  /* -- Motion: Natural, fluid easing ------------------------------------- */
-  --d-1: 150ms;
-  --d-2: 250ms;
-  --d-3: 350ms;
-  --d-4: 500ms;
-  --d-5: 800ms;
+  /* -- Motion ------------------------------------------------------------ */
+  --d-1: 120ms;
+  --d-2: 200ms;
+  --d-3: 320ms;
+  --d-4: 480ms;
+  --d-5: 720ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.5, 0, 1, 0.5);
   --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
 
   /* -- Density ----------------------------------------------------------- */
+  --pad-card: 1.25rem;
+  --pad-row: 0.75rem;
+}
+
+:root[data-density="compact"] {
+  --pad-card: 0.875rem;
+  --pad-row: 0.5rem;
+}
+
+:root[data-density="spacious"] {
   --pad-card: 1.5rem;
   --pad-row: 1rem;
 }
 
-:root[data-density="compact"] {
-  --pad-card: 1rem;
-  --pad-row: 0.5rem;
-}
-
-/* -- Light theme: Muted, airy, and clean ---------------------------------- */
+/* -- Light theme: paper-white workspace, same architecture ---------------- */
 
 :root[data-theme="light"] {
-    color-scheme: light;
+  color-scheme: light;
 
-    --surface-canvas: #f5f7fb;
-    --surface-1: #ffffff;
-    --surface-2: #eef2f8;
-    --surface-3: #dbe3ef;
-    --surface-overlay: rgba(255, 255, 255, 0.96);
-    --surface-sunken: #e8edf5;
-    --surface-wash: rgba(71, 85, 105, 0.07);
+  --surface-canvas: #fafafa;
+  --surface-1: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #e7e7ea;
+  --surface-overlay: rgba(255, 255, 255, 0.88);
+  --surface-sunken: #f0f0f1;
+  --surface-wash: rgba(0, 0, 0, 0.04);
 
-    --ink-1: #111827;
-    --ink-2: #475569;
-    --ink-3: #64748b;
-    --ink-4: #94a3b8;
+  --ink-1: #0a0a0a;
+  --ink-2: #525252;
+  --ink-3: #737373;
+  --ink-4: #a3a3a3;
 
-    --line-1: rgba(51, 65, 85, 0.1);
-    --line-2: rgba(51, 65, 85, 0.16);
-    --line-3: rgba(51, 65, 85, 0.27);
+  --line-1: rgba(0, 0, 0, 0.07);
+  --line-2: rgba(0, 0, 0, 0.11);
+  --line-3: rgba(0, 0, 0, 0.18);
 
-    --accent: #465dcc;
-    --accent-hover: #3d50b5;
-    --accent-ink: #3e51b9;
-    --accent-on: #ffffff;
-    --accent-wash: rgba(70, 93, 204, 0.1);
-    --accent-line: rgba(70, 93, 204, 0.26);
+  --accent: #0070f3;
+  --accent-hover: #0060df;
+  --accent-ink: #0070f3;
+  --accent-on: #ffffff;
+  --accent-wash: rgba(0, 112, 243, 0.08);
+  --accent-line: rgba(0, 112, 243, 0.3);
 
-    --provider-github: #243047;
-    --provider-gitlab: #d65c23;
+  --contrast: #0a0a0a;
+  --contrast-hover: #2b2b2b;
+  --contrast-on: #fafafa;
 
-    --sev-nominal: #087f5b;
-    --sev-low: #087f5b;
-    --sev-medium: #a95c00;
-    --sev-high: #c84c2b;
-    --sev-critical: #bf3e50;
+  --provider-github: #24292f;
+  --provider-gitlab: #e24329;
 
-    --sev-nominal-wash: rgba(8, 127, 91, 0.1);
-    --sev-low-wash: rgba(8, 127, 91, 0.1);
-    --sev-medium-wash: rgba(169, 92, 0, 0.1);
-    --sev-high-wash: rgba(200, 76, 43, 0.1);
-    --sev-critical-wash: rgba(191, 62, 80, 0.1);
+  --sev-nominal: #059669;
+  --sev-low: #059669;
+  --sev-medium: #b45309;
+  --sev-high: #c2410c;
+  --sev-critical: #dc2626;
 
-    --sev-nominal-line: rgba(8, 127, 91, 0.24);
-    --sev-low-line: rgba(8, 127, 91, 0.24);
-    --sev-medium-line: rgba(169, 92, 0, 0.24);
-    --sev-high-line: rgba(200, 76, 43, 0.24);
-    --sev-critical-line: rgba(191, 62, 80, 0.24);
+  --sev-nominal-ink: #047857;
+  --sev-low-ink: #047857;
+  --sev-medium-ink: #92400e;
+  --sev-high-ink: #9a3412;
+  --sev-critical-ink: #b91c1c;
 
-    --series-1: #465dcc;
-    --series-2: #087f77;
-    --series-3: #b73d72;
-    --series-4: #9d7100;
-    --series-5: #7251cc;
-    --series-6: #bd5938;
+  --sev-nominal-wash: rgba(5, 150, 105, 0.08);
+  --sev-low-wash: rgba(5, 150, 105, 0.08);
+  --sev-medium-wash: rgba(180, 83, 9, 0.08);
+  --sev-high-wash: rgba(194, 65, 12, 0.08);
+  --sev-critical-wash: rgba(220, 38, 38, 0.08);
 
-    --heat-1: #f5dbe0;
-    --heat-2: #ecaeb9;
-    --heat-3: #df7d8c;
-    --heat-4: #ca5364;
-    --heat-5: #a93044;
+  --sev-nominal-line: rgba(5, 150, 105, 0.26);
+  --sev-low-line: rgba(5, 150, 105, 0.26);
+  --sev-medium-line: rgba(180, 83, 9, 0.26);
+  --sev-high-line: rgba(194, 65, 12, 0.26);
+  --sev-critical-line: rgba(220, 38, 38, 0.26);
 
-    --chart-grid: rgba(0, 0, 0, 0.05);
-    --chart-axis: rgba(0, 0, 0, 0.1);
+  --series-1: #0070f3;
+  --series-2: #0f766e;
+  --series-3: #7c3aed;
+  --series-4: #b45309;
+  --series-5: #db2777;
+  --series-6: #ea580c;
 
-    --shadow-e1: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 1);
-    --shadow-e2: 0 8px 24px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 1);
-    --shadow-e3: 0 16px 40px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
-    --shadow-e4: 0 24px 56px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 1);
+  --heat-1: #fbe3e3;
+  --heat-2: #f5c0c0;
+  --heat-3: #ec8f8f;
+  --heat-4: #dd5c5c;
+  --heat-5: #b91c1c;
 
-    --scrim: rgba(250, 250, 250, 0.7);
-    --backdrop: rgba(0, 0, 0, 0.2);
+  --chart-grid: rgba(0, 0, 0, 0.05);
+  --chart-axis: rgba(0, 0, 0, 0.12);
+
+  --shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-e2: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-e3: 0 12px 32px rgba(0, 0, 0, 0.1);
+  --shadow-e4: 0 24px 64px rgba(0, 0, 0, 0.14);
+
+  --scrim: rgba(250, 250, 250, 0.72);
+  --backdrop: rgba(0, 0, 0, 0.32);
 }
+
+/* ==========================================================================
+   THE JOURNAL — .mk scope. Fixed palette: the landing does not follow the
+   app theme. It is a printed broadsheet; paper stays paper.
+   ========================================================================== */
+
+.mk {
+  --mk-paper: #f3efe4;
+  --mk-paper-2: #eae5d3;
+  --mk-card: #faf7ec;
+  --mk-ink: #17130c;
+  --mk-ink-2: #55503f;
+  --mk-ink-3: #8b8471;
+  --mk-line: #17130c;
+  --mk-line-soft: rgba(23, 19, 12, 0.16);
+  --mk-accent: #ff4d00;
+  --mk-accent-strong: #c73e00;
+  --mk-accent-wash: rgba(255, 77, 0, 0.1);
+
+  background: var(--mk-paper);
+  color: var(--mk-ink-2);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+
 
 /* ==========================================================================
    2. Tailwind bridge
@@ -227,6 +289,10 @@
   --color-accent-wash: var(--accent-wash);
   --color-accent-line: var(--accent-line);
 
+  --color-contrast: var(--contrast);
+  --color-contrast-hover: var(--contrast-hover);
+  --color-contrast-on: var(--contrast-on);
+
   --color-sev-nominal: var(--sev-nominal);
   --color-sev-low: var(--sev-low);
   --color-sev-medium: var(--sev-medium);
@@ -244,45 +310,46 @@
   --color-series-5: var(--series-5);
   --color-series-6: var(--series-6);
 
-  /* Modern typography stack */
-  --font-sans: "Inter", "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Type systems: product (Geist) + journal (Archivo / Instrument Serif). */
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Archivo", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
 
-  /* Fluid Typography using clamp */
-  --text-display-1: clamp(3rem, 6vw, 4.5rem);
-  --text-display-1--line-height: 1.05;
-  --text-display-1--letter-spacing: -0.04em;
+  --text-display-1: clamp(2.75rem, 6vw, 4.25rem);
+  --text-display-1--line-height: 1.02;
+  --text-display-1--letter-spacing: -0.045em;
 
-  --text-display-2: clamp(2.5rem, 5vw, 3.5rem);
-  --text-display-2--line-height: 1.1;
-  --text-display-2--letter-spacing: -0.03em;
+  --text-display-2: clamp(2.25rem, 5vw, 3.25rem);
+  --text-display-2--line-height: 1.06;
+  --text-display-2--letter-spacing: -0.035em;
 
-  --text-title-1: clamp(1.75rem, 3.5vw, 2.5rem);
-  --text-title-1--line-height: 1.15;
-  --text-title-1--letter-spacing: -0.02em;
+  --text-title-1: clamp(1.5rem, 3vw, 2rem);
+  --text-title-1--line-height: 1.12;
+  --text-title-1--letter-spacing: -0.025em;
 
-  --text-title-2: clamp(1.5rem, 2.5vw, 1.875rem);
-  --text-title-2--line-height: 1.2;
-  --text-title-2--letter-spacing: -0.015em;
+  --text-title-2: clamp(1.25rem, 2.5vw, 1.5rem);
+  --text-title-2--line-height: 1.18;
+  --text-title-2--letter-spacing: -0.02em;
 
-  --text-title-3: clamp(1.125rem, 2vw, 1.375rem);
-  --text-title-3--line-height: 1.3;
-  --text-title-3--letter-spacing: -0.01em;
+  --text-title-3: clamp(1.0625rem, 2vw, 1.25rem);
+  --text-title-3--line-height: 1.25;
+  --text-title-3--letter-spacing: -0.015em;
 
-  --text-body-lg: 1.125rem;
-  --text-body-lg--line-height: 1.7;
+  --text-body-lg: 1.0625rem;
+  --text-body-lg--line-height: 1.65;
 
-  --text-body-sm: 0.875rem;
-  --text-body-sm--line-height: 1.6;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.55;
 
   --text-caption: 0.75rem;
   --text-caption--line-height: 1.5;
 
-  --text-metric-xl: clamp(2.5rem, 5vw, 3.5rem);
+  --text-metric-xl: clamp(2.25rem, 4.5vw, 3.25rem);
   --text-metric-xl--line-height: 1;
   --text-metric-xl--letter-spacing: -0.04em;
 
-  --text-metric: clamp(1.75rem, 3vw, 2.25rem);
+  --text-metric: clamp(1.5rem, 3vw, 2rem);
   --text-metric--line-height: 1;
   --text-metric--letter-spacing: -0.02em;
 
@@ -298,7 +365,7 @@
 
   --animate-shimmer: shimmer 2s infinite linear;
   --animate-pulse-soft: pulse-soft 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-float: float 6s ease-in-out infinite;
+  --animate-marquee: marquee 28s linear infinite;
 }
 
 /* ==========================================================================
@@ -312,17 +379,26 @@
 
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(0.95); }
+  50% { opacity: 0.65; transform: scale(0.94); }
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
-@keyframes cp-dialog-in {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to { opacity: 1; transform: none; }
+/* The ECG trace draws itself, holds, then restarts — the product's namesake. */
+@keyframes ecg-draw {
+  0% { stroke-dashoffset: 1000; }
+  55% { stroke-dashoffset: 0; }
+  80% { stroke-dashoffset: 0; opacity: 1; }
+  92% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 1000; opacity: 0; }
+}
+
+@keyframes ecg-dot {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
 }
 
 @keyframes cp-fade-in {
@@ -330,73 +406,73 @@
   to { opacity: 1; }
 }
 
+@keyframes cp-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
 /* ==========================================================================
    4. Utilities
    ========================================================================== */
 
 @layer utilities {
-  .cp-prose { width: min(100% - 2rem, 48rem); margin-inline: auto; }
-  .cp-marketing { width: min(100% - 2rem, 80rem); margin-inline: auto; }
-  .cp-app { width: min(100% - 2rem, 96rem); margin-inline: auto; }
-  .cp-wide { width: min(100% - 2rem, 128rem); margin-inline: auto; }
-  .cp-section { padding-block: 6rem; }
+  /* Tailwind v4 spacing utilities resolve through --spacing. Scope the
+     account preference to authenticated product surfaces only. */
+  :root[data-density="compact"] .density-surface { --spacing: 0.22rem; }
+  :root[data-density="spacious"] .density-surface { --spacing: 0.28rem; }
+
+  .cp-prose { width: min(100% - 2rem, 44rem); margin-inline: auto; }
+  .cp-marketing { width: min(100% - 2rem, 76rem); margin-inline: auto; }
+  .cp-app { width: min(100% - 2rem, 92rem); margin-inline: auto; }
+  .cp-wide { width: min(100% - 2rem, 120rem); margin-inline: auto; }
+  .cp-section { padding-block: 5rem; }
 
   @media (min-width: 640px) {
-    .cp-prose { width: min(100% - 4rem, 48rem); }
-    .cp-marketing { width: min(100% - 4rem, 80rem); }
-    .cp-app { width: min(100% - 4rem, 96rem); }
-    .cp-wide { width: min(100% - 4rem, 128rem); }
+    .cp-prose { width: min(100% - 4rem, 44rem); }
+    .cp-marketing { width: min(100% - 4rem, 76rem); }
+    .cp-app { width: min(100% - 4rem, 92rem); }
+    .cp-wide { width: min(100% - 4rem, 120rem); }
   }
-  @media (min-width: 1024px) { .cp-section { padding-block: 8rem; } }
+  @media (min-width: 1024px) { .cp-section { padding-block: 7rem; } }
 
-  /* -- Panels & Glassmorphism -------------------------------------------- */
+  /* -- Product panels: flat surfaces, hairline borders, no glass --------- */
   .panel {
     background: var(--surface-1);
     border: 1px solid var(--line-1);
-    border-radius: var(--r-xl);
-    box-shadow: var(--shadow-e1);
+    border-radius: var(--r-lg);
   }
 
   .panel-2 {
     background: var(--surface-2);
     border: 1px solid var(--line-1);
-    border-radius: var(--r-lg);
+    border-radius: var(--r-md);
   }
 
-  /* Refined interactive panel with subtle hover glow/lift */
   .panel-interactive {
-    transition: all var(--d-2) var(--ease-out);
+    transition: border-color var(--d-2) var(--ease-out), background var(--d-2) var(--ease-out);
   }
   .panel-interactive:hover {
     border-color: var(--line-2);
-    box-shadow: var(--shadow-e2);
-    transform: translateY(-2px);
     background: var(--surface-2);
   }
 
-  /* Elegant Glass Scrim */
+  /* The only sanctioned backdrop-filter surface: sticky bars and dialogs. */
   .scrim {
     background: var(--scrim);
-    backdrop-filter: blur(16px) saturate(160%);
-    -webkit-backdrop-filter: blur(16px) saturate(160%);
-  }
-
-  .glass-panel {
-    background: var(--surface-overlay);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid var(--line-2);
-    box-shadow: var(--shadow-e2);
-    border-radius: var(--r-xl);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
   }
 
   /* -- Type -------------------------------------------------------------- */
   .tnum { font-variant-numeric: tabular-nums; }
 
+  /* Micro-label. Named before Tailwind's text-decoration `overline` utility
+     shipped — explicitly kill the decoration it would otherwise add. */
   .overline {
-    font-size: 0.75rem;
-    line-height: 1.5;
-    letter-spacing: 0.1em;
+    text-decoration-line: none;
+    font-size: 0.6875rem;
+    line-height: 1.4;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     font-weight: 600;
   }
@@ -417,14 +493,14 @@
     background-image:
       linear-gradient(var(--line-1) 1px, transparent 1px),
       linear-gradient(90deg, var(--line-1) 1px, transparent 1px);
-    background-size: 64px 64px;
-    mask-image: radial-gradient(circle at center, black, transparent 80%);
-    -webkit-mask-image: radial-gradient(circle at center, black, transparent 80%);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 75%);
   }
 
   .dot-bg {
     background-image: radial-gradient(var(--line-2) 1px, transparent 1px);
-    background-size: 32px 32px;
+    background-size: 24px 24px;
   }
 
   /* -- Skeleton ---------------------------------------------------------- */
@@ -437,64 +513,263 @@
     );
     background-size: 400% 100%;
     animation: var(--animate-shimmer);
-    border-radius: var(--r-md);
+    border-radius: var(--r-sm);
   }
 
   /* -- Scroll reveal ----------------------------------------------------- */
   .reveal {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translateY(20px);
     transition:
       opacity var(--d-4) var(--ease-out),
       transform var(--d-4) var(--ease-out);
   }
   .reveal-visible { opacity: 1; transform: none; }
+
+  /* -- Journal type & furniture ------------------------------------------ */
+  .mk-h {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.015em;
+    line-height: 0.94;
+    color: var(--mk-ink);
+  }
+
+  .mk-serif {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .mk-mono {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .mk-rule { border-color: var(--mk-line); }
+
+  /* Hard offset shadow — the journal's signature. */
+  .mk-card {
+    background: var(--mk-card);
+    border: 1.5px solid var(--mk-line);
+    box-shadow: 8px 8px 0 rgba(23, 19, 12, 0.9);
+  }
+
+  .mk-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    height: 3.25rem;
+    padding-inline: 1.5rem;
+    border: 1.5px solid var(--mk-line);
+    background: var(--mk-ink);
+    color: var(--mk-paper);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: background var(--d-1) var(--ease-out), color var(--d-1) var(--ease-out),
+      transform var(--d-1) var(--ease-out), box-shadow var(--d-1) var(--ease-out);
+  }
+  .mk-btn:hover {
+    background: var(--mk-accent);
+    border-color: var(--mk-line);
+    color: var(--mk-ink);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 var(--mk-ink);
+  }
+
+  .mk-btn-accent {
+    background: var(--mk-accent);
+    color: var(--mk-ink);
+  }
+  .mk-btn-accent:hover {
+    background: var(--mk-ink);
+    color: var(--mk-paper);
+  }
+
+  .mk-btn-ghost {
+    background: transparent;
+    color: var(--mk-ink);
+    box-shadow: none;
+  }
+  .mk-btn-ghost:hover {
+    background: var(--mk-ink);
+    color: var(--mk-paper);
+  }
+
+  .mk-btn-sm { height: 2.5rem; padding-inline: 1rem; font-size: 0.6875rem; }
+  .mk-btn-lg { height: 3.5rem; padding-inline: 2rem; font-size: 0.8125rem; }
+
+  /* Film grain over the journal: ink noise, multiply blend, never moves. */
+  .mk-grain {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+    background-size: 160px 160px;
+  }
+
+  .mk-marquee-track {
+    display: flex;
+    width: max-content;
+    animation: var(--animate-marquee);
+  }
+
+  .mk-ecg {
+    stroke-dasharray: 1000;
+    animation: ecg-draw 4.5s var(--ease-inout) infinite;
+  }
+
+  .mk-blink {
+    animation: ecg-dot 1.6s ease-in-out infinite;
+  }
 }
 
 /* ==========================================================================
-   5. Base
+   5. Base — inside @layer base so component utilities always win. An
+   unlayered `h1 { color }` would override layered classes such as .mk-h.
    ========================================================================== */
 
-*, *::before, *::after { box-sizing: border-box; }
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
 
-html {
-  scroll-behavior: smooth;
-  background: var(--surface-canvas);
+  html {
+    scroll-behavior: smooth;
+    background: var(--surface-canvas);
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--surface-canvas);
+    color: var(--ink-2);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5, h6 { color: var(--ink-1); font-weight: 600; }
+
+  /* The Journal prints in ink — the product's theme-aware heading color
+     must never reach inside the broadsheet. Kept in the base layer so
+     Journal utilities (e.g. hover inversion) can still override it. */
+  .mk h1, .mk h2, .mk h3, .mk h4, .mk h5, .mk h6 { color: var(--mk-ink); }
+
+  #root { min-height: 100vh; width: 100%; }
+
+  ::selection { background: var(--accent-wash); color: var(--ink-1); }
+  .mk ::selection { background: var(--mk-accent); color: var(--mk-ink); }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .mk :focus-visible { outline-color: var(--mk-accent-strong); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--surface-3);
+    border-radius: 999px;
+    border: 2px solid var(--surface-canvas);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--line-3); }
+
+  [hidden] { display: none !important; }
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  background: var(--surface-canvas);
-  color: var(--ink-2);
-  font-family: var(--font-sans);
-  font-size: 1rem;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+/* Loading spinners and status pulses carry meaning, so they keep looping
+   even under reduced motion — decorative animation stops instead. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .mk-marquee-track,
+  .mk-ecg,
+  .mk-blink { animation: none !important; }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .motion-safe-loop {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
+  }
 }
 
-h1, h2, h3, h4, h5, h6 { color: var(--ink-1); font-weight: 600; }
+/* ==========================================================================
+   Print-ready repository reports
+   ========================================================================== */
 
-#root { min-height: 100vh; width: 100%; }
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
 
-::selection { background: var(--accent-wash); color: var(--ink-1); }
+  :root {
+    color-scheme: light;
+    --surface-canvas: #ffffff;
+    --surface-1: #ffffff;
+    --surface-2: #f5f5f5;
+    --surface-3: #e8e8e8;
+    --surface-sunken: #f7f7f7;
+    --ink-1: #111111;
+    --ink-2: #3f3f46;
+    --ink-3: #62626b;
+    --ink-4: #808089;
+    --line-1: rgba(0, 0, 0, 0.1);
+    --line-2: rgba(0, 0, 0, 0.16);
+    --shadow-e1: none;
+    --shadow-e2: none;
+    --shadow-e3: none;
+    --shadow-e4: none;
+  }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  border-radius: 4px;
+  body,
+  .report-page {
+    background: var(--surface-canvas) !important;
+  }
+
+  .report-screen-only {
+    display: none !important;
+  }
+
+  .report-page .cp-prose {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  .report-header {
+    margin-bottom: 8mm;
+  }
+
+  .report-section,
+  .report-cover,
+  .report-section li,
+  .report-section tr {
+    break-inside: avoid;
+  }
+
+  .report-section,
+  .report-cover {
+    box-shadow: none !important;
+  }
 }
-
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--line-3);
-}
-
-[hidden] { display: none !important; }

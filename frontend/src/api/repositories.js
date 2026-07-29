@@ -47,3 +47,40 @@ export async function getRepositoryRecommendations(accessToken, repositoryId) {
   const data = await apiFetch(`/api/repositories/${repositoryId}/recommendations`, { accessToken })
   return Array.isArray(data.recommendations) ? data.recommendations : []
 }
+
+async function getRepositoryPage(accessToken, repositoryId, resource, limit = 100) {
+  const data = await apiFetch(
+    `/api/repositories/${repositoryId}/${resource}?limit=${limit}`,
+    { accessToken },
+  )
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    total: Number(data.total) || 0,
+  }
+}
+
+export function getRepositoryFiles(accessToken, repositoryId, limit = 200) {
+  return getRepositoryPage(accessToken, repositoryId, 'files', limit)
+}
+
+export function getRepositoryCommits(accessToken, repositoryId, limit = 100) {
+  return getRepositoryPage(accessToken, repositoryId, 'commits', limit)
+}
+
+export function getRepositoryDependencies(accessToken, repositoryId, limit = 200) {
+  return getRepositoryPage(accessToken, repositoryId, 'dependencies', limit)
+}
+
+export function getRepositoryDocumentation(accessToken, repositoryId, limit = 100) {
+  return getRepositoryPage(accessToken, repositoryId, 'documentation', limit)
+}
+
+export async function getRepositoryContributors(accessToken, repositoryId) {
+  const data = await apiFetch(`/api/repositories/${repositoryId}/contributors`, { accessToken })
+  return Array.isArray(data.contributors) ? data.contributors : []
+}
+
+export async function getRepositoryManifest(accessToken, repositoryId) {
+  const data = await apiFetch(`/api/repositories/${repositoryId}/manifest`, { accessToken })
+  return Array.isArray(data.manifests) ? data.manifests : []
+}

@@ -82,7 +82,7 @@ export async function gitlabCallback(request, response, next) {
     response.setHeader('Set-Cookie', clearParts.join('; '))
 
     if (!code || !state || state !== savedState) {
-      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitLab login failed: invalid state.')}`)
+      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitLab login failed: invalid state.')}`)
       return
     }
 
@@ -105,7 +105,7 @@ export async function gitlabCallback(request, response, next) {
     const tokenData = await tokenResponse.json()
 
     if (!tokenData.access_token) {
-      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitLab login failed: could not obtain access token.')}`)
+      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitLab login failed: could not obtain access token.')}`)
       return
     }
 
@@ -117,7 +117,7 @@ export async function gitlabCallback(request, response, next) {
     })
 
     if (!userResponse.ok) {
-      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitLab login failed: could not fetch user profile.')}`)
+      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitLab login failed: could not fetch user profile.')}`)
       return
     }
 
@@ -128,7 +128,7 @@ export async function gitlabCallback(request, response, next) {
     const providerUserId = String(gitlabUser.id)
 
     if (!email) {
-      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitLab login failed: no email found on your GitLab account.')}`)
+      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitLab login failed: no email found on your GitLab account.')}`)
       return
     }
 
@@ -142,7 +142,7 @@ export async function gitlabCallback(request, response, next) {
       if (activeUser) {
         const existingLink = await oauthAccounts.findOne({ provider: 'gitlab', provider_user_id: providerUserId })
         if (existingLink && !existingLink.user_id.equals(activeUser._id)) {
-          response.redirect(`${FRONTEND_URL}/#settings?error=${encodeURIComponent('This GitLab account is already linked to another CodePulse account.')}`)
+          response.redirect(`${FRONTEND_URL}/settings?error=${encodeURIComponent('This GitLab account is already linked to another CodePulse account.')}`)
           return
         }
         await oauthAccounts.updateOne(
@@ -150,7 +150,7 @@ export async function gitlabCallback(request, response, next) {
           { $set: { user_id: activeUser._id, provider_email: email, provider_name: name, provider_access_token: encryptOAuthToken(gitlabAccessToken), updated_at: new Date() }, $setOnInsert: { provider: 'gitlab', provider_user_id: providerUserId, created_at: new Date() } },
           { upsert: true },
         )
-        response.redirect(`${FRONTEND_URL}/#settings?connected=gitlab`)
+        response.redirect(`${FRONTEND_URL}/settings?connected=gitlab`)
         return
       }
     }
@@ -210,7 +210,7 @@ export async function gitlabCallback(request, response, next) {
 
     // --- Create session and redirect to frontend ---
     await createSession(response, request, user)
-    response.redirect(`${FRONTEND_URL}/#dashboard`)
+    response.redirect(`${FRONTEND_URL}/dashboard`)
   } catch (error) {
     next(error)
   }

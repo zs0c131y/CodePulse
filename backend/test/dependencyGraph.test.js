@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parseRepositoryStructure } from '../src/features/repositories/services/fileParser.js'
-import { generateDependencyGraph } from '../src/features/repositories/services/dependencyGraph.js'
+import { generateDependencyGraph, getDependencyGraphCoverage } from '../src/features/repositories/services/dependencyGraph.js'
 
 test('generates basic dependency edges for JavaScript and Python files', async () => {
   const root = join(tmpdir(), `codepulse-dependency-graph-${Date.now()}`)
@@ -75,9 +75,12 @@ test('caps dependency scanning to the configured source-file limit', async () =>
 
     const parsed = await parseRepositoryStructure(root)
     const edges = await generateDependencyGraph(root, parsed.files, { maxSourceFiles: 1 })
+    const coverage = getDependencyGraphCoverage(parsed.files, { maxSourceFiles: 1 })
 
     assert.equal(edges.length, 1)
     assert.equal(edges[0].source_file, 'src/first.js')
+    assert.deepEqual(coverage.scannedFilePaths, ['src/first.js'])
+    assert.equal(coverage.skippedByLimitFileCount, 2)
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 3 })
   }

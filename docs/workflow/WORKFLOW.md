@@ -96,20 +96,26 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
     JavaScript/TypeScript imports, JavaScript `require`, and Python imports.
   * The pipeline stores metadata only; it does not store a cloned repository
     after analysis.
+  * After raw repository facts are persisted, Technical and Knowledge Debt
+    scores and their module metrics are generated before the temporary clone
+    is removed.
 
 ### Vertical 2 — Knowledge Drift Detection
 
 * **Objective**: Detect inconsistencies where code implementation and documentation have diverged.
-* **Process**:
-  * Compare semantic content of directories and source files with associated documentation.
-  * Scan for changes in function signatures or APIs not updated in markdown files.
-  * Identify documentation references pointing to deleted modules/files.
+* **Current Process**:
+  * Match source-directory modules to adjacent or module-named documentation.
+  * Compare module source-change timestamps with matching documentation
+    timestamps (a 30-day gap is stale documentation).
+  * Identify backticked source paths in documentation that no longer exist.
 * **Drift Classifications**:
   * **Missing Documentation**: A module lacks any README or descriptive files.
   * **Outdated Documentation**: The code has changed recently, but documentation was updated months ago.
   * **Incorrect Documentation**: Documentation describes features or variables that do not match the codebase.
   * **Dead Documentation**: Document exists for a module that has been deleted or fully refactored.
-* **Output**: Knowledge Drift Report (stored in `drift_findings`).
+* **Output**: Reproducible structural Knowledge Drift Report (stored in
+  `drift_findings`). Semantic/code-signature comparison remains a future
+  enhancement.
 
 ### Vertical 3 — Technical Debt Analysis
 
@@ -122,6 +128,15 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * **High Code Churn**: Files modified frequently indicating instability.
   * **Frequent Bug Fixes**: Files appearing often in bug-fix commit patterns.
 * **Output**: Technical Debt Score, Repository Health Metrics, and Maintainability Index.
+* **Current Implementation Notes**:
+  * `backend/src/features/analysis` detects files at or above 50 KiB, a
+    metadata complexity heuristic, resolved internal dependency cycles,
+    supported-language orphan modules, commit churn, and stale modules.
+  * The complexity value is not AST cyclomatic complexity. It combines file
+    size with resolved dependency fan-in/fan-out, making the initial score
+    reproducible from stored repository facts.
+  * Churn and stale signals remain unavailable when fewer than five commits
+    are captured. Duplication is returned as unavailable (`null`).
 
 ### Vertical 4 — Knowledge Debt Analysis
 
@@ -133,6 +148,13 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * **Module Explainability**: Ease of parsing codebase files for onboarding.
   * **Onboarding Complexity**: Overall score summarizing documentation accessibility for new hires.
 * **Output**: Knowledge Debt Score and Documentation Coverage reports.
+* **Current Implementation Notes**:
+  * A module is a source-code directory. Coverage is based on adjacent or
+    module-named documentation; a root README covers only root code, not every
+    nested source directory.
+  * Knowledge Debt and onboarding difficulty combine the coverage gap with
+    detected setup and architecture documentation. Module evidence is stored
+    in `knowledge_debt_metrics`.
 
 ### Vertical 5 — Risk Intelligence Engine
 
@@ -151,6 +173,10 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   ```
 
 * **Output**: Risk scores, Risk categories, and Refactoring Priorities.
+* **Current implementation**: The risk engine uses Technical Debt (60%),
+  missing module documentation (20%), related drift severity (15%), and
+  available churn (5%). Repository risk combines average and maximum module
+  risk; contributor concentration and duplication are future signals.
 
 ### Vertical 6 — AI Explainability Engine
 
@@ -159,6 +185,9 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * Explain **why** a module is considered risky using evidence.
   * Summarize repository health highlights.
   * Recommend concrete, actionable remediation steps.
+* **Current implementation**: A deterministic local recommendation engine
+  turns stored risk and drift evidence into ranked actions. An external LLM or
+  RAG provider is not configured, so no repository content is sent to one.
 * **Example AI Output**:
 
   ```text

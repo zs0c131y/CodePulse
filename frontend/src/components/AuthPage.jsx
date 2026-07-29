@@ -1,66 +1,44 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from '../lib/router'
 import {
-  Activity,
   ArrowLeft,
   ArrowRight,
   Check,
   Eye,
   EyeOff,
+  Loader2,
   Lock,
   Mail,
-  ShieldCheck,
-  Sparkles,
+  MailCheck,
   User,
   X,
 } from 'lucide-react'
-import AuroraBackground from './AuroraBackground'
+import { ThemeToggle } from './ui/theme-toggle'
+import { PulseMark } from './ui/pulse-mark'
+import { GitHubMark, GitLabMark } from './ui/provider-marks'
+
+/*
+ * Product authentication — the quiet product aesthetic: one centered column,
+ * a flat panel, inverted primary action. All flows (signin, signup, email
+ * verification, password reset, resend) post to the same backend contract as
+ * before; only the presentation changed.
+ */
 
 const fieldBase =
-  'w-full rounded-[var(--r-sm)] border px-11 py-3.5 text-sm outline-none transition-all placeholder:text-[var(--ink-4)]'
+  'w-full rounded-[var(--r-md)] border py-2.5 pl-10 pr-3 text-sm outline-none transition-colors duration-[var(--d-2)] placeholder:text-[var(--ink-4)] disabled:cursor-not-allowed disabled:opacity-50'
 
 const inputClass =
-  'border-[var(--line-2)] bg-[var(--surface-canvas)]/60 text-[var(--ink-1)] focus:border-[var(--accent-line)] focus:bg-[var(--surface-canvas)]/80 focus:ring-4 focus:ring-[var(--accent)]'
+  'border-[var(--line-2)] bg-[var(--surface-1)] text-[var(--ink-1)] hover:border-[var(--line-3)] focus:border-[var(--accent)] focus:ring-[3px] focus:ring-[var(--accent-wash)]'
 
-const chipClass = 'border-[var(--line-1)] bg-[var(--surface-2)] text-[var(--ink-2)]'
-
-const mutedText = 'text-[var(--ink-3)]'
-const softText = 'text-[var(--ink-3)]'
-
-const insights = [
-  { label: 'Drift prevented', value: '42%', tone: 'text-[var(--accent-ink)]' },
-  { label: 'PR risk', value: 'Low', tone: 'text-[var(--sev-nominal-ink)]' },
-  { label: 'Docs synced', value: '18', tone: 'text-[var(--accent-ink)]' },
-]
-
-const activity = [
-  { event: 'auth/README.md synced', meta: '2 min ago', accent: 'bg-[var(--sev-nominal)]' },
-  { event: 'Risk score recalculated', meta: 'main branch', accent: 'bg-[var(--accent)]' },
-  { event: 'New onboarding path ready', meta: 'platform repo', accent: 'bg-[var(--accent)]' },
-]
-
-function GitHubMark({ className }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-      <path
-        fillRule="evenodd"
-        d="M12 2C6.48 2 2 6.59 2 12.25c0 4.52 2.86 8.36 6.84 9.72.5.09.68-.22.68-.49 0-.24-.01-1.05-.01-1.9-2.78.62-3.37-1.22-3.37-1.22-.45-1.19-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.36-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.3 9.3 0 0 1 12 6.98c.85 0 1.7.12 2.5.34 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.48-.01 2.81 0 .27.18.59.69.49A10.18 10.18 0 0 0 22 12.25C22 6.59 17.52 2 12 2Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
-
-function GitLabMark({ className }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-      <path d="m23.6 9.59-.03-.09L20.3.98a.85.85 0 0 0-.34-.4.87.87 0 0 0-1.19.3l-2.2 6.75H7.43L5.23.88A.87.87 0 0 0 4.04.58a.85.85 0 0 0-.34.4L.43 9.5l-.03.09a6.07 6.07 0 0 0 2.01 7.01l.04.03 4.98 3.73 2.46 1.86 1.5 1.13a1.01 1.01 0 0 0 1.22 0l1.5-1.13 2.46-1.86 5.01-3.75.01-.01A6.07 6.07 0 0 0 23.6 9.59Z" />
-    </svg>
-  )
-}
+const chipClass = 'border-[var(--line-2)] bg-[var(--surface-2)] text-[var(--ink-3)]'
 
 function getRememberedEmail() {
   if (typeof window === 'undefined') return ''
-  return window.localStorage.getItem('codepulse-remembered-email') || ''
+  try {
+    return window.localStorage.getItem('codepulse-remembered-email') || ''
+  } catch {
+    return ''
+  }
 }
 
 export default function AuthPage({ mode = 'signin', token = '', oauthError = '', onAuthSuccess }) {
@@ -80,19 +58,55 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
   const [successDialog, setSuccessDialog] = useState(null)
   const [canResendVerification, setCanResendVerification] = useState(false)
   const [isResendingVerification, setIsResendingVerification] = useState(false)
+  const successDialogRef = useRef(null)
 
   useEffect(() => {
     if (isSignup || isPasswordReset || isEmailVerify) return
 
-    if (rememberMe && email.trim()) {
-      window.localStorage.setItem('codepulse-remembered-email', email.trim())
-      return
-    }
+    try {
+      if (rememberMe && email.trim()) {
+        window.localStorage.setItem('codepulse-remembered-email', email.trim())
+        return
+      }
 
-    if (!rememberMe) {
-      window.localStorage.removeItem('codepulse-remembered-email')
+      if (!rememberMe) {
+        window.localStorage.removeItem('codepulse-remembered-email')
+      }
+    } catch {
+      /* Remember-me is optional when browser storage is unavailable. */
     }
   }, [email, isEmailVerify, isPasswordReset, isSignup, rememberMe])
+
+  useEffect(() => {
+    if (!successDialog) return undefined
+
+    const dialog = successDialogRef.current
+    dialog?.querySelector('[data-dialog-primary]')?.focus()
+
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        setSuccessDialog(null)
+        return
+      }
+      if (event.key !== 'Tab' || !dialog) return
+
+      const focusable = [...dialog.querySelectorAll('a[href], button:not([disabled])')]
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [successDialog])
 
   useEffect(() => {
     setAuthError(oauthError || '')
@@ -160,10 +174,9 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
     () => {
       if (isEmailVerify) {
         return {
-          eyebrow: 'Verify account',
           title: 'Confirming your email',
           subtitle: 'This verification link unlocks protected CodePulse access for your account.',
-          cta: 'Verifying...',
+          cta: 'Verifying…',
           swapText: 'Ready to continue?',
           swapHref: '/signin',
           swapLabel: 'Sign in',
@@ -172,7 +185,6 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
       if (isResetRequest) {
         return {
-          eyebrow: 'Account recovery',
           title: 'Reset your password',
           subtitle: 'Enter your account email and we will send a short-lived reset link.',
           cta: 'Send reset link',
@@ -184,7 +196,6 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
       if (isPasswordReset) {
         return {
-          eyebrow: 'Account recovery',
           title: 'Create a new password',
           subtitle: 'Choose a replacement password before the reset link expires.',
           cta: 'Update password',
@@ -196,20 +207,16 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
       return isSignup
         ? {
-            eyebrow: 'Start your workspace',
-            title: 'Create your CodePulse account',
-            subtitle:
-              'Connect your repositories, invite your team, and see the first health report in minutes.',
+            title: 'Create your account',
+            subtitle: 'Connect a repository and see its first health report in minutes.',
             cta: 'Create account',
             swapText: 'Already have an account?',
             swapHref: '/signin',
             swapLabel: 'Sign in',
           }
         : {
-            eyebrow: 'Welcome back',
             title: 'Sign in to CodePulse',
-            subtitle:
-              'Jump back into repository health, drift alerts, and AI recommendations for your team.',
+            subtitle: 'Repository health, drift alerts, and AI recommendations for your team.',
             cta: 'Sign in',
             swapText: 'New to CodePulse?',
             swapHref: '/signup',
@@ -369,138 +376,66 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--surface-canvas)] text-[var(--ink-1)]">
-      <AuroraBackground variant="hero" />
+    <div className="relative min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-1)]">
+      <div className="grid-bg pointer-events-none absolute inset-0 opacity-70" aria-hidden="true" />
 
       <header className="relative z-10">
         <div className="cp-marketing flex h-16 items-center justify-between">
-          <a href="/" className="group flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-[var(--r-sm)] bg-[var(--surface-2)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)] transition-shadow duration-300 group-hover:shadow-[var(--shadow-e2)]">
-              <Activity size={17} strokeWidth={2.5} className="text-[var(--ink-1)]" />
-            </span>
-            <span className="text-lg font-bold tracking-tight text-[var(--ink-1)]">
-              Code<span className="text-[var(--accent-ink)]">Pulse</span>
-            </span>
-          </a>
-
-          <a
-            href="/"
-            className="hidden items-center gap-2 rounded-[var(--r-sm)] px-3 py-2 text-sm font-medium text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)] sm:flex"
-          >
-            <ArrowLeft size={16} />
-            Home
-          </a>
+          <Link to="/" className="flex items-center gap-2.5" aria-label="CodePulse home">
+            <PulseMark size={26} />
+            <span className="text-[0.9375rem] font-semibold tracking-[-0.02em] text-[var(--ink-1)]">CodePulse</span>
+          </Link>
+          <div className="flex items-center gap-1">
+            <Link
+              to="/"
+              className="hidden items-center gap-1.5 rounded-[var(--r-md)] px-3 py-2 text-sm text-[var(--ink-3)] transition-colors hover:bg-[var(--surface-wash)] hover:text-[var(--ink-1)] sm:flex"
+            >
+              <ArrowLeft size={15} />
+              Home
+            </Link>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
-      <main className="cp-marketing relative z-10 grid min-h-[calc(100vh-4rem)] grid-cols-1 items-center gap-10 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-16 2xl:gap-14">
-        {/* Brand / live workspace panel */}
-        <section className="relative order-2 lg:order-1" style={{ animationDelay: '0.1s' }}>
-          <div className="absolute -left-8 top-8 hidden h-40 w-40 rotate-12 rounded-[2rem] border border-[var(--accent-line)] lg:block" />
-          <div className="absolute -bottom-8 right-8 hidden h-32 w-32 -rotate-12 rounded-[2rem] border border-[var(--accent-line)] lg:block" />
+      <main className="relative z-10 flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[24.5rem]">
+          <div className="panel p-6 sm:p-7">
+            <div className="mb-7">
+              <h1 className="text-xl font-semibold tracking-[-0.02em] text-[var(--ink-1)]">{copy.title}</h1>
+              <p className="mt-2 text-sm leading-6 text-[var(--ink-3)]">{copy.subtitle}</p>
+            </div>
 
-          <div className="glass-panel relative overflow-hidden rounded-[2rem] p-6">
-            <div className="absolute inset-x-0 top-0 h-px bg-[var(--line-2)]" />
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-1)] pb-5">
-              <div>
-                <p className={`text-xs uppercase tracking-[0.22em] ${softText}`}>Live workspace</p>
-                <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--ink-1)]">Pulse command center</h2>
+            {isEmailVerify && isSubmitting && (
+              <div className="mb-5 flex items-center gap-2.5 text-sm text-[var(--ink-3)]" role="status">
+                <Loader2 size={16} className="motion-safe-loop animate-spin text-[var(--accent-ink)]" />
+                Verifying your email…
               </div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] px-3 py-1.5 text-xs font-semibold text-[var(--sev-nominal-ink)]">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--sev-nominal)]" />
-                Monitoring
-              </span>
-            </div>
-
-            <div className="grid gap-3 py-5 min-[420px]:grid-cols-3">
-              {insights.map(item => (
-                <div key={item.label} className={`rounded-[var(--r-md)] border p-4 ${chipClass}`}>
-                  <p className={`text-2xl font-bold ${item.tone}`}>{item.value}</p>
-                  <p className="mt-1 text-xs">{item.label}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className={`rounded-[var(--r-md)] border p-4 ${chipClass}`}>
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--ink-1)]">Repository health</p>
-                  <p className={`text-xs ${softText}`}>acme/platform · synced now</p>
-                </div>
-                <ShieldCheck size={20} className="text-[var(--sev-nominal-ink)]" />
-              </div>
-              <div className="space-y-3">
-                <div className="h-3 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                  <div className="h-full w-[86%] rounded-full bg-[var(--surface-2)]" />
-                </div>
-                <div className="grid grid-cols-6 gap-1 sm:grid-cols-8">
-                  {Array.from({ length: 24 }).map((_, index) => (
-                    <span
-                      key={index}
-                      className={`h-10 rounded-md transition-colors ${
-                        index % 7 === 0
-                          ? 'bg-[var(--sev-critical-wash)]'
-                          : index % 5 === 0
-                            ? 'bg-[var(--sev-medium-wash)]'
-                            : 'bg-[var(--sev-nominal-wash)]'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {activity.map(item => (
-                <div key={item.event} className={`flex items-center gap-3 rounded-[var(--r-md)] border p-3 ${chipClass}`}>
-                  <span className={`h-2.5 w-2.5 rounded-full ${item.accent}`} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[var(--ink-1)]">{item.event}</p>
-                    <p className={`text-xs ${softText}`}>{item.meta}</p>
-                  </div>
-                  <Check size={16} className="text-[var(--sev-nominal-ink)]" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Form panel */}
-        <section className="order-1 lg:order-2">
-          <div className="glass-panel relative overflow-hidden rounded-[2rem] p-6 sm:p-8">
-            <div className="absolute inset-x-0 top-0 h-px bg-[var(--line-2)]" />
-            <div className="mb-8">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--accent-line)] bg-[var(--accent-wash)] px-3.5 py-1.5 text-sm font-semibold text-[var(--accent-ink)]">
-                <Sparkles size={14} />
-                {copy.eyebrow}
-              </div>
-              <h1 className="text-3xl font-bold leading-tight tracking-tight text-[var(--ink-1)] sm:text-4xl">{copy.title}</h1>
-              <p className={`mt-3 text-sm leading-6 sm:text-base ${mutedText}`}>{copy.subtitle}</p>
-            </div>
+            )}
 
             {showProviderButtons && (
               <>
-                <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2">
                   <a
                     href={`${import.meta.env.VITE_API_BASE_URL || ''}/auth/github`}
-                    className="inline-flex items-center justify-center gap-2 rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-2)] px-4 py-3 text-sm font-semibold text-[var(--ink-1)] transition-all duration-300 hover:border-[var(--line-3)] hover:bg-[var(--surface-3)]"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-1)] px-4 text-sm font-medium text-[var(--ink-1)] transition-colors duration-[var(--d-2)] hover:border-[var(--line-3)] hover:bg-[var(--surface-2)]"
                   >
-                    <GitHubMark className="h-4.5 w-4.5" />
+                    <GitHubMark className="h-4 w-4 text-[var(--provider-github)]" />
                     GitHub
                   </a>
                   <a
                     href={`${import.meta.env.VITE_API_BASE_URL || ''}/auth/gitlab`}
-                    className="inline-flex items-center justify-center gap-2 rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-2)] px-4 py-3 text-sm font-semibold text-[var(--ink-1)] transition-all duration-300 hover:border-[var(--line-3)] hover:bg-[var(--surface-3)]"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-1)] px-4 text-sm font-medium text-[var(--ink-1)] transition-colors duration-[var(--d-2)] hover:border-[var(--line-3)] hover:bg-[var(--surface-2)]"
                   >
-                    <GitLabMark className="h-4.5 w-4.5 text-[var(--provider-gitlab)]" />
+                    <GitLabMark className="h-4 w-4 text-[var(--provider-gitlab)]" />
                     GitLab
                   </a>
                 </div>
 
                 <div className="my-6 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-[var(--surface-2)]" />
-                  <span className={`text-xs font-medium ${softText}`}>or continue with email</span>
-                  <div className="h-px flex-1 bg-[var(--surface-2)]" />
+                  <div className="h-px flex-1 bg-[var(--line-1)]" />
+                  <span className="text-xs text-[var(--ink-4)]">or continue with email</span>
+                  <div className="h-px flex-1 bg-[var(--line-1)]" />
                 </div>
               </>
             )}
@@ -508,9 +443,9 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
             <form className="space-y-4" onSubmit={handleSubmit}>
               {isSignup && (
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[var(--ink-2)]">Full name</span>
+                  <span className="mb-1.5 block text-[0.8125rem] font-medium text-[var(--ink-2)]">Full name</span>
                   <span className="relative block">
-                    <User size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
+                    <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-4)]" />
                     <input
                       className={`${fieldBase} ${inputClass}`}
                       type="text"
@@ -525,9 +460,9 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
               {!isEmailVerify && !isPasswordReset && (
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[var(--ink-2)]">Work email</span>
+                  <span className="mb-1.5 block text-[0.8125rem] font-medium text-[var(--ink-2)]">Work email</span>
                   <span className="relative block">
-                    <Mail size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
+                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-4)]" />
                     <input
                       className={`${fieldBase} ${inputClass}`}
                       type="email"
@@ -542,13 +477,13 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
 
               {!isEmailVerify && !isResetRequest && (
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[var(--ink-2)]">
+                  <span className="mb-1.5 block text-[0.8125rem] font-medium text-[var(--ink-2)]">
                     {isPasswordReset ? 'New password' : 'Password'}
                   </span>
                   <span className="relative block">
-                    <Lock size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${softText}`} />
+                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-4)]" />
                     <input
-                      className={`${fieldBase} ${inputClass} pr-12`}
+                      className={`${fieldBase} ${inputClass} pr-11`}
                       type={showPassword ? 'text' : 'password'}
                       placeholder={isSignup || isPasswordReset ? 'Create a strong password' : 'Enter your password'}
                       autoComplete={isSignup || isPasswordReset ? 'new-password' : 'current-password'}
@@ -558,30 +493,27 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                     <button
                       type="button"
                       onClick={() => setShowPassword(v => !v)}
-                      className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 transition-colors hover:text-[var(--ink-1)] ${softText}`}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--r-sm)] p-1.5 text-[var(--ink-4)] transition-colors hover:bg-[var(--surface-wash)] hover:text-[var(--ink-1)]"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </span>
                 </label>
               )}
 
               {isSignup || isPasswordReset ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {passwordRules.map(rule => (
                     <span
                       key={rule.label}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all ${
+                      className={`inline-flex items-center gap-1.5 rounded-[var(--r-xs)] border px-2 py-1 text-xs transition-colors ${
                         rule.valid
                           ? 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]'
                           : chipClass
                       }`}
                     >
-                      <Check
-                        size={12}
-                        className={rule.valid ? 'text-[var(--sev-nominal-ink)]' : softText}
-                      />
+                      <Check size={11} strokeWidth={3} />
                       {rule.label}
                     </span>
                   ))}
@@ -593,34 +525,34 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                     role="checkbox"
                     aria-checked={rememberMe}
                     onClick={() => setRememberMe(value => !value)}
-                    className={`group inline-flex items-center gap-2 rounded-[var(--r-sm)] py-1.5 pr-2 text-sm transition-colors ${mutedText}`}
+                    className="group inline-flex items-center gap-2 py-1 text-sm text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
                   >
                     <span
-                      className={`inline-flex h-5 w-5 items-center justify-center rounded-lg border transition-all ${
+                      className={`inline-flex h-4.5 w-4.5 items-center justify-center rounded-[var(--r-xs)] border transition-colors ${
                         rememberMe
-                          ? 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]'
-                          : 'border-white/15 bg-[var(--surface-2)] group-hover:border-[var(--line-3)]'
+                          ? 'border-[var(--accent-line)] bg-[var(--accent)] text-[var(--accent-on)]'
+                          : 'border-[var(--line-2)] bg-[var(--surface-1)] group-hover:border-[var(--line-3)]'
                       }`}
                     >
-                      {rememberMe && <Check size={13} strokeWidth={3} />}
+                      {rememberMe && <Check size={12} strokeWidth={3} />}
                     </span>
                     Remember me
                   </button>
-                  <a href="/reset-password" className="text-sm font-semibold text-[var(--accent-ink)] hover:text-[var(--accent-ink)]">
+                  <Link to="/reset-password" className="text-sm text-[var(--accent-ink)] hover:underline">
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
               ) : null}
 
               {isEmailVerify && !token && (
-                <div className={`rounded-[var(--r-sm)] border px-4 py-3 text-sm ${chipClass}`} role="status">
+                <div className={`rounded-[var(--r-md)] border px-3.5 py-3 text-sm ${chipClass}`} role="status">
                   This verification link is invalid or incomplete.
                 </div>
               )}
 
               {(authError || authMessage) && (
                 <div
-                  className={`rounded-[var(--r-sm)] border px-4 py-3 text-sm ${
+                  className={`rounded-[var(--r-md)] border px-3.5 py-3 text-sm ${
                     authError
                       ? 'border-[var(--sev-critical-line)] bg-[var(--sev-critical-wash)] text-[var(--sev-critical-ink)]'
                       : 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]'
@@ -637,10 +569,10 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                   type="button"
                   onClick={handleResendVerification}
                   disabled={isResendingVerification}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--r-sm)] border border-[var(--accent-line)] bg-[var(--accent-wash)] px-5 py-3 text-sm font-bold text-[var(--accent-ink)] transition-all hover:bg-[var(--accent-wash)] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-1)] px-4 text-sm font-medium text-[var(--ink-1)] transition-colors hover:border-[var(--line-3)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Mail size={16} />
-                  {isResendingVerification ? 'Sending verification email...' : 'Resend verification email'}
+                  <Mail size={15} />
+                  {isResendingVerification ? 'Sending verification email…' : 'Resend verification email'}
                 </button>
               )}
 
@@ -648,60 +580,66 @@ export default function AuthPage({ mode = 'signin', token = '', oauthError = '',
                 <button
                   type="submit"
                   disabled={!canSubmit}
-                  className="group inline-flex w-full items-center justify-center gap-2 rounded-[var(--r-sm)] bg-[var(--surface-2)] px-5 py-3.5 text-sm font-bold text-[var(--ink-1)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)] transition-all duration-300 hover:-translate-y-px hover:shadow-[var(--shadow-e2)] hover:brightness-110 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
+                  className="group inline-flex h-10 w-full items-center justify-center gap-2 rounded-[var(--r-md)] bg-[var(--contrast)] px-4 text-sm font-medium text-[var(--contrast-on)] transition-colors duration-[var(--d-2)] hover:bg-[var(--contrast-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Please wait...' : copy.cta}
-                  <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
+                  {isSubmitting ? 'Please wait…' : copy.cta}
+                  <ArrowRight size={15} className="transition-transform duration-[var(--d-2)] group-hover:translate-x-0.5" />
                 </button>
               )}
             </form>
-
-            <p className={`mt-6 text-center text-sm ${mutedText}`}>
-              {copy.swapText}{' '}
-              <a href={copy.swapHref} className="font-bold text-[var(--accent-ink)] transition-colors hover:text-[var(--accent-ink)]">
-                {copy.swapLabel}
-              </a>
-            </p>
           </div>
-        </section>
+
+          <p className="mt-5 text-center text-sm text-[var(--ink-3)]">
+            {copy.swapText}{' '}
+            <Link to={copy.swapHref} className="font-medium text-[var(--accent-ink)] hover:underline">
+              {copy.swapLabel}
+            </Link>
+          </p>
+        </div>
       </main>
 
       {successDialog && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--surface-canvas)]/80 px-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--backdrop)] p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="auth-success-title"
+          style={{ animation: 'cp-fade-in var(--d-2) var(--ease-out)' }}
         >
-          <div className="glass-panel w-full max-w-md rounded-3xl p-6 text-[var(--ink-1)]">
+          <div
+            ref={successDialogRef}
+            className="panel w-full max-w-sm p-6 text-[var(--ink-1)] shadow-[var(--shadow-e4)]"
+            style={{ animation: 'cp-dialog-in var(--d-3) var(--ease-out)' }}
+          >
             <div className="flex items-start justify-between gap-4">
-              <span className="flex h-12 w-12 items-center justify-center rounded-[var(--r-md)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]">
-                <ShieldCheck size={24} />
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]">
+                <MailCheck size={20} />
               </span>
               <button
                 type="button"
                 onClick={() => setSuccessDialog(null)}
-                className="rounded-[var(--r-sm)] p-2 text-[var(--ink-3)] transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--ink-1)]"
+                className="rounded-[var(--r-sm)] p-1.5 text-[var(--ink-3)] transition-colors hover:bg-[var(--surface-wash)] hover:text-[var(--ink-1)]"
                 aria-label="Close confirmation"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
-            <h2 id="auth-success-title" className="mt-5 text-2xl font-bold tracking-tight text-[var(--ink-1)]">
+            <h2 id="auth-success-title" className="mt-4 text-lg font-semibold tracking-[-0.02em] text-[var(--ink-1)]">
               {successDialog.title}
             </h2>
-            <p className={`mt-3 text-sm leading-6 ${mutedText}`}>{successDialog.message}</p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <a
-                href={successDialog.actionHref}
-                className="inline-flex flex-1 items-center justify-center rounded-[var(--r-sm)] bg-[var(--surface-2)] px-4 py-3 text-sm font-bold text-[var(--ink-1)] shadow-[var(--shadow-e2)] shadow-[var(--shadow-e2)] transition-all duration-300 hover:brightness-110"
+            <p className="mt-2 text-sm leading-6 text-[var(--ink-3)]">{successDialog.message}</p>
+            <div className="mt-6 flex flex-col gap-2">
+              <Link
+                data-dialog-primary
+                to={successDialog.actionHref}
+                className="inline-flex h-10 items-center justify-center rounded-[var(--r-md)] bg-[var(--contrast)] px-4 text-sm font-medium text-[var(--contrast-on)] transition-colors hover:bg-[var(--contrast-hover)]"
               >
                 {successDialog.actionLabel}
-              </a>
+              </Link>
               <button
                 type="button"
                 onClick={() => setSuccessDialog(null)}
-                className="inline-flex flex-1 items-center justify-center rounded-[var(--r-sm)] border border-[var(--line-2)] px-4 py-3 text-sm font-bold text-[var(--ink-2)] transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--ink-1)]"
+                className="inline-flex h-10 items-center justify-center rounded-[var(--r-md)] border border-[var(--line-2)] px-4 text-sm font-medium text-[var(--ink-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]"
               >
                 Close
               </button>

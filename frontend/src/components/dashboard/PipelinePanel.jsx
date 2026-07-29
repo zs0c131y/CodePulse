@@ -52,13 +52,13 @@ export default function PipelinePanel({
   }
 
   return (
-    <section className="glass-panel p-6">
+    <section className="panel p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-[var(--ink-1)]">{title}</h2>
-          <p className="mt-1 text-sm text-[var(--ink-3)]">{description}</p>
+          <h2 className="text-sm font-semibold text-[var(--ink-1)]">{title}</h2>
+          <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">{description}</p>
         </div>
-        <RefreshCw size={18} className="text-[var(--ink-4)]" aria-hidden="true" />
+        <RefreshCw size={16} className="text-[var(--ink-4)]" aria-hidden="true" />
       </div>
 
       <ol className="mt-5 space-y-4">
@@ -87,7 +87,7 @@ export default function PipelinePanel({
               </div>
 
               <div
-                className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]"
+                className="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]"
                 role="progressbar"
                 aria-valuenow={progress}
                 aria-valuemin={0}

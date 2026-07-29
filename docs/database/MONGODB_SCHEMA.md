@@ -22,7 +22,11 @@ persistent storage.
 | `commits` | Stores git commit metadata. | `repository_id`, `commit_hash` unique, `commit_date` descending |
 | `dependencies` | Stores file-to-file dependency edges. | `repository_id` |
 | `documentation` | Stores parsed documentation entries. | `repository_id` |
-| `drift_findings` | Stores documentation drift findings. | `repository_id` |
+| `repository_scores` | Stores the latest debt, drift, health, and risk summary. | `repository_id` unique |
+| `technical_debt_metrics` | Stores per-code-file Technical Debt evidence. | `repository_id`+`file_path` unique; score ranking |
+| `knowledge_debt_metrics` | Stores per-module documentation evidence. | `repository_id`+`module_path` unique |
+| `drift_findings` | Stores current structural documentation-drift findings. | `repository_id`+`finding_key` unique; severity |
+| `recommendations` | Stores ranked, evidence-based remediation actions. | `repository_id`+`recommendation_key` unique; impact |
 
 ---
 
@@ -39,7 +43,11 @@ erDiagram
     repositories ||--o{ commits : records
     repositories ||--o{ dependencies : maps
     repositories ||--o{ documentation : parses
+    repositories ||--|| repository_scores : summarizes
+    repositories ||--o{ technical_debt_metrics : ranks
+    repositories ||--o{ knowledge_debt_metrics : documents
     repositories ||--o{ drift_findings : reports
+    repositories ||--o{ recommendations : prioritizes
 ```
 
 References use `objectId` values in the draft MongoDB schema.
@@ -279,19 +287,118 @@ Indexes:
 
 * `{ repository_id: 1 }`.
 
+### `repository_scores`
+
+Required fields:
+
+* `repository_id` (`objectId`): Parent repository reference.
+
+Optional fields:
+
+* `analysis_version` (`int`): Scoring-contract version.
+* `health_score` (`number`): Current inverse debt health score.
+* `health_trend` (`array<number>`): Empty until historical snapshots are
+  supported.
+* `technical_debt` (`object`): Score, grade, and aggregate Technical Debt
+  metrics.
+* `knowledge_debt` (`object`): Score, documentation coverage, onboarding
+  difficulty, and aggregate Knowledge Debt metrics.
+* `drift`, `risk` (`object`): Current structural drift and calculated-risk
+  summaries.
+* `recommendations_ready` (`int`): Number of persisted evidence-based
+  remediation actions.
+* `analyzed_at`, `created_at`, `updated_at` (`date`): Score timestamps.
+
+Indexes:
+
+* `{ repository_id: 1 }`, unique.
+
+### `technical_debt_metrics`
+
+Required fields:
+
+* `repository_id` (`objectId`): Parent repository reference.
+* `file_path` (`string`): Repository-relative code-file path.
+
+Optional fields:
+
+* `owner` (`string`): Most frequent author in the captured change sample.
+* `size`, `complexity`, `churn_percent`, `observed_churn_percent`,
+  `debt_score` (`number`): File metrics and resulting debt score.
+* `churn_available` (`bool`): Whether at least five commits were captured.
+* `duplication_percent` (`number|null`): `null` until duplication analysis is
+  implemented.
+* `last_changed_at` (`date|null`): Latest captured change for the file.
+* `is_large_file`, `is_high_complexity`, `is_circular`, `is_orphan`,
+  `is_stale`, `dependency_graph_available` (`bool`): Detection evidence.
+* `risk` (`string`): `Low`, `Medium`, `High`, or `Critical`.
+* `reasons` (`array<string>`): Human-readable scoring evidence.
+* `created_at`, `updated_at` (`date`): Snapshot timestamps.
+
+Indexes:
+
+* `{ repository_id: 1, file_path: 1 }`, unique.
+* `{ repository_id: 1, debt_score: -1, file_path: 1 }`.
+
+### `knowledge_debt_metrics`
+
+Required fields:
+
+* `repository_id` (`objectId`): Parent repository reference.
+* `module_path` (`string`): Source-directory module path.
+
+Optional fields:
+
+* `documented` (`bool`): Whether the module matched documentation evidence.
+* `missing_reason` (`string|null`): Explanation when the module is not
+  documented.
+* `created_at`, `updated_at` (`date`): Snapshot timestamps.
+
+Indexes:
+
+* `{ repository_id: 1, module_path: 1 }`, unique.
+
 ### `drift_findings`
 
 Required fields:
 
 * `repository_id` (`objectId`): Parent repository reference.
+* `finding_key` (`string`): Stable finding identifier within the repository.
 * `drift_type` (`string`): Drift classification.
 * `severity` (`enum`): `Low`, `Medium`, `High`, or `Critical`.
 
 Optional fields:
 
-* `description` (`string`): Human-readable finding summary.
+* `title`, `description` (`string`): Human-readable finding summary.
+* `file_path`, `module_path` (`string|null`): Affected documentation or code
+  location when known.
 * `evidence` (`mixed`): Supporting snippets, metadata, or references.
+* `age_days` (`number|null`): Documentation/code age difference when known.
+* `created_at`, `updated_at` (`date`): Snapshot timestamps.
 
 Indexes:
 
-* `{ repository_id: 1 }`.
+* `{ repository_id: 1, finding_key: 1 }`, unique.
+* `{ repository_id: 1, severity: 1 }`.
+
+### `recommendations`
+
+Required fields:
+
+* `repository_id` (`objectId`): Parent repository reference.
+* `recommendation_key` (`string`): Stable recommendation identifier within the
+  repository.
+* `title` (`string`): Remediation action title.
+* `impact` (`enum`): `Low`, `Medium`, `High`, or `Critical`.
+
+Optional fields:
+
+* `effort`, `reason` (`string`): Effort band and evidence-based explanation.
+* `steps` (`array<string>`): Ordered remediation steps.
+* `order` (`int`): Current display priority.
+* `created_at`, `updated_at` (`date`): Snapshot timestamps.
+
+Indexes:
+
+* `{ repository_id: 1, recommendation_key: 1 }`, unique.
+* `{ repository_id: 1, impact: 1 }`.

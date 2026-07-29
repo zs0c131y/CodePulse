@@ -82,7 +82,7 @@ export async function githubCallback(request, response, next) {
     response.setHeader('Set-Cookie', clearParts.join('; '))
 
     if (!code || !state || state !== savedState) {
-      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitHub login failed: invalid state.')}`)
+      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitHub login failed: invalid state.')}`)
       return
     }
 
@@ -104,7 +104,7 @@ export async function githubCallback(request, response, next) {
     const tokenData = await tokenResponse.json()
 
     if (!tokenData.access_token) {
-      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitHub login failed: could not obtain access token.')}`)
+      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitHub login failed: could not obtain access token.')}`)
       return
     }
 
@@ -121,7 +121,7 @@ export async function githubCallback(request, response, next) {
     ])
 
     if (!userResponse.ok) {
-      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitHub login failed: could not fetch user profile.')}`)
+      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitHub login failed: could not fetch user profile.')}`)
       return
     }
 
@@ -135,7 +135,7 @@ export async function githubCallback(request, response, next) {
     const providerUserId = String(githubUser.id)
 
     if (!email) {
-      response.redirect(`${FRONTEND_URL}/#signin?error=${encodeURIComponent('GitHub login failed: no verified email found on your GitHub account.')}`)
+      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitHub login failed: no verified email found on your GitHub account.')}`)
       return
     }
 
@@ -151,7 +151,7 @@ export async function githubCallback(request, response, next) {
       if (activeUser) {
         const existingLink = await oauthAccounts.findOne({ provider: 'github', provider_user_id: providerUserId })
         if (existingLink && !existingLink.user_id.equals(activeUser._id)) {
-          response.redirect(`${FRONTEND_URL}/#settings?error=${encodeURIComponent('This GitHub account is already linked to another CodePulse account.')}`)
+          response.redirect(`${FRONTEND_URL}/settings?error=${encodeURIComponent('This GitHub account is already linked to another CodePulse account.')}`)
           return
         }
         await oauthAccounts.updateOne(
@@ -159,7 +159,7 @@ export async function githubCallback(request, response, next) {
           { $set: { user_id: activeUser._id, provider_email: email, provider_name: name, provider_access_token: encryptOAuthToken(githubAccessToken), updated_at: new Date() }, $setOnInsert: { provider: 'github', provider_user_id: providerUserId, created_at: new Date() } },
           { upsert: true },
         )
-        response.redirect(`${FRONTEND_URL}/#settings?connected=github`)
+        response.redirect(`${FRONTEND_URL}/settings?connected=github`)
         return
       }
     }
@@ -219,7 +219,7 @@ export async function githubCallback(request, response, next) {
 
     // --- Create session and redirect to frontend ---
     await createSession(response, request, user)
-    response.redirect(`${FRONTEND_URL}/#dashboard`)
+    response.redirect(`${FRONTEND_URL}/dashboard`)
   } catch (error) {
     next(error)
   }
