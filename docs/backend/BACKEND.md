@@ -212,11 +212,10 @@ Implemented in [backend/src/features/auth/controler/credentials.controller.js](.
 The backend applies security headers, credentialed CORS for configured origins
 (`GET`, `POST`, `PATCH`, `DELETE`, and preflight requests), global request rate
 limiting, auth-route rate limiting, and Mongo-backed
-brute-force lockouts for repeated failed sign-in attempts. In production,
-startup fails before `app.listen()` if MongoDB indexes cannot be created,
-including the unique email index and auth token indexes. In local development,
-the API still listens on port `3000` in degraded mode and auth routes return
-`503` until MongoDB connectivity is fixed.
+brute-force lockouts for repeated failed sign-in attempts. The API binds to its
+port before MongoDB index initialization begins, allowing platform liveness
+checks to connect during a cold start. It exits if the required index setup
+fails. Database-backed readiness remains available through `GET /api/health`.
 
 Verification and password reset emails are delivered by SMTP2GO when
 `EMAIL_KEY` and the context sender email are present. Each email uses the
@@ -224,6 +223,18 @@ SMTP2GO standard email API with `sender`, a single-recipient `to` array,
 `subject`, `text_body`, and `html_body`. The HTML bodies use branded
 responsive, table-based templates with inline CSS for broad email-client
 compatibility. Plain-text fallbacks are always sent.
+
+### `GET /api/health/live`
+
+Fast liveness probe that does not contact MongoDB. Fly.io uses this endpoint
+for service checks so the Machine is reachable while database indexes are
+initializing.
+
+```json
+{
+  "status": "ok"
+}
+```
 
 ### `GET /api/health`
 
