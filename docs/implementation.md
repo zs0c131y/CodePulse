@@ -165,10 +165,12 @@ Finds mismatches between documentation and code.
 
 ### Implementation Notes
 
-* Drift findings should include evidence, affected files, severity, and a
-  recommended owner action.
-* Findings should be reproducible from stored repository, code, and
-  documentation facts.
+* Implemented in [knowledgeDriftAnalyzer.js](../backend/src/features/analysis/services/knowledgeDriftAnalyzer.js).
+  It produces reproducible structural findings from stored repository facts:
+  undocumented source modules, documentation older than its associated module,
+  and backticked source paths that no longer exist.
+* Findings store affected paths, severity, age evidence where available, and
+  are replaced on each completed scan.
 
 ---
 
@@ -189,6 +191,13 @@ Measures code maintainability issues.
 
 * Separate raw metrics from final scoring.
 * Keep scoring rules documented so dashboard values can be explained.
+* Implemented in [technicalDebtAnalyzer.js](../backend/src/features/analysis/services/technicalDebtAnalyzer.js).
+  Every completed repository scan now stores a current score, per-file
+  evidence, circular dependency groups, and resolved internal graph signals.
+  The first complexity value is an explainable metadata heuristic; AST-level
+  cyclomatic complexity and source duplication remain follow-up work.
+* Churn and stale scoring require at least five captured commits so shallow
+  history does not produce a misleading signal.
 
 ---
 
@@ -209,6 +218,10 @@ Measures missing or outdated engineering knowledge.
 * Knowledge debt should combine documentation coverage, architecture clarity,
   setup completeness, and module understandability.
 * Scores should link back to concrete missing or outdated documentation.
+* Implemented in [knowledgeDebtAnalyzer.js](../backend/src/features/analysis/services/knowledgeDebtAnalyzer.js).
+  It scores source-directory coverage and stores document/absence evidence per
+  module, along with architecture and setup-document checks used by the
+  onboarding difficulty score.
 
 ---
 
@@ -226,10 +239,12 @@ Combines all scores into repository health.
 
 ### Implementation Notes
 
-* Risk scoring should combine technical debt, knowledge debt, drift findings,
-  code churn, and contributor concentration.
-* Every risk score should preserve evidence for dashboard and AI explanation
-  flows.
+* Implemented in [riskIntelligenceEngine.js](../backend/src/features/analysis/services/riskIntelligenceEngine.js).
+  File risk combines technical debt (60%), missing module documentation (20%),
+  related drift severity (15%), and available churn (5%).
+* The repository risk uses the average and maximum file risk. The current
+  engine preserves concrete reasons for dashboard and recommendation flows;
+  contributor concentration is a future signal.
 
 ---
 
@@ -247,8 +262,12 @@ Explains findings in human-readable form.
 
 ### Implementation Notes
 
-* AI output must be grounded in stored analysis facts.
-* Recommendation prompts and context construction should stay documented in
+* Implemented fallback: [recommendationEngine.js](../backend/src/features/analysis/services/recommendationEngine.js)
+  creates ranked, evidence-based remediation actions from persisted risk and
+  drift findings. It does not call an external model or transmit repository
+  content.
+* An optional LLM/RAG explanation layer can later use the same stored facts;
+  its prompt and context construction should stay documented in
   [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md).
 
 ---

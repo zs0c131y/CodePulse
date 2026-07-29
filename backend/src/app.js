@@ -9,6 +9,7 @@ import healthRouter from './features/health/router.js'
 import authRouter from './features/auth/router.js'
 import repositoriesRouter from './features/repositories/router.js'
 import integrationsRouter from './features/integrations/router.js'
+import analysisRouter from './features/analysis/router.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -27,6 +28,7 @@ app.use(createRateLimiter({ windowMs: 15 * 60 * 1000, max: 300 }))
 
 app.use(healthRouter)
 app.use(authRouter)
+app.use(analysisRouter)
 app.use(repositoriesRouter)
 app.use(integrationsRouter)
 

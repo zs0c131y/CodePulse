@@ -2,7 +2,8 @@ import { cloneRepository, removeRepositoryWorkspace } from './gitClient.js'
 import { parseRepositoryStructure } from './fileParser.js'
 import { extractDocumentation } from './documentationExtractor.js'
 import { extractCommitHistory } from './commitExtractor.js'
-import { generateDependencyGraph } from './dependencyGraph.js'
+import { generateDependencyGraph, getDependencyGraphCoverage } from './dependencyGraph.js'
+import { scoreRepositoryAnalysis } from '../../analysis/services/analysisScorer.js'
 import {
   REPOSITORY_MAX_DEPENDENCY_FILE_BYTES,
   REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES,
@@ -15,6 +16,7 @@ export async function analyzeRepositorySource({
   cloneOptions = {},
   commitLimit = 100,
   persistAnalysis,
+  scoreAnalysis = scoreRepositoryAnalysis,
 }) {
   let clonedRepository
 
@@ -25,10 +27,12 @@ export async function analyzeRepositorySource({
     })
     const documentation = await extractDocumentation(clonedRepository.localPath, structure.files)
     const commits = await extractCommitHistory(clonedRepository.localPath, { limit: commitLimit })
-    const dependencies = await generateDependencyGraph(clonedRepository.localPath, structure.files, {
+    const dependencyOptions = {
       maxSourceFiles: cloneOptions.maxDependencySourceFiles || REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES,
       maxFileBytes: cloneOptions.maxDependencyFileBytes || REPOSITORY_MAX_DEPENDENCY_FILE_BYTES,
-    })
+    }
+    const dependencies = await generateDependencyGraph(clonedRepository.localPath, structure.files, dependencyOptions)
+    const dependencyGraph = getDependencyGraphCoverage(structure.files, dependencyOptions)
     const analysis = {
       userId,
       repository: clonedRepository,
@@ -37,13 +41,22 @@ export async function analyzeRepositorySource({
       documentation,
       commits,
       dependencies,
+      dependencyGraph,
       fileSummary: structure.summary,
     }
     const persisted = persistAnalysis ? await persistAnalysis(analysis) : null
+    const scoring = persisted?.repositoryId && typeof scoreAnalysis === 'function'
+      ? await scoreAnalysis({
+        repositoryId: persisted.repositoryId,
+        analysis,
+        repositoryPath: clonedRepository.localPath,
+      })
+      : null
 
     return {
       analysis,
       persisted,
+      scoring,
       summary: {
         repository: persisted?.summary.repository || {
           name: clonedRepository.repoName,

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -64,6 +64,7 @@ test('runs the repository intelligence pipeline against a local fixture reposito
   const source = join(root, 'source')
   const workspace = join(root, 'workspace')
   const collections = createCollections()
+  let scoringInput
 
   try {
     await mkdir(join(source, 'src'), { recursive: true })
@@ -84,6 +85,11 @@ test('runs the repository intelligence pipeline against a local fixture reposito
         workspaceRoot: workspace,
       },
       persistAnalysis: analysis => persistRepositoryAnalysisWithCollections(analysis, collections),
+      scoreAnalysis: async input => {
+        scoringInput = input
+        await access(join(input.repositoryPath, 'src', 'index.js'))
+        return { healthScore: 80 }
+      },
     })
 
     assert.equal(result.summary.repository.name, 'source')
@@ -94,8 +100,10 @@ test('runs the repository intelligence pipeline against a local fixture reposito
     assert.equal(collections.repositories.records.length, 1)
     assert.equal(collections.repoFiles.records.length, 3)
     assert.equal(collections.dependencies.records[0].target_file, 'src/util.js')
+    assert.equal(scoringInput.repositoryId, result.persisted.repositoryId)
+    assert.deepEqual(scoringInput.analysis.dependencyGraph.scannedFilePaths, ['src/index.js', 'src/util.js'])
+    assert.equal(result.scoring.healthScore, 80)
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 3 })
   }
 })
-

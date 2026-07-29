@@ -1,6 +1,13 @@
 import { ObjectId } from 'mongodb'
 import { getRepositoryCollections } from './repositoryStore.js'
 import {
+  getRepositoryScoresCollection,
+  getTechnicalDebtMetricsCollection,
+  getKnowledgeDebtMetricsCollection,
+  getDriftFindingsCollection,
+  getRecommendationsCollection,
+} from '../../../db/index.js'
+import {
   serializeRepository,
   listRepositoriesForUserWithCollections,
   findRepositoryForUserWithCollections,
@@ -31,8 +38,19 @@ export async function findRepositoryForUser(userId, repositoryId) {
 }
 
 export async function deleteRepositoryForUser(userId, repositoryId) {
-  const collections = await getRepositoryCollections()
-  return deleteRepositoryForUserWithCollections(normalizeMongoId(userId), normalizeMongoId(repositoryId), collections)
+  const [collections, repositoryScores, technicalDebtMetrics, knowledgeDebtMetrics, driftFindings, recommendations] = await Promise.all([
+    getRepositoryCollections(),
+    getRepositoryScoresCollection(),
+    getTechnicalDebtMetricsCollection(),
+    getKnowledgeDebtMetricsCollection(),
+    getDriftFindingsCollection(),
+    getRecommendationsCollection(),
+  ])
+  return deleteRepositoryForUserWithCollections(
+    normalizeMongoId(userId),
+    normalizeMongoId(repositoryId),
+    { ...collections, repositoryScores, technicalDebtMetrics, knowledgeDebtMetrics, driftFindings, recommendations },
+  )
 }
 
 export async function listRepoFilesForRepository(repositoryId, options) {

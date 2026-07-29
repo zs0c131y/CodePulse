@@ -77,8 +77,11 @@ CodePulse/
 └── README.md                  # Project overview
 ```
 
-Current backend feature modules include authentication, health checks, and
-Repository Intelligence under `backend/src/features/repositories`.
+Current backend feature modules include authentication, health checks,
+Repository Intelligence under `backend/src/features/repositories`, and the
+scan-triggered Technical Debt, Knowledge Debt, structural Knowledge Drift,
+Risk Intelligence, and deterministic recommendation engines under
+`backend/src/features/analysis`.
 
 ---
 

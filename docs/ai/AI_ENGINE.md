@@ -2,6 +2,13 @@
 
 This document details the configuration, workflows, and prompts for the **AI Explainability Engine** (Vertical 6) in the CodePulse platform.
 
+> **Current implementation boundary:** the live backend currently provides
+> deterministic, evidence-based recommendations from stored Technical Debt,
+> Knowledge Debt, drift, and risk findings. No LLM, embedding model, Qdrant
+> instance, or RAG service is configured, and repository contents are not sent
+> to an external AI provider. The architecture and prompt blueprints below are
+> the planned optional extension point for that future integration.
+
 ---
 
 ## 🤖 Engine Overview & Role
