@@ -90,10 +90,18 @@ export function createAnalysisController(deps = defaultReader) {
       const repository = await requireOwnedRepository(request, response)
       if (!repository) return
 
+      const status = repository.status || 'completed'
+
       response.json({
         repositoryId: repository._id.toString(),
-        status: repository.status || 'completed',
-        message: null,
+        status,
+        message: status === 'failed'
+          ? repository.error || 'Repository analysis failed.'
+          : null,
+        queuedAt: toIso(repository.queued_at),
+        startedAt: toIso(repository.started_at),
+        completedAt: toIso(repository.completed_at),
+        failedAt: toIso(repository.failed_at),
         updatedAt: toIso(repository.updated_at),
       })
     } catch (error) {

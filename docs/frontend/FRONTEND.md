@@ -302,7 +302,9 @@ from the user's persisted repositories, requests the same health, debt, drift,
 recommendation, and contributor sources used elsewhere, and labels every
 section as included or unavailable according to the endpoint response. Empty
 successful results remain valid empty states rather than being mislabeled as
-missing engines.
+missing engines. The saved-snapshot picker requests the newest bounded page of
+up to 200 report metadata records; report evidence sections are fetched only
+after a snapshot is selected.
 
 The report is formatted for both screen review and A4 printing. **Print / Save
 as PDF** opens the browser print dialog; screen-only navigation and controls
@@ -344,7 +346,13 @@ reuse the protected-session flow and shared account layout.
   off the master email preference disables its dependent digest, risk, and
   drift controls while preserving those saved sub-preferences.
 * **Connected code hosts**: GitHub and GitLab cards start OAuth with expanded
-  repository-read scopes. The backend retains an encrypted provider token and
+  repository-read scopes. Each card first calls the protected
+  `POST /api/integrations/:provider/authorize` endpoint with the current access
+  token, then performs full-page navigation to its returned provider URL. The
+  server-side one-time state binds the callback to the initiating CodePulse
+  user and a dedicated callback cookie binds it to the initiating browser,
+  without exposing the access token in a URL or depending on refresh-cookie
+  path scope. The backend retains an encrypted provider token and
   the dashboard fetches available provider repositories into its “Connected
   repository” dropdown. Choosing one fills the scan URL; the existing analyzer
   still accepts public GitHub URLs. OAuth connection success and failure

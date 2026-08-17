@@ -25,6 +25,11 @@ COPY backend/ ./backend/
 
 COPY --from=frontend /app/dist ./dist
 
+RUN addgroup -S codepulse && adduser -S codepulse -G codepulse \
+  && chown -R codepulse:codepulse /app
+
+USER codepulse
+
 EXPOSE 3000
 
 CMD ["node", "backend/index.js"]

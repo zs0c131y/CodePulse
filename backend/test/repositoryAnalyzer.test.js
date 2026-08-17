@@ -65,6 +65,7 @@ test('runs the repository intelligence pipeline against a local fixture reposito
   const workspace = join(root, 'workspace')
   const collections = createCollections()
   let scoringInput
+  let structuredInput
 
   try {
     await mkdir(join(source, 'src'), { recursive: true })
@@ -85,6 +86,10 @@ test('runs the repository intelligence pipeline against a local fixture reposito
         workspaceRoot: workspace,
       },
       persistAnalysis: analysis => persistRepositoryAnalysisWithCollections(analysis, collections),
+      persistStructured: async input => {
+        structuredInput = input
+        return { codeFactCount: input.codeAnalysis.files.length }
+      },
       scoreAnalysis: async input => {
         scoringInput = input
         await access(join(input.repositoryPath, 'src', 'index.js'))
@@ -102,6 +107,10 @@ test('runs the repository intelligence pipeline against a local fixture reposito
     assert.equal(collections.dependencies.records[0].target_file, 'src/util.js')
     assert.equal(scoringInput.repositoryId, result.persisted.repositoryId)
     assert.deepEqual(scoringInput.analysis.dependencyGraph.scannedFilePaths, ['src/index.js', 'src/util.js'])
+    assert.equal(structuredInput.repositoryId, result.persisted.repositoryId)
+    assert.equal(structuredInput.codeAnalysis.metrics.analyzedFileCount, 2)
+    assert.equal(structuredInput.documentationAnalysis.metrics.documentCount, 1)
+    assert.equal(result.summary.totalCodeFacts, 2)
     assert.equal(result.scoring.healthScore, 80)
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 3 })

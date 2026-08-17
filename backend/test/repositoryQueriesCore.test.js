@@ -18,12 +18,49 @@ class FakeCollection {
   }
 
   matches(record, filter) {
-    return Object.entries(filter).every(([key, value]) => record[key] === value)
+    return Object.entries(filter).every(([key, value]) => {
+      if (value && typeof value === 'object' && '$nin' in value) return !value.$nin.includes(record[key])
+      return record[key] === value
+    })
   }
 
   find(filter) {
     const records = this.records.filter(record => this.matches(record, filter))
-    return { toArray: async () => records }
+    const state = { records: [...records], skip: 0, limit: null }
+    const cursor = {
+      sort(specification) {
+        const fields = Object.entries(specification)
+        state.records.sort((left, right) => {
+          for (const [field, direction] of fields) {
+            const leftValue = left[field]
+            const rightValue = right[field]
+            const comparison = leftValue instanceof Date || rightValue instanceof Date
+              ? new Date(leftValue || 0) - new Date(rightValue || 0)
+              : String(leftValue ?? '').localeCompare(String(rightValue ?? ''))
+            if (comparison !== 0) return comparison * direction
+          }
+          return 0
+        })
+        return cursor
+      },
+      skip(value) {
+        state.skip = value
+        return cursor
+      },
+      limit(value) {
+        state.limit = value
+        return cursor
+      },
+      async toArray() {
+        const end = state.limit === null ? undefined : state.skip + state.limit
+        return state.records.slice(state.skip, end)
+      },
+    }
+    return cursor
+  }
+
+  async countDocuments(filter) {
+    return this.records.filter(record => this.matches(record, filter)).length
   }
 
   async findOne(filter) {
@@ -162,6 +199,18 @@ test('deleteRepositoryForUserWithCollections cascades child records and reports 
   assert.equal(deletedAgain, false)
 })
 
+test('deleteRepositoryForUserWithCollections refuses active lifecycle records', async () => {
+  const collections = createCollections()
+  collections.repositories.records[0].status = 'running'
+  collections.repoFiles.records.push({ repository_id: 'repo-1', file_path: 'a.js' })
+
+  const result = await deleteRepositoryForUserWithCollections('user-1', 'repo-1', collections)
+
+  assert.equal(result, 'active')
+  assert.equal(collections.repositories.records.some(record => record._id === 'repo-1'), true)
+  assert.equal(collections.repoFiles.records.length, 1)
+})
+
 test('listRepoFilesWithCollections sorts by path and paginates', async () => {
   const collections = createCollections()
   collections.repoFiles.records.push(
@@ -171,13 +220,13 @@ test('listRepoFilesWithCollections sorts by path and paginates', async () => {
     { repository_id: 'repo-2', file_path: 'other.js', file_name: 'other.js', extension: '.js', file_type: 'code', language: 'JavaScript', size: 1, depth: 1 },
   )
 
-  const page = await listRepoFilesWithCollections('repo-1', collections, { limit: 2 })
+  const page = await listRepoFilesWithCollections('repo-1', collections, { limit: 1, skip: 1 })
 
   assert.equal(page.total, 3)
-  assert.equal(page.limit, 2)
-  assert.equal(page.skip, 0)
-  assert.deepEqual(page.items.map(file => file.path), ['README.md', 'src/a.js'])
-  assert.equal(page.items[0].fileType, 'documentation')
+  assert.equal(page.limit, 1)
+  assert.equal(page.skip, 1)
+  assert.deepEqual(page.items.map(file => file.path), ['src/a.js'])
+  assert.equal(page.items[0].fileType, 'code')
 })
 
 test('listCommitsForRepositoryWithCollections sorts newest first and paginates', async () => {

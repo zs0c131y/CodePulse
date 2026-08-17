@@ -102,3 +102,34 @@ test('status, drift, and recommendation reads return stored analysis for an owne
   await controller.getRepositoryRecommendationList(ownedRequest, recommendationResponse, () => assert.fail('next should not be called'))
   assert.deepEqual(recommendationResponse.body, { recommendations: [{ id: 'recommendation-1' }] })
 })
+
+test('status polling returns failure details and lifecycle timestamps', async () => {
+  const { getRepositoryStatus } = createAnalysisController({
+    async findRepositoryForUser() {
+      return {
+        _id: 'repo-1',
+        status: 'failed',
+        error: 'Repository was not found.',
+        queued_at: '2026-08-01T10:00:00.000Z',
+        started_at: '2026-08-01T10:00:01.000Z',
+        completed_at: null,
+        failed_at: '2026-08-01T10:00:05.000Z',
+        updated_at: '2026-08-01T10:00:05.000Z',
+      }
+    },
+  })
+  const response = createResponse()
+
+  await getRepositoryStatus(ownedRequest, response, () => assert.fail('next should not be called'))
+
+  assert.deepEqual(response.body, {
+    repositoryId: 'repo-1',
+    status: 'failed',
+    message: 'Repository was not found.',
+    queuedAt: '2026-08-01T10:00:00.000Z',
+    startedAt: '2026-08-01T10:00:01.000Z',
+    completedAt: null,
+    failedAt: '2026-08-01T10:00:05.000Z',
+    updatedAt: '2026-08-01T10:00:05.000Z',
+  })
+})

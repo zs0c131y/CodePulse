@@ -93,3 +93,58 @@ test('does not classify dependency sources skipped by graph limits as orphans', 
   assert.equal(byPath.get('src/not-scanned.js').dependencyGraphAvailable, false)
   assert.equal(byPath.get('src/not-scanned.js').orphan, false)
 })
+
+test('uses structured source complexity and duplication when available', () => {
+  const result = analyzeTechnicalDebt({
+    files: [codeFile('src/measured.js', 1024)],
+    commits: [],
+    dependencies: [],
+    codeAnalysis: {
+      files: [{
+        filePath: 'src/measured.js',
+        metrics: {
+          cyclomaticComplexity: 21,
+          duplicationPercent: 35,
+          longFunctionCount: 1,
+        },
+      }],
+    },
+  })
+
+  assert.equal(result.modules[0].complexity, 21)
+  assert.equal(result.modules[0].complexityMethod, 'source-heuristic')
+  assert.equal(result.modules[0].duplicationPercent, 35)
+  assert.equal(result.metrics.duplicationPercent, 35)
+  assert.match(result.modules[0].reasons.join(' '), /Repeated source blocks/)
+  assert.match(result.modules[0].reasons.join(' '), /long function/)
+})
+
+test('surfaces dependency depth, bug-fix hotspots, and contributor concentration', () => {
+  const commits = [
+    { author: 'Ada', message: 'fix auth regression', changed_files: ['src/a.js'] },
+    { author: 'Ada', message: 'bug fix for auth', changed_files: ['src/a.js'] },
+    { author: 'Ada', message: 'refactor auth', changed_files: ['src/a.js'] },
+    { author: 'Grace', message: 'docs', changed_files: ['README.md'] },
+    { author: 'Grace', message: 'docs', changed_files: ['README.md'] },
+  ]
+  const files = Array.from({ length: 8 }, (_, index) => codeFile(`src/${index}.js`))
+  files[0] = codeFile('src/a.js')
+  const dependencies = files.slice(0, -1).map((file, index) => ({
+    source_file: file.path,
+    target_file: files[index + 1].path,
+    resolved: true,
+  }))
+
+  const result = analyzeTechnicalDebt({ files, commits, dependencies })
+  const hotspot = result.modules.find(module => module.path === 'src/a.js')
+
+  assert.equal(hotspot.contributorConcentrationPercent, 100)
+  assert.equal(hotspot.bugFixCount, 2)
+  assert.equal(result.metrics.ownershipConcentrationModules, 1)
+  assert.equal(result.metrics.bugProneModules, 1)
+  assert.equal(result.metrics.longestDependencyChain, 7)
+  assert.ok(result.metrics.deepDependencyModules >= 1)
+  assert.match(hotspot.reasons.join(' '), /Contributor concentration/)
+  assert.match(hotspot.reasons.join(' '), /Bug-fix hotspot/)
+  assert.match(hotspot.reasons.join(' '), /Deep dependency chain/)
+})

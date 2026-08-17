@@ -12,6 +12,10 @@ import {
   getRepositoryContributors,
   getRepositoryManifest,
 } from './readController.js'
+import {
+  getRepositoryCodeAnalysis,
+  getRepositoryDocumentationAnalysis,
+} from './structuredAnalysisController.js'
 
 const router = Router()
 
@@ -25,6 +29,8 @@ router.get('/api/repositories/:repositoryId/dependencies', requireAccessToken, g
 router.get('/api/repositories/:repositoryId/documentation', requireAccessToken, getRepositoryDocumentation)
 router.get('/api/repositories/:repositoryId/contributors', requireAccessToken, getRepositoryContributors)
 router.get('/api/repositories/:repositoryId/manifest', requireAccessToken, getRepositoryManifest)
+router.get('/api/repositories/:repositoryId/code-analysis', requireAccessToken, getRepositoryCodeAnalysis)
+router.get('/api/repositories/:repositoryId/documentation-analysis', requireAccessToken, getRepositoryDocumentationAnalysis)
 
 export default router
 

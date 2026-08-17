@@ -28,3 +28,48 @@ test('finds missing module documentation, stale documentation, and dead source r
   assert.equal(result.metrics.total, 3)
   assert.ok(result.score > 0)
 })
+
+test('finds deterministic API contract drift in both directions', () => {
+  const analysis = {
+    files: [codeFile('src/api.js')],
+    documentation: [],
+    commits: [],
+    codeAnalysis: {
+      routes: [
+        { method: 'GET', path: '/api/live', filePath: 'src/api.js' },
+        { method: 'POST', path: '/api/matched', filePath: 'src/api.js' },
+      ],
+    },
+    documentationAnalysis: {
+      facts: {
+        api: {
+          endpoints: [
+            { method: 'POST', path: '/api/matched', docPath: 'docs/api.md' },
+            { method: 'DELETE', path: '/api/removed', docPath: 'docs/api.md' },
+          ],
+        },
+      },
+    },
+  }
+  const result = analyzeKnowledgeDrift(analysis, analyzeKnowledgeDebt(analysis))
+
+  assert.ok(result.findings.some(item => item.type === 'undocumented_api'))
+  assert.ok(result.findings.some(item => item.type === 'stale_api_documentation'))
+  assert.equal(result.findings.filter(item => /matched/.test(item.title)).length, 0)
+})
+
+test('gives each missing source reference a stable unique key, including root files', () => {
+  const analysis = {
+    files: [],
+    commits: [],
+    documentation: [{
+      doc_path: 'README.md',
+      content: 'See `app.js`, `src/removed.js`, and `src/also-removed.ts`.',
+    }],
+  }
+  const result = analyzeKnowledgeDrift(analysis, analyzeKnowledgeDebt(analysis))
+  const deadReferences = result.findings.filter(item => item.type === 'dead_reference')
+
+  assert.equal(deadReferences.length, 3)
+  assert.equal(new Set(deadReferences.map(item => item.key)).size, 3)
+})

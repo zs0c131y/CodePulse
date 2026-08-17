@@ -59,6 +59,11 @@ modules for cloning repositories, parsing files, extracting documentation,
 reading commit history, building a basic dependency graph, orchestrating scans,
 and persisting metadata.
 
+Durable report generation and revocable sharing are implemented under
+[backend/src/features/reports](../../backend/src/features/reports). Reports
+store versioned, immutable JSON snapshots; browser rendering remains the PDF
+export path.
+
 Repository analysis shells out to the `git` executable for cloning and commit
 history extraction. Local development requires Git on `PATH`; the production
 Docker image installs Git in the runtime layer. The production image uses the
@@ -223,6 +228,13 @@ SMTP2GO standard email API with `sender`, a single-recipient `to` array,
 `subject`, `text_body`, and `html_body`. The HTML bodies use branded
 responsive, table-based templates with inline CSS for broad email-client
 compatibility. Plain-text fallbacks are always sent.
+
+OAuth-only accounts deliberately follow the same bcrypt-cost credential
+failure path as unknown users and return the generic `401` response; a missing
+password hash is never passed to bcrypt. Password-reset tokens are claimed in
+one atomic MongoDB update before a password is changed, so concurrent replay
+attempts cannot both succeed. A successful reset still revokes every active
+refresh session for the account.
 
 ### `GET /api/health/live`
 
@@ -556,9 +568,11 @@ Response:
 
 ### `GET /auth/github`
 
-Redirects the browser to GitHub's OAuth consent screen. Sets a short-lived,
-`HttpOnly` CSRF state cookie scoped to `/auth/github`. Returns `503` when
-`GITHUB_ID`/`GITHUB_SECRET` are not configured.
+Redirects the browser to GitHub's OAuth consent screen. Creates a short-lived,
+hashed server-side OAuth state and sets its raw value in an `HttpOnly` CSRF
+cookie scoped to `/auth/github`. The callback atomically consumes the state,
+so it cannot be replayed. Returns `503` when `GITHUB_ID`/`GITHUB_SECRET` are
+not configured.
 
 ### `GET /auth/github/callback`
 
@@ -571,9 +585,10 @@ redirects to `FRONTEND_URL/#signin?error=<message>`.
 
 ### `GET /auth/gitlab`
 
-Redirects the browser to GitLab's OAuth consent screen. Sets a short-lived,
-`HttpOnly` CSRF state cookie scoped to `/auth/gitlab`. Returns `503` when
-`GITLAB_ID`/`GITLAB_SECRET` are not configured.
+Redirects the browser to GitLab's OAuth consent screen. It uses the same
+hashed, one-time server-side state contract as GitHub plus an `HttpOnly`
+callback cookie. Returns `503` when `GITLAB_ID`/`GITLAB_SECRET` are not
+configured.
 
 ### `GET /auth/gitlab/callback`
 
@@ -614,6 +629,10 @@ Request:
 }
 ```
 
+`commitLimit` is optional, defaults to `100`, and must be an integer from
+`1` through `500`. Invalid values are rejected with `400` before a scan is
+queued.
+
 Response:
 
 ```json
@@ -651,7 +670,9 @@ Implementation modules:
 * [fileParser.js](../../backend/src/features/repositories/services/fileParser.js):
   walks the repository tree, skips ignored directories, and classifies files.
 * [documentationExtractor.js](../../backend/src/features/repositories/services/documentationExtractor.js):
-  reads README, docs, changelog, contributing, license, and API docs.
+  reads README, docs, changelog, contributing, license, and API docs. Files
+  discovered through documentation directories are restricted to recognized
+  text-document extensions; binary assets are never decoded as documentation.
 * [commitExtractor.js](../../backend/src/features/repositories/services/commitExtractor.js):
   extracts recent Git commit metadata and changed files.
 * [dependencyGraph.js](../../backend/src/features/repositories/services/dependencyGraph.js):
@@ -706,8 +727,10 @@ and `404` when the repository does not exist or belongs to another user.
 
 Deletes a repository owned by the signed-in user and cascades the delete to
 its `repo_files`, `commits`, `dependencies`, `documentation`,
-`repository_scores`, `technical_debt_metrics`, and `knowledge_debt_metrics`
-records.
+`repository_scores`, `repository_score_history`, `technical_debt_metrics`,
+`knowledge_debt_metrics`, `drift_findings`, and `recommendations` records.
+Previously generated report snapshots intentionally remain available to their
+owner and through any active share link.
 Returns `404` when the repository does not exist or belongs to another user.
 
 ### `GET /api/repositories/:repositoryId/files`
@@ -732,7 +755,9 @@ with:
 ```
 
 Files are sorted by path, commits by date (newest first), dependencies by
-source file, and documentation by path.
+source file, and documentation by path. Sorting, offsetting, limiting, and the
+total count are executed by MongoDB so these endpoints do not materialize the
+repository's entire evidence collection in application memory.
 
 ### `GET /api/repositories/:repositoryId/contributors`
 
@@ -914,8 +939,9 @@ or has not completed scoring yet.
 }
 ```
 
-Historical score and risk trends are intentionally empty until score-history
-persistence is added.
+Completed rescans append compact score points to `repository_score_history`.
+The scores endpoint returns up to the latest 30 health values and matching
+risk trend points in chronological order.
 
 ### `GET /api/repositories/:repositoryId/debt`
 
@@ -1055,15 +1081,74 @@ Response:
 
 ---
 
+## Durable Reports API
+
+The reports feature persists immutable `codepulse.report.snapshot` version 1
+JSON artifacts. Evidence arrays are bounded and expose total/included counts
+plus a `truncated` flag. Private routes require
+`Authorization: Bearer <accessToken>` and enforce report ownership.
+
+### `POST /api/repositories/:repositoryId/reports`
+
+Generates a report from the latest completed, scored analysis and returns
+`201` with `{ "report": { ... } }`. Returns `409` while analysis or scoring is
+incomplete.
+
+### `GET /api/reports?repositoryId=<optional-id>&limit=50&skip=0`
+
+Lists the signed-in user's report metadata, newest first. Section evidence is
+omitted from list items. `repositoryId` remains optional; `limit` defaults to
+`50` and is capped at `200`, while `skip` defaults to `0`. The response keeps
+the `reports` array and adds the bounded-page metadata used by other list APIs:
+
+```json
+{
+  "reports": ["..."],
+  "total": 12,
+  "limit": 50,
+  "skip": 0
+}
+```
+
+### `GET /api/reports/:reportId`
+
+Returns one owned report including its immutable evidence sections.
+
+### `POST /api/reports/:reportId/share`
+
+Creates or rotates a 256-bit opaque share token. Only its SHA-256 hash is
+stored. The response contains the token once under `share.token` and the API
+path under `share.path`.
+
+### `DELETE /api/reports/:reportId/share`
+
+Revokes the active public link while retaining the private report.
+
+### `GET /api/reports/shared/:shareToken`
+
+Publicly returns a shared report snapshot while its token remains active.
+Malformed, unknown, and revoked tokens all return `404`. Shared responses use
+`Cache-Control: no-store`.
+
+---
+
 ## 🔌 Connected Repository Sources
 
 Authenticated users can connect GitHub or GitLab from Settings using the
-existing OAuth routes. If the browser already has a CodePulse refresh session,
-the callback links the provider to that signed-in user rather than changing the
-session. Provider access tokens are AES-256-GCM encrypted by
+protected `POST /api/integrations/:provider/authorize` route. It returns a
+provider authorization URL whose one-time Mongo-backed state stores the
+initiating CodePulse user ID. The callback consumes that state atomically and
+links the provider to exactly that user. A dedicated short-lived state cookie
+binds the same handoff to the initiating browser; the flow does not depend on
+the refresh cookie being visible under `/auth/*`. Ordinary unauthenticated OAuth sign-in
+continues to use `GET /auth/github` and `GET /auth/gitlab` plus an `HttpOnly`
+state cookie. Provider identities are never reassigned from another user,
+including during concurrent callbacks. Provider access tokens are AES-256-GCM encrypted by
 [oauthToken.js](../../backend/src/utils/oauthToken.js) before storage in
 `oauth_accounts`; they are only decrypted server-side when listing sources.
 
+* `POST /api/integrations/:provider/authorize` returns
+  `{ "authorizationUrl": "..." }` for `github` or `gitlab`.
 * `GET /api/integrations` returns each provider's connection status and account
   name.
 * `GET /api/integrations/repositories` returns repositories accessible through
@@ -1077,7 +1162,7 @@ frontend.
 
 The implemented engines operate on the repository facts gathered during a
 scan. AST-level cyclomatic complexity, source-duplication detection,
-embedding/semantic drift, contributor-concentration risk, score history, and
+embedding/semantic drift, contributor-concentration risk, and
 external LLM/RAG recommendations remain future integrations. The current
 interfaces retain the required API boundaries so those capabilities can be
 added without changing frontend consumers.

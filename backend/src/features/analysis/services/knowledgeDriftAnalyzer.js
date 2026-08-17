@@ -1,5 +1,15 @@
 const STALE_DOCUMENTATION_DAYS = 30
-const sourcePathPattern = /`((?:[\w@.-]+\/)+[\w.-]+\.(?:[cm]?[jt]sx?|py|java|go|rb|php|cs))`/gi
+const sourcePathPattern = /`((?:(?:[\w@.-]+\/)+)?[\w.-]+\.(?:[cm]?[jt]sx?|py|java|go|rb|php|cs))`/gi
+
+function normalizeEndpointPath(value) {
+  const path = String(value || '').trim().replace(/[),.;:`]+$/, '')
+  if (!path || path === '/') return '/'
+  return path.replace(/\/+$/, '') || '/'
+}
+
+function endpointKey(endpoint) {
+  return `${String(endpoint?.method || '').toUpperCase()} ${normalizeEndpointPath(endpoint?.path)}`
+}
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value))
@@ -79,9 +89,9 @@ function documentationMatchesModule(documentationPath, modulePath) {
     || (module === '.' && docBaseName === 'readme')
 }
 
-function finding({ type, title, filePath, modulePath, severity, evidence, ageDays = null }) {
+function finding({ type, title, filePath, modulePath, severity, evidence, ageDays = null, identity = '' }) {
   return {
-    key: `${type}:${filePath}:${modulePath || ''}`,
+    key: `${type}:${filePath}:${modulePath || ''}:${identity}`,
     type,
     title,
     filePath,
@@ -96,7 +106,7 @@ function finding({ type, title, filePath, modulePath, severity, evidence, ageDay
  * Produces reproducible documentation-drift findings from repository facts.
  * This is intentionally structural rather than semantic/embedding based: it
  * detects missing module documentation, documentation that lags recent code,
- * and backticked source paths that no longer exist.
+ * API contract mismatches, and backticked source paths that no longer exist.
  */
 export function analyzeKnowledgeDrift(analysis, knowledgeDebt, options = {}) {
   const now = toDate(options.now) || new Date()
@@ -160,9 +170,43 @@ export function analyzeKnowledgeDrift(analysis, knowledgeDebt, options = {}) {
         severity: 'Low',
         evidence: `The backticked path \`${referencedPath}\` was not found in the scanned repository.`,
         ageDays: toAgeDays(lastChangedByPath.get(normalizePath(document.doc_path)), now),
+        identity: referencedPath,
       }))
       if (seenReferences.size >= 3) break
     }
+  }
+
+  const codeRoutes = Array.isArray(analysis?.codeAnalysis?.routes) ? analysis.codeAnalysis.routes : []
+  const documentedEndpoints = Array.isArray(analysis?.documentationAnalysis?.facts?.api?.endpoints)
+    ? analysis.documentationAnalysis.facts.api.endpoints
+    : []
+  const codeRouteKeys = new Set(codeRoutes.map(endpointKey))
+  const documentedEndpointKeys = new Set(documentedEndpoints.map(endpointKey))
+
+  for (const route of codeRoutes) {
+    const key = endpointKey(route)
+    if (documentedEndpointKeys.has(key)) continue
+    findings.push(finding({
+      type: 'undocumented_api',
+      title: `${key} is implemented but not documented`,
+      filePath: normalizePath(route.filePath || 'API'),
+      severity: 'Medium',
+      evidence: `The structured code scan found ${key}, but no matching documentation endpoint was captured.`,
+      identity: key,
+    }))
+  }
+
+  for (const endpoint of documentedEndpoints) {
+    const key = endpointKey(endpoint)
+    if (codeRouteKeys.has(key)) continue
+    findings.push(finding({
+      type: 'stale_api_documentation',
+      title: `${key} is documented but was not found in code`,
+      filePath: normalizePath(endpoint.docPath || 'documentation'),
+      severity: 'Medium',
+      evidence: `Documentation declares ${key}, but the supported-language route scan found no matching implementation.`,
+      identity: key,
+    }))
   }
 
   const sortedFindings = findings

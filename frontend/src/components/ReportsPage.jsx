@@ -2,146 +2,289 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   ArrowLeft,
-  BookOpenCheck,
-  CheckCircle2,
+  Copy,
   FileDown,
+  FilePlus2,
   FileText,
-  GitBranch,
+  Link2,
   Loader2,
-  ShieldCheck,
-  Sparkles,
-  Users,
+  RefreshCw,
+  ShieldOff,
 } from 'lucide-react'
 import { Link } from '../lib/router'
+import { listRepositories } from '../api/repositories'
 import {
-  getRepositoryContributors,
-  getRepositoryDebt,
-  getRepositoryDrift,
-  getRepositoryRecommendations,
-  getRepositoryScores,
-  listRepositories,
-} from '../api/repositories'
+  createRepositoryReport,
+  getReport,
+  listReports,
+  revokeReportShare,
+  shareReport,
+} from '../api/reports'
 import { AppTopBar } from './AppChrome'
+import ReportDocument from './ReportDocument'
+import { EmptyPanel } from './dashboard/shared'
 import { Button } from './ui/button'
 import { Select } from './ui/select'
-import { EmptyPanel, SeverityBadge } from './dashboard/shared'
 
-function valueOf(result, fallback = null) {
-  return result.status === 'fulfilled' ? result.value : fallback
+function errorMessage(error, fallback) {
+  return error instanceof Error && error.message ? error.message : fallback
 }
 
-function ReportSection({ icon: Icon, eyebrow, title, description, children, available = true }) {
+function formatSnapshotLabel(report) {
+  const repository = report.repository?.fullName || report.repository?.name || 'Repository'
+  const date = new Date(report.generatedAt)
+  const generated = Number.isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleString()
+  return `${repository} · ${generated}`
+}
+
+function buildShareUrl(token) {
+  const url = new URL('/shared-report', window.location.origin)
+  url.hash = new URLSearchParams({ token }).toString()
+  return url.toString()
+}
+
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return
+    } catch {
+      // Fall back for browsers that expose Clipboard API without granting it.
+    }
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  if (!copied) throw new Error('Copy is not available in this browser.')
+}
+
+const statusClasses = {
+  success: 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]',
+  error: 'border-[var(--sev-critical-line)] bg-[var(--sev-critical-wash)] text-[var(--sev-critical-ink)]',
+  info: 'border-[var(--accent-line)] bg-[var(--accent-wash)] text-[var(--accent-ink)]',
+}
+
+function StatusBanner({ status }) {
+  if (!status?.message) return null
   return (
-    <section className="report-section panel overflow-hidden">
-      <div className="flex items-start gap-3 border-b border-[var(--line-1)] px-5 py-4 sm:px-6">
-        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[var(--r-md)] bg-[var(--surface-2)] text-[var(--ink-3)]">
-          <Icon size={16} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="overline text-[var(--accent-ink)]">{eyebrow}</p>
-          <h2 className="mt-1 text-base font-semibold text-[var(--ink-1)]">{title}</h2>
-          {description && <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">{description}</p>}
-        </div>
-        <span className={`rounded-[var(--r-xs)] border px-2 py-1 text-[0.6875rem] font-medium ${available ? 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]' : 'border-[var(--line-2)] bg-[var(--surface-2)] text-[var(--ink-3)]'}`}>
-          {available ? 'Included' : 'Unavailable'}
-        </span>
-      </div>
-      <div className="p-5 sm:p-6">
-        {available ? children : (
-          <p className="text-sm leading-6 text-[var(--ink-3)]">
-            This section will populate when its analysis engine has produced results for the selected repository.
-          </p>
-        )}
-      </div>
-    </section>
+    <p
+      className={`rounded-[var(--r-md)] border px-3.5 py-3 text-sm ${statusClasses[status.tone] || statusClasses.info}`}
+      role={status.tone === 'error' ? 'alert' : 'status'}
+    >
+      {status.message}
+    </p>
   )
 }
 
 export default function ReportsPage({ user, accessToken, onLogout }) {
   const [repositories, setRepositories] = useState([])
-  const [selectedId, setSelectedId] = useState('')
-  const [repositoriesLoading, setRepositoriesLoading] = useState(true)
-  const [reportLoading, setReportLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [reports, setReports] = useState([])
+  const [selectedRepositoryId, setSelectedRepositoryId] = useState('')
+  const [selectedReportId, setSelectedReportId] = useState('')
   const [report, setReport] = useState(null)
-  const [printStatus, setPrintStatus] = useState('')
+  const [repositoriesLoading, setRepositoriesLoading] = useState(true)
+  const [reportsLoading, setReportsLoading] = useState(true)
+  const [reportLoading, setReportLoading] = useState(false)
+  const [repositoriesError, setRepositoriesError] = useState('')
+  const [reportsError, setReportsError] = useState('')
+  const [reportError, setReportError] = useState('')
+  const [workspaceRevision, setWorkspaceRevision] = useState(0)
+  const [reportRevision, setReportRevision] = useState(0)
+  const [action, setAction] = useState('')
+  const [actionStatus, setActionStatus] = useState(null)
+  const [printStatus, setPrintStatus] = useState(null)
+  const [shareUrl, setShareUrl] = useState('')
 
   const selectedRepository = useMemo(
-    () => repositories.find(repository => repository.id === selectedId) || null,
-    [repositories, selectedId],
+    () => repositories.find(repository => repository.id === selectedRepositoryId) || null,
+    [repositories, selectedRepositoryId],
   )
 
   useEffect(() => {
     let cancelled = false
     setRepositoriesLoading(true)
-    listRepositories(accessToken)
-      .then(items => {
-        if (cancelled) return
+    setReportsLoading(true)
+    setRepositoriesError('')
+    setReportsError('')
+
+    Promise.allSettled([
+      listRepositories(accessToken),
+      listReports(accessToken),
+    ]).then(([repositoryResult, reportResult]) => {
+      if (cancelled) return
+
+      if (repositoryResult.status === 'fulfilled') {
+        const items = repositoryResult.value
         setRepositories(items)
-        setSelectedId(current => current || items[0]?.id || '')
-        setError('')
-      })
-      .catch(loadError => {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Repositories could not be loaded.')
-      })
-      .finally(() => {
-        if (!cancelled) setRepositoriesLoading(false)
-      })
+        setSelectedRepositoryId(current => (
+          items.some(repository => repository.id === current) ? current : items[0]?.id || ''
+        ))
+      } else {
+        setRepositories([])
+        setSelectedRepositoryId('')
+        setRepositoriesError(errorMessage(repositoryResult.reason, 'Repositories could not be loaded.'))
+      }
+
+      if (reportResult.status === 'fulfilled') {
+        const items = reportResult.value
+        setReports(items)
+        setSelectedReportId(current => (
+          items.some(item => item.id === current) ? current : items[0]?.id || ''
+        ))
+      } else {
+        setReports([])
+        setSelectedReportId('')
+        setReportsError(errorMessage(reportResult.reason, 'Saved reports could not be loaded.'))
+      }
+
+      setRepositoriesLoading(false)
+      setReportsLoading(false)
+    })
+
     return () => { cancelled = true }
-  }, [accessToken])
+  }, [accessToken, workspaceRevision])
 
   useEffect(() => {
-    if (!selectedId) {
+    if (!selectedReportId) {
       setReport(null)
+      setReportError('')
+      setShareUrl('')
       return undefined
     }
 
     let cancelled = false
-    async function loadReport() {
-      setReportLoading(true)
-      setPrintStatus('')
-      const [scores, debt, drift, recommendations, contributors] = await Promise.allSettled([
-        getRepositoryScores(accessToken, selectedId),
-        getRepositoryDebt(accessToken, selectedId),
-        getRepositoryDrift(accessToken, selectedId),
-        getRepositoryRecommendations(accessToken, selectedId),
-        getRepositoryContributors(accessToken, selectedId),
-      ])
-      if (cancelled) return
-      setReport({
-        scores: valueOf(scores),
-        debt: valueOf(debt),
-        drift: valueOf(drift),
-        recommendations: valueOf(recommendations, []),
-        contributors: valueOf(contributors, []),
-        availability: {
-          scores: scores.status === 'fulfilled',
-          debt: debt.status === 'fulfilled',
-          drift: drift.status === 'fulfilled',
-          recommendations: recommendations.status === 'fulfilled',
-          contributors: contributors.status === 'fulfilled',
-        },
-        generatedAt: new Date().toISOString(),
+    setReportLoading(true)
+    setReport(null)
+    setReportError('')
+    setShareUrl('')
+
+    getReport(accessToken, selectedReportId)
+      .then(item => {
+        if (cancelled) return
+        if (!item) throw new Error('The report snapshot was empty.')
+        setReport(item)
       })
-      setReportLoading(false)
-    }
-    loadReport()
+      .catch(loadError => {
+        if (!cancelled) setReportError(errorMessage(loadError, 'The report snapshot could not be loaded.'))
+      })
+      .finally(() => {
+        if (!cancelled) setReportLoading(false)
+      })
+
     return () => { cancelled = true }
-  }, [accessToken, selectedId])
+  }, [accessToken, reportRevision, selectedReportId])
+
+  function selectReport(reportId) {
+    setActionStatus(null)
+    setPrintStatus(null)
+    setSelectedReportId(reportId)
+  }
+
+  async function generateSnapshot() {
+    if (!selectedRepository) return
+    setAction('create')
+    setActionStatus(null)
+    setPrintStatus(null)
+
+    try {
+      const created = await createRepositoryReport(accessToken, selectedRepository.id)
+      if (!created) throw new Error('The API did not return the generated report.')
+      setReports(current => [created, ...current.filter(item => item.id !== created.id)])
+      setReport(created)
+      setSelectedReportId(created.id)
+      setActionStatus({
+        tone: 'success',
+        message: `Snapshot created for ${created.repository?.fullName || created.repository?.name || 'the repository'}.`,
+      })
+    } catch (createError) {
+      setActionStatus({
+        tone: 'error',
+        message: errorMessage(createError, 'The report snapshot could not be generated.'),
+      })
+    } finally {
+      setAction('')
+    }
+  }
+
+  async function enableSharing() {
+    if (!report) return
+    if (
+      report.sharing?.enabled
+      && !window.confirm('Replace the active share link? The previous link will stop working immediately.')
+    ) return
+
+    setAction('share')
+    setActionStatus(null)
+    try {
+      const shared = await shareReport(accessToken, report.id)
+      if (!shared?.report || !shared.share?.token) throw new Error('The API did not return a share token.')
+      const nextShareUrl = buildShareUrl(shared.share.token)
+      setReport(shared.report)
+      setReports(current => current.map(item => (item.id === shared.report.id ? shared.report : item)))
+      setShareUrl(nextShareUrl)
+      setActionStatus({
+        tone: 'success',
+        message: `${report.sharing?.enabled ? 'The share link was replaced.' : 'A public share link was created.'} It expires ${new Date(shared.share.expiresAt).toLocaleString()}. Copy it before leaving this report.`,
+      })
+    } catch (shareError) {
+      setActionStatus({ tone: 'error', message: errorMessage(shareError, 'The report could not be shared.') })
+    } finally {
+      setAction('')
+    }
+  }
+
+  async function copyShareLink() {
+    if (!shareUrl) return
+    setAction('copy')
+    try {
+      await copyText(shareUrl)
+      setActionStatus({ tone: 'success', message: 'Share link copied to the clipboard.' })
+    } catch (copyError) {
+      setActionStatus({
+        tone: 'error',
+        message: `${errorMessage(copyError, 'The link could not be copied.')} Select and copy the visible link manually.`,
+      })
+    } finally {
+      setAction('')
+    }
+  }
+
+  async function revokeSharing() {
+    if (!report || !window.confirm('Revoke this public share link? Anyone using it will immediately lose access.')) return
+    setAction('revoke')
+    setActionStatus(null)
+    try {
+      const updated = await revokeReportShare(accessToken, report.id)
+      if (!updated) throw new Error('The API did not return the updated report.')
+      setReport(updated)
+      setReports(current => current.map(item => (item.id === updated.id ? updated : item)))
+      setShareUrl('')
+      setActionStatus({ tone: 'success', message: 'Public access to this report was revoked.' })
+    } catch (revokeError) {
+      setActionStatus({ tone: 'error', message: errorMessage(revokeError, 'The share link could not be revoked.') })
+    } finally {
+      setAction('')
+    }
+  }
 
   function printReport() {
-    setPrintStatus('Opening the browser print dialog. Choose “Save as PDF” to export this report.')
+    setPrintStatus({ tone: 'info', message: 'Opening the browser print dialog. Choose “Save as PDF” to export this snapshot.' })
     requestAnimationFrame(() => window.print())
   }
 
-  const availability = report ? [
-    ['Repository summary', true],
-    ['Health scores', report.availability.scores],
-    ['Technical debt', report.availability.debt],
-    ['Knowledge drift', report.availability.drift],
-    ['AI recommendations', report.availability.recommendations],
-    ['Contributors', report.availability.contributors],
-  ] : []
+  const actionBusy = Boolean(action)
+  const repositoryOptions = repositories.map(repository => ({
+    value: repository.id,
+    label: repository.fullName || repository.name,
+  }))
+  const reportOptions = reports.map(item => ({ value: item.id, label: formatSnapshotLabel(item) }))
 
   return (
     <div className="density-surface report-page min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-1)]">
@@ -149,170 +292,184 @@ export default function ReportsPage({ user, accessToken, onLogout }) {
         <AppTopBar user={user} onLogout={onLogout} active="reports" />
       </div>
       <main className="cp-prose py-7 sm:py-10">
-        <div className="report-screen-only mb-6">
+        <div className="report-screen-only">
           <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">
-            <ArrowLeft size={15} /> Dashboard
+            <ArrowLeft size={15} aria-hidden="true" /> Dashboard
           </Link>
+
+          <header className="mt-6">
+            <p className="overline text-[var(--accent-ink)]">Durable repository reports</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-1)] sm:text-3xl">
+              Evidence frozen for review.
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--ink-3)]">
+              Generate immutable snapshots, revisit earlier analyses, and control a revocable public link without changing the stored evidence.
+            </p>
+          </header>
+
+          <section className="panel mt-6 overflow-hidden" aria-label="Report controls">
+            <div className="grid gap-px bg-[var(--line-1)] sm:grid-cols-2">
+              <div className="bg-[var(--surface-1)] p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--r-md)] bg-[var(--surface-2)] text-[var(--ink-3)]">
+                    <FilePlus2 size={16} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-sm font-semibold text-[var(--ink-1)]">Generate a snapshot</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">Uses the latest completed analysis. Existing snapshots stay unchanged.</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <span className="overline mb-1.5 block text-[var(--ink-3)]">Repository</span>
+                  <Select
+                    value={selectedRepositoryId}
+                    onChange={setSelectedRepositoryId}
+                    options={repositoryOptions}
+                    placeholder={repositoriesLoading ? 'Loading repositories…' : 'Select a repository'}
+                    disabled={repositoriesLoading || repositories.length === 0 || actionBusy}
+                    ariaLabel="Repository to snapshot"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={generateSnapshot}
+                  disabled={!selectedRepository || repositoriesLoading || actionBusy}
+                  className="mt-3 w-full"
+                >
+                  {action === 'create' ? <Loader2 className="motion-safe-loop animate-spin" /> : <FilePlus2 />}
+                  {action === 'create' ? 'Generating snapshot…' : 'Generate snapshot'}
+                </Button>
+              </div>
+
+              <div className="bg-[var(--surface-1)] p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--r-md)] bg-[var(--surface-2)] text-[var(--ink-3)]">
+                    <FileText size={16} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-sm font-semibold text-[var(--ink-1)]">Review a saved snapshot</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">Saved evidence remains available even after a repository is removed.</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <span className="overline mb-1.5 block text-[var(--ink-3)]">Saved snapshot</span>
+                  <Select
+                    value={selectedReportId}
+                    onChange={selectReport}
+                    options={reportOptions}
+                    placeholder={reportsLoading ? 'Loading snapshots…' : 'Select a saved snapshot'}
+                    disabled={reportsLoading || reports.length === 0 || actionBusy}
+                    ariaLabel="Saved report snapshot"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={printReport}
+                  disabled={!report || reportLoading || actionBusy}
+                  variant="outline"
+                  className="mt-3 w-full"
+                >
+                  <FileDown /> Print / Save as PDF
+                </Button>
+              </div>
+            </div>
+
+            {report && (
+              <div className="border-t border-[var(--line-1)] bg-[var(--surface-2)] p-4 sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-sm font-semibold text-[var(--ink-1)]">Public sharing</h2>
+                      <span className={`rounded-[var(--r-xs)] border px-2 py-0.5 text-xs font-medium ${report.sharing?.enabled ? 'border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] text-[var(--sev-nominal-ink)]' : 'border-[var(--line-2)] bg-[var(--surface-1)] text-[var(--ink-3)]'}`}>
+                        {report.sharing?.enabled ? 'Active link' : 'Private'}
+                      </span>
+                    </div>
+                    <p className="mt-1 max-w-lg text-xs leading-5 text-[var(--ink-3)]">
+                      {report.sharing?.enabled
+                        ? `The share token is only revealed when created and expires ${report.sharing.expiresAt ? new Date(report.sharing.expiresAt).toLocaleString() : 'automatically'}. Replace the link to receive a new URL.`
+                        : 'Create an unlisted, automatically expiring link to this immutable snapshot. You can revoke it at any time.'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={enableSharing} disabled={actionBusy}>
+                      {action === 'share' ? <Loader2 className="motion-safe-loop animate-spin" /> : <Link2 />}
+                      {report.sharing?.enabled ? 'Replace share link' : 'Create share link'}
+                    </Button>
+                    {report.sharing?.enabled && (
+                      <Button type="button" variant="outline" size="sm" onClick={revokeSharing} disabled={actionBusy}>
+                        {action === 'revoke' ? <Loader2 className="motion-safe-loop animate-spin" /> : <ShieldOff />}
+                        Revoke
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {shareUrl && (
+                  <div className="mt-4 rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-1)] p-3">
+                    <p className="overline text-[var(--ink-3)]">New share link · shown once</p>
+                    <p className="mt-2 break-all font-mono text-xs leading-5 text-[var(--ink-2)]" aria-label="Generated share link">{shareUrl}</p>
+                    <Button type="button" variant="secondary" size="sm" onClick={copyShareLink} disabled={actionBusy} className="mt-3">
+                      {action === 'copy' ? <Loader2 className="motion-safe-loop animate-spin" /> : <Copy />}
+                      Copy link
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          <div className="mt-3 space-y-3" aria-live="polite">
+            {repositoriesError && <StatusBanner status={{ tone: 'error', message: `Repositories: ${repositoriesError}` }} />}
+            {reportsError && <StatusBanner status={{ tone: 'error', message: `Saved snapshots: ${reportsError}` }} />}
+            <StatusBanner status={actionStatus} />
+            <StatusBanner status={printStatus} />
+          </div>
         </div>
 
-        <header className="report-header mb-6">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="overline text-[var(--accent-ink)]">Repository health report</p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-1)] sm:text-3xl">
-                Evidence ready for review.
-              </h1>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--ink-3)]">
-                A print-ready view assembled from the same persisted evidence and analysis results shown in CodePulse.
-              </p>
+        <div className="mt-6 print:mt-0">
+          {reportsLoading && reports.length === 0 ? (
+            <div className="panel flex items-center justify-center gap-3 p-10 text-sm text-[var(--ink-3)]" role="status">
+              <Loader2 size={17} className="motion-safe-loop animate-spin" /> Loading saved snapshots…
             </div>
-            <Button
-              type="button"
-              onClick={printReport}
-              disabled={!selectedRepository || reportLoading}
-              className="report-screen-only shrink-0"
-            >
-              <FileDown size={15} />
-              Print / Save as PDF
-            </Button>
-          </div>
-
-          <div className="report-screen-only mt-6 panel p-4">
-            <label className="block">
-              <span className="overline mb-1.5 block text-[var(--ink-4)]">Repository</span>
-              <Select
-                value={selectedId}
-                onChange={setSelectedId}
-                options={repositories.map(repository => ({ value: repository.id, label: repository.fullName || repository.name }))}
-                placeholder={repositoriesLoading ? 'Loading repositories…' : 'Select a repository'}
-                disabled={repositoriesLoading || repositories.length === 0}
-                ariaLabel="Report repository"
-              />
-            </label>
-          </div>
-
-          {printStatus && <p className="report-screen-only mt-3 rounded-[var(--r-md)] border border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] px-3.5 py-3 text-sm text-[var(--sev-nominal-ink)]" role="status">{printStatus}</p>}
-        </header>
-
-        {error ? (
-          <EmptyPanel title="Report data could not be loaded" description={error} icon={AlertTriangle} />
-        ) : repositoriesLoading ? (
-          <div className="panel flex items-center justify-center gap-3 p-10 text-sm text-[var(--ink-3)]" role="status">
-            <Loader2 size={17} className="motion-safe-loop animate-spin" /> Loading repositories…
-          </div>
-        ) : repositories.length === 0 ? (
-          <EmptyPanel
-            title="No repositories to report"
-            description="Run a repository scan first, then return here to assemble its health report."
-            icon={FileText}
-            action={<Button asChild variant="outline" size="sm" className="mt-3"><Link to="/dashboard">Open scan console</Link></Button>}
-          />
-        ) : reportLoading || !report ? (
-          <div className="panel flex items-center justify-center gap-3 p-10 text-sm text-[var(--ink-3)]" role="status">
-            <Loader2 size={17} className="motion-safe-loop animate-spin" /> Assembling report…
-          </div>
-        ) : (
-          <div className="space-y-5">
-            <section className="report-cover panel p-6 sm:p-8">
-              <div className="flex flex-wrap items-start justify-between gap-5">
-                <div>
-                  <p className="font-mono text-xs text-[var(--accent-ink)]">{selectedRepository.fullName || selectedRepository.name}</p>
-                  <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-1)]">Repository health review</h2>
-                  <p className="mt-2 text-sm text-[var(--ink-3)]">Branch {selectedRepository.defaultBranch || 'unknown'} · Generated {new Date(report.generatedAt).toLocaleString()}</p>
-                </div>
-                <span className="rounded-[var(--r-md)] border border-[var(--line-2)] bg-[var(--surface-2)] px-3 py-2 font-mono text-xs text-[var(--ink-2)]">CODEPULSE / REPORT</span>
-              </div>
-              <div className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-[var(--r-md)] bg-[var(--line-1)] lg:grid-cols-4">
-                {[
-                  [selectedRepository.totalFiles, 'Files'],
-                  [selectedRepository.totalDocumentation, 'Documents'],
-                  [selectedRepository.totalCommits, 'Commits'],
-                  [selectedRepository.totalDependencies, 'Import edges'],
-                ].map(([value, label]) => (
-                  <div key={label} className="bg-[var(--surface-2)] p-4">
-                    <p className="tnum text-2xl font-semibold text-[var(--ink-1)]">{value ?? 0}</p>
-                    <p className="mt-1 text-xs text-[var(--ink-3)]">{label}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <ReportSection icon={ShieldCheck} eyebrow="01 / Health" title="Repository health summary" available={report.availability.scores}>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[
-                  [report.scores?.healthScore ?? '—', 'Health /100'],
-                  [report.scores?.technicalDebt?.score ?? '—', 'Technical debt'],
-                  [report.scores?.knowledgeDebt?.score ?? '—', 'Knowledge debt'],
-                  [report.scores?.risk?.criticalModules ?? '—', 'Critical modules'],
-                ].map(([value, label]) => <div key={label} className="panel-2 p-4"><p className="tnum text-2xl font-semibold text-[var(--ink-1)]">{value}</p><p className="mt-1 text-xs text-[var(--ink-3)]">{label}</p></div>)}
-              </div>
-            </ReportSection>
-
-            <ReportSection icon={GitBranch} eyebrow="02 / Debt" title="Highest-risk modules" available={report.availability.debt}>
-              {(report.debt?.modules || []).length > 0 ? <div className="overflow-x-auto">
-                <table className="w-full min-w-[38rem] text-left text-sm">
-                  <thead><tr className="overline text-[var(--ink-3)]"><th className="pb-2">Module</th><th className="pb-2">Risk</th><th className="pb-2">Complexity</th><th className="pb-2">Churn</th></tr></thead>
-                  <tbody>
-                    {(report.debt?.modules || []).slice(0, 12).map(module => (
-                      <tr key={module.path} className="border-t border-[var(--line-1)]">
-                        <td className="max-w-80 truncate py-3 font-mono text-xs text-[var(--ink-2)]">{module.path}</td>
-                        <td className="py-3"><SeverityBadge severity={module.risk || 'Low'} /></td>
-                        <td className="tnum py-3 text-[var(--ink-2)]">{module.complexity}</td>
-                        <td className="tnum py-3 text-[var(--ink-2)]">{module.churnPercent}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div> : <p className="text-sm text-[var(--ink-3)]">No module-level debt findings were produced for this repository.</p>}
-            </ReportSection>
-
-            <ReportSection icon={BookOpenCheck} eyebrow="03 / Drift" title="Knowledge drift findings" available={report.availability.drift}>
-              {(report.drift?.findings || []).length > 0 ? <ul className="space-y-3">
-                {(report.drift?.findings || []).slice(0, 12).map(finding => (
-                  <li key={finding.id || finding.title} className="panel-2 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium text-[var(--ink-1)]">{finding.title}</p><p className="mt-1 font-mono text-xs text-[var(--ink-3)]">{finding.filePath}</p></div><SeverityBadge severity={finding.severity || 'Low'} /></div>
-                    {finding.evidence && <p className="mt-3 text-sm leading-6 text-[var(--ink-2)]">{finding.evidence}</p>}
-                  </li>
-                ))}
-              </ul> : <p className="text-sm text-[var(--ink-3)]">No documentation drift findings were produced for this repository.</p>}
-            </ReportSection>
-
-            <ReportSection icon={Sparkles} eyebrow="04 / Actions" title="AI recommendations" available={report.availability.recommendations}>
-              {report.recommendations.length > 0 ? <ol className="space-y-3">
-                {report.recommendations.slice(0, 10).map((recommendation, index) => (
-                  <li key={recommendation.id || recommendation.title} className="panel-2 p-4">
-                    <div className="flex gap-3"><span className="tnum text-sm font-semibold text-[var(--accent-ink)]">{String(index + 1).padStart(2, '0')}</span><div><p className="font-medium text-[var(--ink-1)]">{recommendation.title}</p><p className="mt-2 text-sm leading-6 text-[var(--ink-2)]">{recommendation.reason}</p></div></div>
-                  </li>
-                ))}
-              </ol> : <p className="text-sm text-[var(--ink-3)]">No recommendations are currently required.</p>}
-            </ReportSection>
-
-            <ReportSection icon={Users} eyebrow="05 / Ownership" title="Contributor distribution" available={report.availability.contributors}>
-              {report.contributors.length > 0 ? <div className="grid gap-2 sm:grid-cols-2">
-                {report.contributors.slice(0, 12).map(contributor => (
-                  <div key={contributor.email || contributor.name} className="panel-2 flex items-center gap-3 p-3.5">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--surface-3)] text-xs font-semibold text-[var(--ink-2)]">{contributor.name?.[0] || '?'}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--ink-1)]">{contributor.name}</span>
-                    <span className="tnum text-sm font-semibold text-[var(--ink-1)]">{contributor.commitCount}</span>
-                  </div>
-                ))}
-              </div> : <p className="text-sm text-[var(--ink-3)]">No contributor records are available for the current scan.</p>}
-            </ReportSection>
-
-            <section className="report-section panel p-5 sm:p-6">
-              <h2 className="text-sm font-semibold text-[var(--ink-1)]">Availability ledger</h2>
-              <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">A report never substitutes sample data for an engine that has not run.</p>
-              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-                {availability.map(([label, available]) => (
-                  <li key={label} className="flex items-center gap-2 rounded-[var(--r-md)] border border-[var(--line-1)] px-3 py-2 text-sm text-[var(--ink-2)]">
-                    {available ? <CheckCircle2 size={15} className="text-[var(--sev-nominal-ink)]" /> : <AlertTriangle size={15} className="text-[var(--sev-medium-ink)]" />}
-                    {label}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-        )}
+          ) : reportsError && reports.length === 0 ? (
+            <EmptyPanel
+              title="Saved snapshots could not be loaded"
+              description={reportsError}
+              icon={AlertTriangle}
+              action={(
+                <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => setWorkspaceRevision(value => value + 1)}>
+                  <RefreshCw /> Try again
+                </Button>
+              )}
+            />
+          ) : reports.length === 0 ? (
+            <EmptyPanel
+              title="No saved report snapshots"
+              description={repositories.length > 0
+                ? 'Choose a repository above and generate its first durable report snapshot.'
+                : 'Run a repository scan first, then return here to generate a durable report snapshot.'}
+              icon={FileText}
+              action={repositories.length === 0 ? <Button asChild variant="outline" size="sm" className="mt-3"><Link to="/dashboard">Open scan console</Link></Button> : null}
+            />
+          ) : reportLoading ? (
+            <div className="panel flex items-center justify-center gap-3 p-10 text-sm text-[var(--ink-3)]" role="status">
+              <Loader2 size={17} className="motion-safe-loop animate-spin" /> Loading immutable snapshot…
+            </div>
+          ) : reportError ? (
+            <EmptyPanel
+              title="Snapshot could not be loaded"
+              description={reportError}
+              icon={AlertTriangle}
+              action={(
+                <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => setReportRevision(value => value + 1)}>
+                  <RefreshCw /> Try again
+                </Button>
+              )}
+            />
+          ) : report ? (
+            <ReportDocument report={report} />
+          ) : null}
+        </div>
       </main>
     </div>
   )

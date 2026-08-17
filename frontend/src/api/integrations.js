@@ -9,3 +9,11 @@ export async function listConnectedRepositories(accessToken) {
   const data = await apiFetch('/api/integrations/repositories', { accessToken })
   return Array.isArray(data.repositories) ? data.repositories : []
 }
+
+export async function beginIntegrationConnection(provider, accessToken) {
+  const data = await apiFetch(`/api/integrations/${provider}/authorize`, {
+    accessToken,
+    method: 'POST',
+  })
+  return data.authorizationUrl
+}

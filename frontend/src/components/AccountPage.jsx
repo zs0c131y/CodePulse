@@ -28,7 +28,7 @@ import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { GitHubMark, GitLabMark } from './ui/provider-marks'
 import { getUsageSnapshot } from '../api/usage'
-import { listIntegrations } from '../api/integrations'
+import { beginIntegrationConnection, listIntegrations } from '../api/integrations'
 import { cn } from '../lib/utils'
 import { AppTopBar } from './AppChrome'
 
@@ -339,6 +339,8 @@ function SettingsPage({
   error,
   integrations,
   integrationsLoading,
+  connectingProvider,
+  onConnectProvider,
 }) {
   return (
     <div className="space-y-5">
@@ -467,7 +469,7 @@ function SettingsPage({
 
       <Card title="Connected code hosts" description="Connect a provider once, then pick its repositories from the dashboard.">
         <div className="grid gap-3 md:grid-cols-2">
-          {[{ provider: 'github', label: 'GitHub', icon: GitHubMark, href: '/auth/github' }, { provider: 'gitlab', label: 'GitLab', icon: GitLabMark, href: '/auth/gitlab' }].map(item => {
+          {[{ provider: 'github', label: 'GitHub', icon: GitHubMark }, { provider: 'gitlab', label: 'GitLab', icon: GitLabMark }].map(item => {
             const integration = integrations.find(value => value.provider === item.provider)
             const connected = Boolean(integration?.connected)
             const Icon = item.icon
@@ -485,8 +487,15 @@ function SettingsPage({
                 <p className="mt-1 min-h-10 text-[0.8125rem] leading-5 text-[var(--ink-3)]">
                   {connected ? `Connected as ${integration.accountName || item.label}.` : `Bring your ${item.label} repositories into CodePulse.`}
                 </p>
-                <Button asChild variant={connected ? 'outline' : 'default'} size="sm" className="mt-3 w-full">
-                  <a href={apiUrl(item.href)}>{connected ? 'Reconnect' : `Connect ${item.label}`}</a>
+                <Button
+                  type="button"
+                  variant={connected ? 'outline' : 'default'}
+                  size="sm"
+                  className="mt-3 w-full"
+                  disabled={Boolean(connectingProvider)}
+                  onClick={() => onConnectProvider(item.provider)}
+                >
+                  {connectingProvider === item.provider ? 'Connecting…' : connected ? 'Reconnect' : `Connect ${item.label}`}
                 </Button>
               </div>
             )
@@ -525,6 +534,7 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
   const [usage, setUsage] = useState(null)
   const [integrations, setIntegrations] = useState([])
   const [integrationsLoading, setIntegrationsLoading] = useState(mode === 'settings')
+  const [connectingProvider, setConnectingProvider] = useState('')
   const savedSettings = useMemo(() => mergeSettings(user), [user])
   const settingsDirty = useMemo(
     () => JSON.stringify(settings) !== JSON.stringify(savedSettings),
@@ -702,6 +712,19 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
     setError('')
   }
 
+  async function handleConnectProvider(provider) {
+    setConnectingProvider(provider)
+    setMessage('')
+    setError('')
+    try {
+      const authorizationUrl = await beginIntegrationConnection(provider, accessToken)
+      window.location.assign(authorizationUrl)
+    } catch (connectionError) {
+      setError(connectionError instanceof Error ? connectionError.message : 'Provider connection failed.')
+      setConnectingProvider('')
+    }
+  }
+
   return (
     <div className="density-surface">
       <AccountShell mode={mode} user={user} onLogout={onLogout}>
@@ -717,6 +740,8 @@ export default function AccountPage({ mode, user, accessToken, onLogout, onUserU
           error={error}
           integrations={integrations}
           integrationsLoading={integrationsLoading}
+          connectingProvider={connectingProvider}
+          onConnectProvider={handleConnectProvider}
         />
       ) : (
         <ProfilePage

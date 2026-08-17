@@ -2,10 +2,15 @@ import { ObjectId } from 'mongodb'
 import { getRepositoryCollections } from './repositoryStore.js'
 import {
   getRepositoryScoresCollection,
+  getRepositoryScoreHistoryCollection,
   getTechnicalDebtMetricsCollection,
   getKnowledgeDebtMetricsCollection,
   getDriftFindingsCollection,
   getRecommendationsCollection,
+  getCodeAnalysisSummariesCollection,
+  getCodeFactsCollection,
+  getDocumentationAnalysisSummariesCollection,
+  getDocumentationFactsCollection,
 } from '../../../db/index.js'
 import {
   serializeRepository,
@@ -38,18 +43,47 @@ export async function findRepositoryForUser(userId, repositoryId) {
 }
 
 export async function deleteRepositoryForUser(userId, repositoryId) {
-  const [collections, repositoryScores, technicalDebtMetrics, knowledgeDebtMetrics, driftFindings, recommendations] = await Promise.all([
+  const [
+    collections,
+    repositoryScores,
+    repositoryScoreHistory,
+    technicalDebtMetrics,
+    knowledgeDebtMetrics,
+    driftFindings,
+    recommendations,
+    codeAnalysisSummaries,
+    codeFacts,
+    documentationAnalysisSummaries,
+    documentationFacts,
+  ] = await Promise.all([
     getRepositoryCollections(),
     getRepositoryScoresCollection(),
+    getRepositoryScoreHistoryCollection(),
     getTechnicalDebtMetricsCollection(),
     getKnowledgeDebtMetricsCollection(),
     getDriftFindingsCollection(),
     getRecommendationsCollection(),
+    getCodeAnalysisSummariesCollection(),
+    getCodeFactsCollection(),
+    getDocumentationAnalysisSummariesCollection(),
+    getDocumentationFactsCollection(),
   ])
   return deleteRepositoryForUserWithCollections(
     normalizeMongoId(userId),
     normalizeMongoId(repositoryId),
-    { ...collections, repositoryScores, technicalDebtMetrics, knowledgeDebtMetrics, driftFindings, recommendations },
+    {
+      ...collections,
+      repositoryScores,
+      repositoryScoreHistory,
+      technicalDebtMetrics,
+      knowledgeDebtMetrics,
+      driftFindings,
+      recommendations,
+      codeAnalysisSummaries,
+      codeFacts,
+      documentationAnalysisSummaries,
+      documentationFacts,
+    },
   )
 }
 

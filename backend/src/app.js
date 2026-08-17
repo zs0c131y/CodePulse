@@ -10,6 +10,7 @@ import authRouter from './features/auth/router.js'
 import repositoriesRouter from './features/repositories/router.js'
 import integrationsRouter from './features/integrations/router.js'
 import analysisRouter from './features/analysis/router.js'
+import reportsRouter from './features/reports/router.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -31,6 +32,7 @@ app.use(authRouter)
 app.use(analysisRouter)
 app.use(repositoriesRouter)
 app.use(integrationsRouter)
+app.use(reportsRouter)
 
 // Serve the built frontend in production only. Local development uses the
 // Vite dev server instead (see `npm run dev`), which is never built to disk.

@@ -92,6 +92,19 @@ test('deleteRepository returns 404 when nothing was deleted, 200 message otherwi
   assert.deepEqual(okResponse.body, { message: 'Repository deleted.' })
 })
 
+test('deleteRepository returns 409 while a repository scan is active', async () => {
+  const { deleteRepository } = createReadController({ async deleteRepositoryForUser() { return 'active' } })
+  const response = createResponse()
+
+  await deleteRepository(
+    { user: { _id: 'user-1' }, params: { repositoryId: '507f1f77bcf86cd799439011' } },
+    response,
+    () => assert.fail('next should not be called'),
+  )
+
+  assert.equal(response.statusCode, 409)
+})
+
 test('getRepositoryFiles passes ownership check and pagination through to the reader', async () => {
   let receivedArgs
   const deps = {

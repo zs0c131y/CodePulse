@@ -105,9 +105,15 @@ export const REPOSITORY_CLONE_TIMEOUT_MS = readPositiveIntegerEnv('REPOSITORY_CL
 export const REPOSITORY_CLONE_DEPTH = readPositiveIntegerEnv('REPOSITORY_CLONE_DEPTH', 5)
 export const REPOSITORY_MAX_SIZE_KB = readNonNegativeIntegerEnv(
   'REPOSITORY_MAX_SIZE_KB',
-  IS_PRODUCTION ? 0 : 1024 * 1024,
+  1024 * 1024,
 )
 export const REPOSITORY_MAX_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_FILES', 10000)
+export const REPOSITORY_MAX_DOCUMENTATION_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_DOCUMENTATION_FILES', 500)
+export const REPOSITORY_MAX_DOCUMENTATION_TOTAL_BYTES = readPositiveIntegerEnv(
+  'REPOSITORY_MAX_DOCUMENTATION_TOTAL_BYTES',
+  16 * 1024 * 1024,
+)
+export const REPOSITORY_MAX_DEPENDENCY_EDGES = readPositiveIntegerEnv('REPOSITORY_MAX_DEPENDENCY_EDGES', 50_000)
 export const REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES = readPositiveIntegerEnv(
   'REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES',
   2000,
@@ -116,6 +122,16 @@ export const REPOSITORY_MAX_DEPENDENCY_FILE_BYTES = readPositiveIntegerEnv(
   'REPOSITORY_MAX_DEPENDENCY_FILE_BYTES',
   1024 * 1024,
 )
+export const ANALYSIS_MAX_CONCURRENCY = readPositiveIntegerEnv('ANALYSIS_MAX_CONCURRENCY', 1)
+export const ANALYSIS_WORKER_MAX_OLD_GENERATION_MB = readPositiveIntegerEnv(
+  'ANALYSIS_WORKER_MAX_OLD_GENERATION_MB',
+  256,
+)
+export const ANALYSIS_MAX_QUEUE_SIZE = readPositiveIntegerEnv('ANALYSIS_MAX_QUEUE_SIZE', 100)
+export const ANALYSIS_MAX_ACTIVE_PER_USER = readPositiveIntegerEnv('ANALYSIS_MAX_ACTIVE_PER_USER', 2)
+export const ANALYSIS_LEASE_TTL_MS = readPositiveIntegerEnv('ANALYSIS_LEASE_TTL_MS', 10 * 60 * 1000)
+export const ANALYSIS_LEASE_HEARTBEAT_MS = readPositiveIntegerEnv('ANALYSIS_LEASE_HEARTBEAT_MS', 30 * 1000)
+export const REPORT_SHARE_TTL_DAYS = readPositiveIntegerEnv('REPORT_SHARE_TTL_DAYS', 7)
 
 // --- OAuth provider credentials (optional — null when not configured) ---
 

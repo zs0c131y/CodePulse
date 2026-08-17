@@ -12,13 +12,23 @@ function normalizeSkip(value) {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
 }
 
-function paginate(records, options = {}) {
+export function normalizeRepositoryPagination(options = {}) {
   const limit = normalizeLimit(options.limit)
   const skip = normalizeSkip(options.skip)
 
+  return { limit, skip }
+}
+
+async function paginateCollection(collection, filter, sort, options, serialize) {
+  const { limit, skip } = normalizeRepositoryPagination(options)
+  const [records, total] = await Promise.all([
+    collection.find(filter).sort(sort).skip(skip).limit(limit).toArray(),
+    collection.countDocuments(filter),
+  ])
+
   return {
-    items: records.slice(skip, skip + limit),
-    total: records.length,
+    items: records.map(serialize),
+    total,
     limit,
     skip,
   }
@@ -28,16 +38,6 @@ function toIso(value) {
   if (!value) return null
   const date = value instanceof Date ? value : new Date(value)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
-}
-
-function sortByStringField(records, field) {
-  return [...records].sort((left, right) => {
-    const a = String(left[field] || '').toLowerCase()
-    const b = String(right[field] || '').toLowerCase()
-    if (a < b) return -1
-    if (a > b) return 1
-    return 0
-  })
 }
 
 export function serializeRepository(repository) {
@@ -103,11 +103,12 @@ function serializeDocumentation(doc) {
 }
 
 export async function listRepositoriesForUserWithCollections(userId, collections) {
-  const records = await collections.repositories.find({ user_id: userId }).toArray()
+  const records = await collections.repositories
+    .find({ user_id: userId })
+    .sort({ updated_at: -1, _id: -1 })
+    .toArray()
 
-  return records
-    .map(serializeRepository)
-    .sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0))
+  return records.map(serializeRepository)
 }
 
 export async function findRepositoryForUserWithCollections(userId, repositoryId, collections) {
@@ -117,6 +118,14 @@ export async function findRepositoryForUserWithCollections(userId, repositoryId,
 export async function deleteRepositoryForUserWithCollections(userId, repositoryId, collections) {
   const repository = await findRepositoryForUserWithCollections(userId, repositoryId, collections)
   if (!repository) return false
+  if (repository.status === 'queued' || repository.status === 'running') return 'active'
+
+  const deleteResult = await collections.repositories.deleteOne({
+    _id: repository._id,
+    user_id: userId,
+    status: { $nin: ['queued', 'running'] },
+  })
+  if ((deleteResult?.deletedCount ?? 0) === 0) return 'active'
 
   await Promise.all([
     collections.repoFiles.deleteMany({ repository_id: repository._id }),
@@ -124,29 +133,38 @@ export async function deleteRepositoryForUserWithCollections(userId, repositoryI
     collections.dependencies.deleteMany({ repository_id: repository._id }),
     collections.documentation.deleteMany({ repository_id: repository._id }),
     collections.repositoryScores?.deleteMany({ repository_id: repository._id }),
+    collections.repositoryScoreHistory?.deleteMany({ repository_id: repository._id }),
     collections.technicalDebtMetrics?.deleteMany({ repository_id: repository._id }),
     collections.knowledgeDebtMetrics?.deleteMany({ repository_id: repository._id }),
     collections.driftFindings?.deleteMany({ repository_id: repository._id }),
     collections.recommendations?.deleteMany({ repository_id: repository._id }),
+    collections.codeAnalysisSummaries?.deleteMany({ repository_id: repository._id }),
+    collections.codeFacts?.deleteMany({ repository_id: repository._id }),
+    collections.documentationAnalysisSummaries?.deleteMany({ repository_id: repository._id }),
+    collections.documentationFacts?.deleteMany({ repository_id: repository._id }),
   ])
-  await collections.repositories.deleteOne({ _id: repository._id })
 
   return true
 }
 
 export async function listRepoFilesWithCollections(repositoryId, collections, options = {}) {
-  const records = await collections.repoFiles.find({ repository_id: repositoryId }).toArray()
-  const page = paginate(sortByStringField(records, 'file_path'), options)
-
-  return { ...page, items: page.items.map(serializeFile) }
+  return paginateCollection(
+    collections.repoFiles,
+    { repository_id: repositoryId },
+    { file_path: 1, _id: 1 },
+    options,
+    serializeFile,
+  )
 }
 
 export async function listCommitsForRepositoryWithCollections(repositoryId, collections, options = {}) {
-  const records = await collections.commits.find({ repository_id: repositoryId }).toArray()
-  const sorted = [...records].sort((left, right) => new Date(right.commit_date || 0) - new Date(left.commit_date || 0))
-  const page = paginate(sorted, options)
-
-  return { ...page, items: page.items.map(serializeCommit) }
+  return paginateCollection(
+    collections.commits,
+    { repository_id: repositoryId },
+    { commit_date: -1, _id: -1 },
+    options,
+    serializeCommit,
+  )
 }
 
 export async function listAllCommitsForRepositoryWithCollections(repositoryId, collections) {
@@ -154,15 +172,21 @@ export async function listAllCommitsForRepositoryWithCollections(repositoryId, c
 }
 
 export async function listDependenciesForRepositoryWithCollections(repositoryId, collections, options = {}) {
-  const records = await collections.dependencies.find({ repository_id: repositoryId }).toArray()
-  const page = paginate(sortByStringField(records, 'source_file'), options)
-
-  return { ...page, items: page.items.map(serializeDependency) }
+  return paginateCollection(
+    collections.dependencies,
+    { repository_id: repositoryId },
+    { source_file: 1, target_file: 1, _id: 1 },
+    options,
+    serializeDependency,
+  )
 }
 
 export async function listDocumentationForRepositoryWithCollections(repositoryId, collections, options = {}) {
-  const records = await collections.documentation.find({ repository_id: repositoryId }).toArray()
-  const page = paginate(sortByStringField(records, 'doc_path'), options)
-
-  return { ...page, items: page.items.map(serializeDocumentation) }
+  return paginateCollection(
+    collections.documentation,
+    { repository_id: repositoryId },
+    { doc_path: 1, _id: 1 },
+    options,
+    serializeDocumentation,
+  )
 }

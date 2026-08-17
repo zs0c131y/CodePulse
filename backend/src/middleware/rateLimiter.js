@@ -1,8 +1,14 @@
-export function createRateLimiter({ windowMs, max, key = request => request.ip }) {
+export function createRateLimiter({ windowMs, max, key = request => request.ip, maxBuckets = 10_000 }) {
   const hits = new Map()
 
   return (request, response, next) => {
     const now = Date.now()
+    if (hits.size >= maxBuckets) {
+      for (const [candidateKey, candidate] of hits) {
+        if (candidate.resetAt <= now) hits.delete(candidateKey)
+      }
+      while (hits.size >= maxBuckets) hits.delete(hits.keys().next().value)
+    }
     const bucketKey = key(request)
     const bucket = hits.get(bucketKey)
 

@@ -63,6 +63,11 @@ export function createReadController(deps = defaultReader) {
 
       const deleted = await deps.deleteRepositoryForUser(request.user._id, repositoryId)
 
+      if (deleted === 'active') {
+        response.status(409).json({ message: 'Wait for the active repository analysis to finish before deleting it.' })
+        return
+      }
+
       if (!deleted) {
         response.status(404).json({ message: 'Repository not found.' })
         return

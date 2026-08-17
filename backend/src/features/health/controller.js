@@ -1,4 +1,5 @@
 import { pingDatabase, getUsersCollection } from '../../db/index.js'
+import { getAnalysisQueueSnapshot } from '../repositories/services/analysisQueue.js'
 
 export function checkLiveness(_request, response) {
   response.json({ status: 'ok' })
@@ -12,6 +13,7 @@ export async function checkHealth(_request, response) {
       status: 'ok',
       store: 'mongodb',
       users: await users.estimatedDocumentCount(),
+      analysisQueue: getAnalysisQueueSnapshot(),
     })
   } catch (error) {
     response.status(503).json({

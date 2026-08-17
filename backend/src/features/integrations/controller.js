@@ -1,7 +1,65 @@
 import { getOAuthAccountsCollection } from '../../db/index.js'
 import { decryptOAuthToken } from '../../utils/oauthToken.js'
+import { GITHUB_ID, GITHUB_SECRET, GITLAB_ID, GITLAB_SECRET, IS_PRODUCTION } from '../../config/index.js'
+import { githubCallbackUrl, gitlabCallbackUrl } from '../../utils/urls.js'
+import { createOAuthState, setOAuthStateCookie } from '../../utils/oauthState.js'
 
 const providers = ['github', 'gitlab']
+const providerConfig = {
+  github: {
+    id: GITHUB_ID,
+    secret: GITHUB_SECRET,
+    authorizeUrl: 'https://github.com/login/oauth/authorize',
+    callbackUrl: githubCallbackUrl,
+    parameters: { scope: 'read:user user:email repo' },
+  },
+  gitlab: {
+    id: GITLAB_ID,
+    secret: GITLAB_SECRET,
+    authorizeUrl: 'https://gitlab.com/oauth/authorize',
+    callbackUrl: gitlabCallbackUrl,
+    parameters: { response_type: 'code', scope: 'read_user read_api' },
+  },
+}
+
+export function createIntegrationAuthorizationController(configs = providerConfig, deps = {}) {
+  const createState = deps.createOAuthState || createOAuthState
+  const setStateCookie = deps.setOAuthStateCookie || setOAuthStateCookie
+
+  return async function createIntegrationAuthorization(request, response, next) {
+    try {
+      const provider = String(request.params.provider || '').toLowerCase()
+      const config = configs[provider]
+      if (!config) {
+        response.status(404).json({ message: 'Repository provider not found.' })
+        return
+      }
+      if (!config.id || !config.secret) {
+        response.status(503).json({ message: `${provider === 'github' ? 'GitHub' : 'GitLab'} connection is not configured.` })
+        return
+      }
+
+      const { token } = await createState({
+        provider,
+        intent: 'connect',
+        userId: request.user._id,
+      })
+      const parameters = new URLSearchParams({
+        client_id: config.id,
+        redirect_uri: config.callbackUrl,
+        ...config.parameters,
+        state: token,
+      })
+      setStateCookie(response, provider, token, { secure: IS_PRODUCTION })
+      response.set('Cache-Control', 'no-store')
+      response.json({ authorizationUrl: `${config.authorizeUrl}?${parameters}` })
+    } catch (error) {
+      next(error)
+    }
+  }
+}
+
+export const createIntegrationAuthorization = createIntegrationAuthorizationController()
 
 export async function listIntegrations(request, response, next) {
   try {

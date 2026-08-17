@@ -1,49 +1,57 @@
-import crypto from 'node:crypto'
 import { GITHUB_ID, GITHUB_SECRET, IS_PRODUCTION, FRONTEND_URL } from '../../../config/index.js'
 import { getUsersCollection, getOAuthAccountsCollection } from '../../../db/index.js'
 import { githubCallbackUrl } from '../../../utils/urls.js'
-import { createSession, getSessionFromCookie } from '../../../utils/session.js'
+import { createSession } from '../../../utils/session.js'
 import { encryptOAuthToken } from '../../../utils/oauthToken.js'
+import { linkOAuthAccountWithCollection } from '../../../utils/oauthAccount.js'
+import {
+  clearOAuthStateCookie,
+  consumeOAuthState,
+  createOAuthState,
+  readOAuthStateCookie,
+  setOAuthStateCookie,
+} from '../../../utils/oauthState.js'
 
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize'
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 const GITHUB_USER_URL = 'https://api.github.com/user'
 const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails'
-const STATE_COOKIE = 'codepulse_github_state'
+const PROVIDER = 'github'
+
+function redirectError(response, intent, message) {
+  const route = intent === 'connect' ? 'settings' : 'signin'
+  response.redirect(`${FRONTEND_URL}/${route}?error=${encodeURIComponent(message)}`)
+}
 
 /**
  * Redirect the browser to GitHub's OAuth authorization page.
  */
-export function redirectToGithub(_request, response) {
+export async function redirectToGithub(request, response, next) {
   if (!GITHUB_ID || !GITHUB_SECRET) {
     response.status(503).json({ message: 'GitHub login is not configured.' })
     return
   }
 
-  const state = crypto.randomBytes(20).toString('hex')
+  try {
+    const intent = request.user ? 'connect' : 'signin'
+    const { token } = await createOAuthState({
+      provider: PROVIDER,
+      intent,
+      userId: request.user?._id || null,
+    })
+    setOAuthStateCookie(response, PROVIDER, token, { secure: IS_PRODUCTION })
 
-  const stateCookieParts = [
-    `${STATE_COOKIE}=${state}`,
-    'HttpOnly',
-    'SameSite=Lax',
-    'Path=/auth/github',
-    'Max-Age=600',
-  ]
+    const params = new URLSearchParams({
+      client_id: GITHUB_ID,
+      redirect_uri: githubCallbackUrl,
+      scope: 'read:user user:email repo',
+      state: token,
+    })
 
-  if (IS_PRODUCTION) {
-    stateCookieParts.push('Secure')
+    response.redirect(`${GITHUB_AUTHORIZE_URL}?${params}`)
+  } catch (error) {
+    next(error)
   }
-
-  response.setHeader('Set-Cookie', stateCookieParts.join('; '))
-
-  const params = new URLSearchParams({
-    client_id: GITHUB_ID,
-    redirect_uri: githubCallbackUrl,
-    scope: 'read:user user:email repo',
-    state,
-  })
-
-  response.redirect(`${GITHUB_AUTHORIZE_URL}?${params}`)
 }
 
 /**
@@ -57,34 +65,25 @@ export async function githubCallback(request, response, next) {
     }
 
     const { code, state } = request.query
+    const savedState = readOAuthStateCookie(request, PROVIDER)
 
-    // --- Validate CSRF state ---
-    const cookies = (request.headers.cookie || '')
-      .split(';')
-      .map(c => c.trim())
-      .reduce((acc, c) => {
-        const idx = c.indexOf('=')
-        if (idx > 0) acc[c.slice(0, idx)] = c.slice(idx + 1)
-        return acc
-      }, {})
-
-    const savedState = cookies[STATE_COOKIE]
-
-    // Clear the state cookie
-    const clearParts = [
-      `${STATE_COOKIE}=`,
-      'HttpOnly',
-      'SameSite=Lax',
-      'Path=/auth/github',
-      'Max-Age=0',
-    ]
-    if (IS_PRODUCTION) clearParts.push('Secure')
-    response.setHeader('Set-Cookie', clearParts.join('; '))
-
-    if (!code || !state || state !== savedState) {
-      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitHub login failed: invalid state.')}`)
+    if (!code || !state) {
+      redirectError(response, 'signin', 'GitHub login failed: invalid state.')
       return
     }
+
+    if (state !== savedState) {
+      redirectError(response, 'signin', 'GitHub login failed: invalid state.')
+      return
+    }
+
+    const oauthState = await consumeOAuthState({ provider: PROVIDER, token: state })
+    if (!oauthState) {
+      redirectError(response, 'signin', 'GitHub login failed: invalid or expired state.')
+      return
+    }
+    const intent = oauthState.intent === 'connect' ? 'connect' : 'signin'
+    clearOAuthStateCookie(response, PROVIDER, { secure: IS_PRODUCTION })
 
     // --- Exchange code for access token ---
     const tokenResponse = await fetch(GITHUB_TOKEN_URL, {
@@ -104,7 +103,7 @@ export async function githubCallback(request, response, next) {
     const tokenData = await tokenResponse.json()
 
     if (!tokenData.access_token) {
-      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitHub login failed: could not obtain access token.')}`)
+      redirectError(response, intent, 'GitHub login failed: could not obtain access token.')
       return
     }
 
@@ -121,7 +120,7 @@ export async function githubCallback(request, response, next) {
     ])
 
     if (!userResponse.ok) {
-      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitHub login failed: could not fetch user profile.')}`)
+      redirectError(response, intent, 'GitHub login failed: could not fetch user profile.')
       return
     }
 
@@ -135,7 +134,7 @@ export async function githubCallback(request, response, next) {
     const providerUserId = String(githubUser.id)
 
     if (!email) {
-      response.redirect(`${FRONTEND_URL}/signin?error=${encodeURIComponent('GitHub login failed: no verified email found on your GitHub account.')}`)
+      redirectError(response, intent, 'GitHub login failed: no verified email found on your GitHub account.')
       return
     }
 
@@ -143,25 +142,29 @@ export async function githubCallback(request, response, next) {
     const oauthAccounts = await getOAuthAccountsCollection()
     const users = await getUsersCollection()
 
-    // A signed-in browser is explicitly linking a repository source. Keep the
-    // current CodePulse account instead of treating this as a second sign-in.
-    const activeSession = await getSessionFromCookie(request)
-    if (activeSession) {
-      const activeUser = await users.findOne({ _id: activeSession.session.user_id, email_verified: true })
-      if (activeUser) {
-        const existingLink = await oauthAccounts.findOne({ provider: 'github', provider_user_id: providerUserId })
-        if (existingLink && !existingLink.user_id.equals(activeUser._id)) {
-          response.redirect(`${FRONTEND_URL}/settings?error=${encodeURIComponent('This GitHub account is already linked to another CodePulse account.')}`)
-          return
-        }
-        await oauthAccounts.updateOne(
-          { provider: 'github', provider_user_id: providerUserId },
-          { $set: { user_id: activeUser._id, provider_email: email, provider_name: name, provider_access_token: encryptOAuthToken(githubAccessToken), updated_at: new Date() }, $setOnInsert: { provider: 'github', provider_user_id: providerUserId, created_at: new Date() } },
-          { upsert: true },
-        )
-        response.redirect(`${FRONTEND_URL}/settings?connected=github`)
+    if (intent === 'connect') {
+      const activeUser = oauthState.user_id
+        ? await users.findOne({ _id: oauthState.user_id, email_verified: true })
+        : null
+      if (!activeUser) {
+        redirectError(response, intent, 'GitHub connection failed: the initiating account is no longer available.')
         return
       }
+
+      const linkedToActiveUser = await linkOAuthAccountWithCollection({
+        provider: PROVIDER,
+        providerUserId,
+        userId: activeUser._id,
+        email,
+        name,
+        encryptedAccessToken: encryptOAuthToken(githubAccessToken),
+      }, oauthAccounts)
+      if (!linkedToActiveUser) {
+        redirectError(response, intent, 'This GitHub account is already linked to another CodePulse account.')
+        return
+      }
+      response.redirect(`${FRONTEND_URL}/settings?connected=github`)
+      return
     }
 
     // Check if this GitHub account is already linked
