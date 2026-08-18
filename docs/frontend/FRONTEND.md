@@ -281,7 +281,10 @@ Five dashboard tabs:
   with an accessible table alternative, commit and contributor activity,
   documentation summaries, and detected manifests. Its six evidence requests
   settle independently so a missing optional source does not suppress the
-  evidence that did load.
+  evidence that did load. The inventory and dependency graph are supplied by
+  `GET /api/repositories/:id/code-analysis`; the documentation corpus is
+  supplied by `GET /api/repositories/:id/documentation-analysis`, so raw
+  structured analysis is directly visible rather than only feeding scores.
 
 Repositories with no completed analysis render a dedicated empty state
 prompting the user to start a scan.

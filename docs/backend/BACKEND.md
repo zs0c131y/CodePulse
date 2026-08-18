@@ -734,6 +734,21 @@ with:
 Files are sorted by path, commits by date (newest first), dependencies by
 source file, and documentation by path.
 
+### `GET /api/repositories/:repositoryId/code-analysis`
+
+Returns the structured raw code evidence from the latest scan in one response:
+the paginated production-code file inventory, paginated dependency edges, and
+derived counts for modules, languages, tests, and resolved imports. It accepts
+the same `limit` and `skip` parameters as the raw list endpoints. This is an
+evidence endpoint; it does not calculate a second Technical Debt score.
+
+### `GET /api/repositories/:repositoryId/documentation-analysis`
+
+Returns the paginated documentation corpus with document-type and truncation
+counts from the latest scan. It accepts the same `limit` and `skip` parameters
+as the raw list endpoints. Documentation content remains bounded by the
+scan-time extraction limit.
+
 ### `GET /api/repositories/:repositoryId/contributors`
 
 Aggregates the repository's full commit history by author (grouped by
@@ -830,7 +845,7 @@ Every successful `POST /api/repositories/analyze` scan persists raw repository
 facts first, then runs the scoring engines. The current snapshot is stored in
 `repository_scores`; per-file Technical Debt evidence in
 `technical_debt_metrics`; per-source-directory Knowledge Debt evidence in
-`knowledge_debt_metrics`; structural drift findings in `drift_findings`; and
+`knowledge_debt_metrics`; drift findings in `drift_findings`; and
 ranked remediation actions in `recommendations`. A re-scan replaces these
 current snapshots.
 
@@ -875,8 +890,22 @@ an onboarding-difficulty score and module-level documentation evidence.
 [knowledgeDriftAnalyzer.js](../../backend/src/features/analysis/services/knowledgeDriftAnalyzer.js)
 compares stored source, documentation, and commit facts. It finds undocumented
 modules, module documentation older than its associated source changes, and
-backticked source-file references that no longer resolve. These deterministic
-findings are stored in `drift_findings` with evidence and severity.
+backticked source-file references that no longer resolve. Optional semantic
+enrichment builds compact, ephemeral code outlines, compares them with relevant
+documentation sections through a Sentence-Transformers-compatible embedding
+endpoint, and stores low-similarity results as human-review leads. Findings
+retain model, similarity, threshold, and compared excerpts; full source is not
+persisted or sent to the provider. Optional Qdrant writes are a non-blocking
+vector index/cache, not a scan dependency.
+
+Semantic analysis is disabled by default. Set `SEMANTIC_DRIFT_ENABLED=true`
+and a local `SEMANTIC_EMBEDDING_URL` to enable it. A hosted endpoint also
+requires `SEMANTIC_DRIFT_PROVIDER=hosted` and
+`SEMANTIC_DRIFT_ALLOW_HOSTED=true`, making the content-boundary choice explicit.
+`SEMANTIC_EMBEDDING_MODEL`, `SEMANTIC_DRIFT_SIMILARITY_THRESHOLD`,
+`SEMANTIC_DRIFT_MAX_CODE_FILES`, and `SEMANTIC_DRIFT_MAX_SOURCE_BYTES` bound
+the service and comparison workload. `QDRANT_URL` and `QDRANT_COLLECTION` are
+optional.
 
 [riskIntelligenceEngine.js](../../backend/src/features/analysis/services/riskIntelligenceEngine.js)
 combines file debt (60%), absent module documentation (20%), highest related
@@ -1075,9 +1104,8 @@ frontend.
 
 ## ⚙️ Current Analysis Boundaries
 
-The implemented engines operate on the repository facts gathered during a
-scan. AST-level cyclomatic complexity, source-duplication detection,
-embedding/semantic drift, contributor-concentration risk, score history, and
-external LLM/RAG recommendations remain future integrations. The current
-interfaces retain the required API boundaries so those capabilities can be
-added without changing frontend consumers.
+The implemented engines operate on repository facts gathered during a scan.
+Semantic drift is available as an opt-in embedding enrichment with explicit
+provider consent; AST-level cyclomatic complexity, source-duplication
+detection, contributor-concentration risk, score history, and external LLM/RAG
+recommendations remain future integrations.

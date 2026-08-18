@@ -257,9 +257,12 @@ Stores documentation drift findings.
 
 * `repository_id`: Parent repository reference.
 * `finding_key`: Stable per-scan finding identifier; unique with the repository.
-* `drift_type`: Drift classification.
+* `drift_type`: Drift classification, including optional `semantic_mismatch`.
 * `title`, `description`: Human-readable finding summary.
 * `file_path`, `module_path`: Affected documentation or code location when known.
+* `semantic`: Optional semantic-review evidence: embedding model, similarity,
+  threshold, confidence, and bounded code/document excerpts. It is present
+  only when opt-in semantic analysis flags a low-similarity pair.
 * `severity`: `Low`, `Medium`, `High`, or `Critical`.
 * `evidence`: Supporting snippets, metadata, or references.
 * `age_days`: Documentation/code age gap when applicable.

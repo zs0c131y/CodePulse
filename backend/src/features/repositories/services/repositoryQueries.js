@@ -17,6 +17,8 @@ import {
   listAllCommitsForRepositoryWithCollections,
   listDependenciesForRepositoryWithCollections,
   listDocumentationForRepositoryWithCollections,
+  getCodeAnalysisWithCollections,
+  getDocumentationAnalysisWithCollections,
 } from './repositoryQueriesCore.js'
 
 function normalizeMongoId(value) {
@@ -76,4 +78,14 @@ export async function listDependenciesForRepository(repositoryId, options) {
 export async function listDocumentationForRepository(repositoryId, options) {
   const collections = await getRepositoryCollections()
   return listDocumentationForRepositoryWithCollections(normalizeMongoId(repositoryId), collections, options)
+}
+
+export async function getCodeAnalysisForRepository(repositoryId, options) {
+  const collections = await getRepositoryCollections()
+  return getCodeAnalysisWithCollections(normalizeMongoId(repositoryId), collections, options)
+}
+
+export async function getDocumentationAnalysisForRepository(repositoryId, options) {
+  const collections = await getRepositoryCollections()
+  return getDocumentationAnalysisWithCollections(normalizeMongoId(repositoryId), collections, options)
 }

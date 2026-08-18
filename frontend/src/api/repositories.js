@@ -75,6 +75,14 @@ export function getRepositoryDocumentation(accessToken, repositoryId, limit = 10
   return getRepositoryPage(accessToken, repositoryId, 'documentation', limit)
 }
 
+export function getRepositoryCodeAnalysis(accessToken, repositoryId, limit = 200) {
+  return apiFetch(`/api/repositories/${repositoryId}/code-analysis?limit=${limit}`, { accessToken })
+}
+
+export function getRepositoryDocumentationAnalysis(accessToken, repositoryId, limit = 100) {
+  return apiFetch(`/api/repositories/${repositoryId}/documentation-analysis?limit=${limit}`, { accessToken })
+}
+
 export async function getRepositoryContributors(accessToken, repositoryId) {
   const data = await apiFetch(`/api/repositories/${repositoryId}/contributors`, { accessToken })
   return Array.isArray(data.contributors) ? data.contributors : []

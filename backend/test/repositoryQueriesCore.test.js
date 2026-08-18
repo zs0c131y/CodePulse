@@ -9,6 +9,8 @@ import {
   listAllCommitsForRepositoryWithCollections,
   listDependenciesForRepositoryWithCollections,
   listDocumentationForRepositoryWithCollections,
+  getCodeAnalysisWithCollections,
+  getDocumentationAnalysisWithCollections,
 } from '../src/features/repositories/services/repositoryQueriesCore.js'
 
 class FakeCollection {
@@ -213,4 +215,29 @@ test('listDependenciesForRepositoryWithCollections and listDocumentationForRepos
   const documentationPage = await listDocumentationForRepositoryWithCollections('repo-1', collections)
   assert.equal(documentationPage.items[0].path, 'README.md')
   assert.equal(documentationPage.items[0].content, '# Demo')
+})
+
+test('structured code and documentation analysis aggregate persisted scan facts', async () => {
+  const collections = createCollections()
+  collections.repoFiles.records.push(
+    { repository_id: 'repo-1', file_path: 'src/app.js', file_name: 'app.js', extension: '.js', file_type: 'code', language: 'JavaScript', size: 10, depth: 2 },
+    { repository_id: 'repo-1', file_path: 'src/app.test.js', file_name: 'app.test.js', extension: '.js', file_type: 'test', language: 'JavaScript', size: 10, depth: 2 },
+  )
+  collections.dependencies.records.push(
+    { repository_id: 'repo-1', source_file: 'src/app.js', target_file: 'src/lib.js', dependency_type: 'import', import_path: './lib.js', resolved: true },
+  )
+  collections.documentation.records.push(
+    { repository_id: 'repo-1', doc_path: 'README.md', file_name: 'README.md', documentation_type: 'readme', content_summary: 'Demo', content: '# Demo', size: 10, truncated: false },
+  )
+
+  const code = await getCodeAnalysisWithCollections('repo-1', collections, { limit: 10 })
+  const documentation = await getDocumentationAnalysisWithCollections('repo-1', collections, { limit: 10 })
+
+  assert.equal(code.summary.codeFiles, 1)
+  assert.equal(code.summary.testFiles, 1)
+  assert.equal(code.summary.dependencies.resolved, 1)
+  assert.deepEqual(code.files.items.map(file => file.path), ['src/app.js'])
+  assert.equal(documentation.summary.totalDocuments, 1)
+  assert.equal(documentation.summary.types[0].label, 'readme')
+  assert.equal(documentation.documents.items[0].path, 'README.md')
 })

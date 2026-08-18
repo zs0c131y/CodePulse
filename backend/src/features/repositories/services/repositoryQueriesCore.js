@@ -102,6 +102,23 @@ function serializeDocumentation(doc) {
   }
 }
 
+function directoryOf(path) {
+  const normalized = String(path || '').replaceAll('\\', '/')
+  const separator = normalized.lastIndexOf('/')
+  return separator === -1 ? '.' : normalized.slice(0, separator) || '.'
+}
+
+function countBy(records, selector) {
+  const counts = new Map()
+  records.forEach(record => {
+    const key = selector(record) || 'Unknown'
+    counts.set(key, (counts.get(key) || 0) + 1)
+  })
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label))
+}
+
 export async function listRepositoriesForUserWithCollections(userId, collections) {
   const records = await collections.repositories.find({ user_id: userId }).toArray()
 
@@ -165,4 +182,57 @@ export async function listDocumentationForRepositoryWithCollections(repositoryId
   const page = paginate(sortByStringField(records, 'doc_path'), options)
 
   return { ...page, items: page.items.map(serializeDocumentation) }
+}
+
+/**
+ * Structured code facts for the product API. This is deliberately raw scan
+ * evidence, not a second scoring engine: it keeps the UI from rebuilding
+ * language/module/dependency summaries from unrelated endpoint responses.
+ */
+export async function getCodeAnalysisWithCollections(repositoryId, collections, options = {}) {
+  const [fileRecords, dependencyRecords] = await Promise.all([
+    collections.repoFiles.find({ repository_id: repositoryId }).toArray(),
+    collections.dependencies.find({ repository_id: repositoryId }).toArray(),
+  ])
+  const codeRecords = sortByStringField(fileRecords.filter(file => file.file_type === 'code'), 'file_path')
+  const testRecords = fileRecords.filter(file => file.file_type === 'test')
+  const dependencyPage = paginate(sortByStringField(dependencyRecords, 'source_file'), options)
+  const filePage = paginate(codeRecords, options)
+  const resolvedDependencies = dependencyRecords.filter(dependency => dependency.resolved)
+
+  return {
+    summary: {
+      totalFiles: fileRecords.length,
+      codeFiles: codeRecords.length,
+      testFiles: testRecords.length,
+      modules: new Set(codeRecords.map(file => directoryOf(file.file_path))).size,
+      languages: countBy(codeRecords, file => file.language),
+      dependencies: {
+        total: dependencyRecords.length,
+        resolved: resolvedDependencies.length,
+        unresolved: dependencyRecords.length - resolvedDependencies.length,
+      },
+    },
+    files: { ...filePage, items: filePage.items.map(serializeFile) },
+    dependencies: { ...dependencyPage, items: dependencyPage.items.map(serializeDependency) },
+  }
+}
+
+/**
+ * Structured documentation facts for the product API. Content remains limited
+ * to the scan-time extraction cap enforced by documentationExtractor.js.
+ */
+export async function getDocumentationAnalysisWithCollections(repositoryId, collections, options = {}) {
+  const records = await collections.documentation.find({ repository_id: repositoryId }).toArray()
+  const sorted = sortByStringField(records, 'doc_path')
+  const page = paginate(sorted, options)
+
+  return {
+    summary: {
+      totalDocuments: records.length,
+      types: countBy(records, document => document.documentation_type),
+      truncatedDocuments: records.filter(document => document.truncated).length,
+    },
+    documents: { ...page, items: page.items.map(serializeDocumentation) },
+  }
 }

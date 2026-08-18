@@ -1,6 +1,7 @@
 import { analyzeTechnicalDebt } from './technicalDebtAnalyzer.js'
 import { analyzeKnowledgeDebt } from './knowledgeDebtAnalyzer.js'
-import { analyzeKnowledgeDrift } from './knowledgeDriftAnalyzer.js'
+import { analyzeKnowledgeDrift, mergeSemanticDrift } from './knowledgeDriftAnalyzer.js'
+import { analyzeSemanticDrift } from './semanticDriftAnalyzer.js'
 import { analyzeRiskIntelligence } from './riskIntelligenceEngine.js'
 import { buildRecommendations } from './recommendationEngine.js'
 import { persistAnalysisResults } from './analysisStore.js'
@@ -22,7 +23,7 @@ function round(value) {
 export function buildAnalysisResults(analysis, options = {}) {
   const technicalDebt = analyzeTechnicalDebt(analysis, options)
   const knowledgeDebt = analyzeKnowledgeDebt(analysis, options)
-  const drift = analyzeKnowledgeDrift(analysis, knowledgeDebt, options)
+  const drift = options.drift || analyzeKnowledgeDrift(analysis, knowledgeDebt, options)
   const risk = analyzeRiskIntelligence({ technicalDebt, knowledgeDebt, drift })
   const riskByPath = new Map(risk.modules.map(module => [module.path, module]))
   const technicalDebtWithRisk = {
@@ -75,8 +76,11 @@ export function buildAnalysisResults(analysis, options = {}) {
   }
 }
 
-export async function scoreRepositoryAnalysis({ repositoryId, analysis, now, persistResults = persistAnalysisResults }) {
-  const results = buildAnalysisResults(analysis, { now })
+export async function scoreRepositoryAnalysis({ repositoryId, analysis, repositoryPath, now, persistResults = persistAnalysisResults, semanticAnalyzer = analyzeSemanticDrift }) {
+  const structuralResults = buildAnalysisResults(analysis, { now })
+  const semanticDrift = await semanticAnalyzer(analysis, { repositoryPath })
+  const drift = mergeSemanticDrift(structuralResults.drift, semanticDrift, structuralResults.knowledgeDebt)
+  const results = buildAnalysisResults(analysis, { now, drift })
   const persisted = await persistResults({ repositoryId, results, now })
 
   return { ...results, persisted }

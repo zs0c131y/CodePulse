@@ -25,7 +25,7 @@ persistent storage.
 | `repository_scores` | Stores the latest debt, drift, health, and risk summary. | `repository_id` unique |
 | `technical_debt_metrics` | Stores per-code-file Technical Debt evidence. | `repository_id`+`file_path` unique; score ranking |
 | `knowledge_debt_metrics` | Stores per-module documentation evidence. | `repository_id`+`module_path` unique |
-| `drift_findings` | Stores current structural documentation-drift findings. | `repository_id`+`finding_key` unique; severity |
+| `drift_findings` | Stores current structural and optional semantic documentation-drift findings. | `repository_id`+`finding_key` unique; severity |
 | `recommendations` | Stores ranked, evidence-based remediation actions. | `repository_id`+`recommendation_key` unique; impact |
 
 ---
@@ -366,6 +366,8 @@ Required fields:
 * `finding_key` (`string`): Stable finding identifier within the repository.
 * `drift_type` (`string`): Drift classification.
 * `severity` (`enum`): `Low`, `Medium`, `High`, or `Critical`.
+* `semantic` (`object|null`): Optional model, similarity, threshold,
+  confidence, and bounded compared excerpts for semantic-review findings.
 
 Optional fields:
 

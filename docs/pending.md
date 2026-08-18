@@ -13,7 +13,7 @@ sources, additional analysis infrastructure, or a deliberate product decision.
 
 ## 1. AST-Based Static Program Analysis
 
-**Status:** Pending
+**Status:** Implemented as an opt-in embedding enrichment
 
 The current Technical Debt engine uses an explicit metadata heuristic: file
 size plus resolved internal dependency fan-in and fan-out. It is fast,
@@ -65,14 +65,16 @@ internal architecture.
 
 Structural drift is implemented: undocumented modules, stale module
 documentation, and documentation references to deleted source paths are
-detected. It cannot yet determine that documentation says “JWT” while the
-implementation now uses OAuth, because that requires semantic comparison.
+detected. Semantic comparison now creates compact code outlines from scanned
+source files, compares them to matching documentation sections through a
+Sentence-Transformers-compatible endpoint, and records low-similarity results
+as review leads with the model, threshold, similarity, and excerpts. Optional
+Qdrant persistence is non-blocking.
 
-Add a documentation/code-description pipeline. It should create concise,
-versioned summaries from AST outlines and markdown sections, generate
-embeddings with a chosen local or hosted model, and compare only relevant
-module/document pairs. A vector store such as Qdrant may be used when the
-repository is too large for direct comparison.
+The enrichment is disabled by default. A local embedding endpoint can be
+enabled directly; a hosted endpoint requires explicit provider approval in
+environment configuration. AST-derived source outlines and user confirmation/
+dismissal workflow remain follow-up improvements.
 
 Semantic results must be conservative: a low similarity score is a lead, not
 proof of incorrect documentation. Each finding should retain the compared

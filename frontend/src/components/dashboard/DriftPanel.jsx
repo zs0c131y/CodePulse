@@ -37,6 +37,12 @@ export default function DriftPanel({
 
               <p className="mt-3 max-w-[68ch] text-sm leading-6 text-[var(--ink-2)]">{item.evidence}</p>
 
+              {item.semantic && (
+                <p className="mt-3 text-xs leading-5 text-[var(--ink-3)]">
+                  Semantic signal: {Math.round(Number(item.semantic.similarity || 0) * 100)}% similarity using {item.semantic.model}. Human review required.
+                </p>
+              )}
+
               <p className="mt-3 flex items-center gap-2 text-xs font-medium text-[var(--ink-3)]">
                 <Clock3 size={13} aria-hidden="true" />
                 Open for {item.age}

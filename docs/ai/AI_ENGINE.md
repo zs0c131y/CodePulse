@@ -4,10 +4,12 @@ This document details the configuration, workflows, and prompts for the **AI Exp
 
 > **Current implementation boundary:** the live backend currently provides
 > deterministic, evidence-based recommendations from stored Technical Debt,
-> Knowledge Debt, drift, and risk findings. No LLM, embedding model, Qdrant
-> instance, or RAG service is configured, and repository contents are not sent
-> to an external AI provider. The architecture and prompt blueprints below are
-> the planned optional extension point for that future integration.
+> Knowledge Debt, drift, and risk findings. Semantic drift is an opt-in,
+> Sentence-Transformers-compatible embedding enrichment with optional Qdrant
+> indexing; it is disabled without configuration and requires explicit consent
+> before a hosted provider receives compact code outlines or documentation
+> sections. No LLM or RAG service is configured. The architecture and prompt
+> blueprints below remain the optional extension point for richer explanations.
 
 ---
 

@@ -39,6 +39,33 @@ function severityWeight(severity) {
   return ({ Low: 25, Medium: 50, High: 75, Critical: 100 })[severity] || 0
 }
 
+function summarizeFindings(findings, knowledgeDebt, semanticMetrics = null) {
+  const sortedFindings = [...findings]
+    .sort((left, right) => severityWeight(right.severity) - severityWeight(left.severity) || left.filePath.localeCompare(right.filePath))
+  const totalModules = knowledgeDebt?.metrics?.totalModules || 0
+  const findingPressure = totalModules === 0 ? 0 : (sortedFindings.length / totalModules) * 50
+  const severityPressure = sortedFindings.length === 0
+    ? 0
+    : sortedFindings.reduce((sum, item) => sum + severityWeight(item.severity), 0) / sortedFindings.length
+  const countBySeverity = severity => sortedFindings.filter(item => item.severity === severity).length
+
+  return {
+    score: round(clamp(findingPressure + severityPressure * 0.5, 0, 100)),
+    findings: sortedFindings,
+    metrics: {
+      total: sortedFindings.length,
+      critical: countBySeverity('Critical'),
+      high: countBySeverity('High'),
+      medium: countBySeverity('Medium'),
+      low: countBySeverity('Low'),
+      documentationCoverage: knowledgeDebt?.metrics?.documentationCoverage ?? 100,
+      setupCoverage: knowledgeDebt?.metrics?.hasSetupDocumentation ? 100 : 0,
+      architectureCoverage: knowledgeDebt?.metrics?.hasArchitectureDocumentation ? 100 : 0,
+      semantic: semanticMetrics,
+    },
+  }
+}
+
 function buildLastChangedByPath(commits) {
   const byPath = new Map()
 
@@ -165,28 +192,11 @@ export function analyzeKnowledgeDrift(analysis, knowledgeDebt, options = {}) {
     }
   }
 
-  const sortedFindings = findings
-    .sort((left, right) => severityWeight(right.severity) - severityWeight(left.severity) || left.filePath.localeCompare(right.filePath))
-  const totalModules = knowledgeDebt?.metrics?.totalModules || 0
-  const findingPressure = totalModules === 0 ? 0 : (sortedFindings.length / totalModules) * 50
-  const severityPressure = sortedFindings.length === 0
-    ? 0
-    : sortedFindings.reduce((sum, item) => sum + severityWeight(item.severity), 0) / sortedFindings.length
-  const score = round(clamp(findingPressure + severityPressure * 0.5, 0, 100))
-  const countBySeverity = severity => sortedFindings.filter(item => item.severity === severity).length
+  return summarizeFindings(findings, knowledgeDebt)
+}
 
-  return {
-    score,
-    findings: sortedFindings,
-    metrics: {
-      total: sortedFindings.length,
-      critical: countBySeverity('Critical'),
-      high: countBySeverity('High'),
-      medium: countBySeverity('Medium'),
-      low: countBySeverity('Low'),
-      documentationCoverage: knowledgeDebt?.metrics?.documentationCoverage ?? 100,
-      setupCoverage: knowledgeDebt?.metrics?.hasSetupDocumentation ? 100 : 0,
-      architectureCoverage: knowledgeDebt?.metrics?.hasArchitectureDocumentation ? 100 : 0,
-    },
-  }
+export function mergeSemanticDrift(structuralDrift, semanticDrift, knowledgeDebt) {
+  const structuralFindings = Array.isArray(structuralDrift?.findings) ? structuralDrift.findings : []
+  const semanticFindings = Array.isArray(semanticDrift?.findings) ? semanticDrift.findings : []
+  return summarizeFindings([...structuralFindings, ...semanticFindings], knowledgeDebt, semanticDrift?.metrics || null)
 }

@@ -117,6 +117,26 @@ export const REPOSITORY_MAX_DEPENDENCY_FILE_BYTES = readPositiveIntegerEnv(
   1024 * 1024,
 )
 
+// --- Optional semantic knowledge-drift analysis ---
+//
+// The embedding endpoint is intentionally unset by default. A local
+// Sentence-Transformers service can be enabled without repository contents
+// leaving the deployment boundary; hosted providers require an additional,
+// explicit acknowledgement below.
+export const SEMANTIC_DRIFT_ENABLED = process.env.SEMANTIC_DRIFT_ENABLED === 'true'
+export const SEMANTIC_DRIFT_PROVIDER = process.env.SEMANTIC_DRIFT_PROVIDER || 'local'
+export const SEMANTIC_DRIFT_ALLOW_HOSTED = process.env.SEMANTIC_DRIFT_ALLOW_HOSTED === 'true'
+export const SEMANTIC_EMBEDDING_URL = (process.env.SEMANTIC_EMBEDDING_URL || '').replace(/\/+$/, '') || null
+export const SEMANTIC_EMBEDDING_MODEL = process.env.SEMANTIC_EMBEDDING_MODEL || 'sentence-transformers/all-MiniLM-L6-v2'
+export const SEMANTIC_DRIFT_SIMILARITY_THRESHOLD = (() => {
+  const value = Number(process.env.SEMANTIC_DRIFT_SIMILARITY_THRESHOLD)
+  return Number.isFinite(value) && value > 0 && value < 1 ? value : 0.55
+})()
+export const SEMANTIC_DRIFT_MAX_CODE_FILES = readPositiveIntegerEnv('SEMANTIC_DRIFT_MAX_CODE_FILES', 120)
+export const SEMANTIC_DRIFT_MAX_SOURCE_BYTES = readPositiveIntegerEnv('SEMANTIC_DRIFT_MAX_SOURCE_BYTES', 256 * 1024)
+export const QDRANT_URL = (process.env.QDRANT_URL || '').replace(/\/+$/, '') || null
+export const QDRANT_COLLECTION = process.env.QDRANT_COLLECTION || 'codepulse_semantic_drift'
+
 // --- OAuth provider credentials (optional — null when not configured) ---
 
 export const GITHUB_ID = process.env.GITHUB_ID || null

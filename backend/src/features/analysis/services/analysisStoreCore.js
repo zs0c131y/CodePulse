@@ -76,6 +76,7 @@ function driftFindingRecord(repositoryId, finding, now) {
     severity: finding.severity,
     evidence: finding.evidence,
     age_days: finding.ageDays,
+    semantic: finding.semantic || null,
     created_at: now,
     updated_at: now,
   }
@@ -269,6 +270,7 @@ export function serializeKnowledgeDrift(scoreRecord, findingRecords) {
         severity: record.severity || 'Low',
         evidence: record.evidence || 'No evidence recorded.',
         age: ageLabel(record.age_days),
+        semantic: record.semantic || null,
       }))
       .sort((left, right) => driftSeverityRank(right.severity) - driftSeverityRank(left.severity) || left.filePath.localeCompare(right.filePath)),
     coverage: [

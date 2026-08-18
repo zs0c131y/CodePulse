@@ -28,12 +28,11 @@ import { ApiError, apiFetch } from '../api/client'
 import {
   analyzeRepository,
   getRepositoryCommits,
+  getRepositoryCodeAnalysis,
   getRepositoryContributors,
   getRepositoryDebt,
-  getRepositoryDependencies,
-  getRepositoryDocumentation,
+  getRepositoryDocumentationAnalysis,
   getRepositoryDrift,
-  getRepositoryFiles,
   getRepositoryManifest,
   getRepositoryRecommendations,
   getRepositoryScores,
@@ -331,6 +330,7 @@ function mapDriftFindings(drift) {
     severity: finding.severity || 'Low',
     age: finding.age || 'recently',
     evidence: finding.evidence || '',
+    semantic: finding.semantic || null,
   }))
 }
 
@@ -671,22 +671,21 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       setIntelligenceLoading(true)
       setIntelligenceError('')
       const results = await Promise.allSettled([
-        getRepositoryFiles(accessToken, selectedRepoId),
-        getRepositoryDependencies(accessToken, selectedRepoId),
+        getRepositoryCodeAnalysis(accessToken, selectedRepoId),
         getRepositoryCommits(accessToken, selectedRepoId),
-        getRepositoryDocumentation(accessToken, selectedRepoId),
+        getRepositoryDocumentationAnalysis(accessToken, selectedRepoId),
         getRepositoryContributors(accessToken, selectedRepoId),
         getRepositoryManifest(accessToken, selectedRepoId),
       ])
       if (cancelled) return
 
-      const [files, dependencies, commits, documentation, contributors, manifests] = results
+      const [codeAnalysis, commits, documentationAnalysis, contributors, manifests] = results
       const failures = results.filter(result => result.status === 'rejected')
       setIntelligence({
-        files: settledValue(files, EMPTY_PAGE),
-        dependencies: settledValue(dependencies, EMPTY_PAGE),
+        files: settledValue(codeAnalysis, { files: EMPTY_PAGE }).files || EMPTY_PAGE,
+        dependencies: settledValue(codeAnalysis, { dependencies: EMPTY_PAGE }).dependencies || EMPTY_PAGE,
         commits: settledValue(commits, EMPTY_PAGE),
-        documentation: settledValue(documentation, EMPTY_PAGE),
+        documentation: settledValue(documentationAnalysis, { documents: EMPTY_PAGE }).documents || EMPTY_PAGE,
         contributors: settledValue(contributors, []),
         manifests: settledValue(manifests, []),
       })
