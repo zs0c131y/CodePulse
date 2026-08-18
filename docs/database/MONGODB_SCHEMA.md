@@ -352,6 +352,12 @@ Optional fields:
 * `documented` (`bool`): Whether the module matched documentation evidence.
 * `missing_reason` (`string|null`): Explanation when the module is not
   documented.
+* `api_routes`, `documented_api_routes`, `undocumented_api_routes` (`int`):
+  Detected HTTP endpoint coverage for the module.
+* `explainability_score` (`number`): Documentation/API/outline-based module
+  explainability score.
+* `complexity`, `complexity_penalty` (`number|null`): Metadata complexity
+  context and its bounded explainability penalty.
 * `created_at`, `updated_at` (`date`): Snapshot timestamps.
 
 Indexes:
@@ -376,12 +382,15 @@ Optional fields:
   location when known.
 * `evidence` (`mixed`): Supporting snippets, metadata, or references.
 * `age_days` (`number|null`): Documentation/code age difference when known.
+* `review_status` (`confirmed|dismissed|null`), `reviewed_at` (`date|null`):
+  Human review state for semantic findings; replaced by a re-scan.
 * `created_at`, `updated_at` (`date`): Snapshot timestamps.
 
 Indexes:
 
 * `{ repository_id: 1, finding_key: 1 }`, unique.
 * `{ repository_id: 1, severity: 1 }`.
+* `{ repository_id: 1, drift_type: 1, review_status: 1 }`.
 
 ### `recommendations`
 

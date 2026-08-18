@@ -1,10 +1,12 @@
-import { Clock3, FileWarning } from 'lucide-react'
+import { CheckCircle2, Clock3, FileWarning, XCircle } from 'lucide-react'
 import { EmptyPanel, SeverityBadge } from './shared'
 
 export default function DriftPanel({
   items = [],
   emptyTitle = 'No drift findings yet',
   emptyDescription = 'Knowledge drift findings appear here after the drift detection engine compares documentation against the analyzed code structure.',
+  onReview,
+  reviewingId = null,
 }) {
   if (items.length === 0) {
     return <EmptyPanel title={emptyTitle} description={emptyDescription} icon={FileWarning} />
@@ -38,9 +40,15 @@ export default function DriftPanel({
               <p className="mt-3 max-w-[68ch] text-sm leading-6 text-[var(--ink-2)]">{item.evidence}</p>
 
               {item.semantic && (
-                <p className="mt-3 text-xs leading-5 text-[var(--ink-3)]">
-                  Semantic signal: {Math.round(Number(item.semantic.similarity || 0) * 100)}% similarity using {item.semantic.model}. Human review required.
-                </p>
+                <div className="mt-3">
+                  <p className="text-xs leading-5 text-[var(--ink-3)]">Semantic signal: {Math.round(Number(item.semantic.similarity || 0) * 100)}% similarity using {item.semantic.model}. Human review required.</p>
+                  {item.reviewStatus ? <p className="mt-2 text-xs font-medium capitalize text-[var(--sev-nominal-ink)]">Review {item.reviewStatus}</p> : onReview && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => onReview(item, 'confirmed')} disabled={reviewingId === item.id} className="inline-flex items-center gap-1.5 rounded-[var(--r-xs)] border border-[var(--sev-nominal-line)] px-2 py-1 text-xs font-medium text-[var(--sev-nominal-ink)] disabled:opacity-50"><CheckCircle2 size={13} />Confirm</button>
+                      <button type="button" onClick={() => onReview(item, 'dismissed')} disabled={reviewingId === item.id} className="inline-flex items-center gap-1.5 rounded-[var(--r-xs)] border border-[var(--line-2)] px-2 py-1 text-xs font-medium text-[var(--ink-2)] disabled:opacity-50"><XCircle size={13} />Dismiss</button>
+                    </div>
+                  )}
+                </div>
               )}
 
               <p className="mt-3 flex items-center gap-2 text-xs font-medium text-[var(--ink-3)]">

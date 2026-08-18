@@ -13,7 +13,7 @@ sources, additional analysis infrastructure, or a deliberate product decision.
 
 ## 1. AST-Based Static Program Analysis
 
-**Status:** Implemented as an opt-in embedding enrichment
+**Status:** Pending
 
 The current Technical Debt engine uses an explicit metadata heuristic: file
 size plus resolved internal dependency fan-in and fan-out. It is fast,
@@ -61,7 +61,7 @@ internal architecture.
 
 ## 3. Semantic Knowledge Drift Detection
 
-**Status:** Pending
+**Status:** Implemented as an opt-in embedding enrichment
 
 Structural drift is implemented: undocumented modules, stale module
 documentation, and documentation references to deleted source paths are
@@ -73,8 +73,9 @@ Qdrant persistence is non-blocking.
 
 The enrichment is disabled by default. A local embedding endpoint can be
 enabled directly; a hosted endpoint requires explicit provider approval in
-environment configuration. AST-derived source outlines and user confirmation/
-dismissal workflow remain follow-up improvements.
+environment configuration. Semantic findings can be confirmed or dismissed in
+the dashboard and retain that review state until the next scan replaces the
+repository snapshot. AST-derived source outlines remain a follow-up improvement.
 
 Semantic results must be conservative: a low similarity score is a lead, not
 proof of incorrect documentation. Each finding should retain the compared

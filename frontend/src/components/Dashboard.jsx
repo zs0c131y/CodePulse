@@ -33,8 +33,10 @@ import {
   getRepositoryDebt,
   getRepositoryDocumentationAnalysis,
   getRepositoryDrift,
+  getRepositoryKnowledgeDebt,
   getRepositoryManifest,
   getRepositoryRecommendations,
+  reviewRepositoryDriftFinding,
   getRepositoryScores,
   getRepositoryStatus,
   listRepositories,
@@ -57,6 +59,7 @@ import CoveragePanel from './dashboard/CoveragePanel'
 import DebtCharts from './dashboard/DebtCharts'
 import DebtTable from './dashboard/DebtTable'
 import DriftPanel from './dashboard/DriftPanel'
+import KnowledgeDebtPanel from './dashboard/KnowledgeDebtPanel'
 import MetricStrip from './dashboard/MetricStrip'
 import PipelinePanel from './dashboard/PipelinePanel'
 import RecommendationPanel from './dashboard/RecommendationPanel'
@@ -78,8 +81,8 @@ const navItems = [
   { label: 'Risk & AI' },
 ]
 
-const EMPTY_ANALYTICS = { scores: null, debt: null, drift: null, recommendations: [] }
-const EMPTY_ANALYTICS_ERRORS = { scores: null, debt: null, drift: null, recommendations: null }
+const EMPTY_ANALYTICS = { scores: null, debt: null, knowledgeDebt: null, drift: null, recommendations: [] }
+const EMPTY_ANALYTICS_ERRORS = { scores: null, debt: null, knowledgeDebt: null, drift: null, recommendations: null }
 const EMPTY_PAGE = { items: [], total: 0 }
 
 function getDocumentationCoverage(repository) {
@@ -331,6 +334,7 @@ function mapDriftFindings(drift) {
     age: finding.age || 'recently',
     evidence: finding.evidence || '',
     semantic: finding.semantic || null,
+    reviewStatus: finding.reviewStatus || null,
   }))
 }
 
@@ -345,7 +349,7 @@ function mapRecommendations(recommendations) {
   }))
 }
 
-function OverviewContent({ view, liveMode }) {
+function OverviewContent({ view, liveMode, onReviewDrift, reviewingDriftId }) {
   return (
     <div className="space-y-5">
       {view.kpis.length > 0 ? (
@@ -375,13 +379,13 @@ function OverviewContent({ view, liveMode }) {
           emptyTitle={view.debtEmptyTitle}
           emptyDescription={view.debtEmptyDescription}
         />
-        <DriftPanel items={view.driftItems} emptyTitle={view.driftEmptyTitle} emptyDescription={view.driftEmptyDescription} />
+        <DriftPanel items={view.driftItems} emptyTitle={view.driftEmptyTitle} emptyDescription={view.driftEmptyDescription} onReview={onReviewDrift} reviewingId={reviewingDriftId} />
       </div>
     </div>
   )
 }
 
-function MainContent({ activeTab, view, liveMode }) {
+function MainContent({ activeTab, view, liveMode, onReviewDrift, reviewingDriftId }) {
   if (activeTab === 'Repository Intelligence') {
     return (
       <RepositoryIntelligencePanel
@@ -419,14 +423,17 @@ function MainContent({ activeTab, view, liveMode }) {
 
   if (activeTab === 'Knowledge Drift') {
     return (
-      <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <DriftPanel items={view.driftItems} emptyTitle={view.driftEmptyTitle} emptyDescription={view.driftEmptyDescription} />
+      <div className="space-y-5">
+        <KnowledgeDebtPanel data={view.knowledgeDebt} />
+        <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <DriftPanel items={view.driftItems} emptyTitle={view.driftEmptyTitle} emptyDescription={view.driftEmptyDescription} onReview={onReviewDrift} reviewingId={reviewingDriftId} />
         <CoveragePanel
           items={view.coverageItems}
           description={liveMode ? 'Measured documentation coverage for this repository.' : 'Coverage by repository area.'}
           emptyTitle={view.coverageEmptyTitle}
           emptyDescription={view.coverageEmptyDescription}
         />
+        </div>
       </div>
     )
   }
@@ -450,7 +457,7 @@ function MainContent({ activeTab, view, liveMode }) {
     )
   }
 
-  return <OverviewContent view={view} liveMode={liveMode} />
+  return <OverviewContent view={view} liveMode={liveMode} onReviewDrift={onReviewDrift} reviewingDriftId={reviewingDriftId} />
 }
 
 export default function Dashboard({ user, accessToken, onLogout }) {
@@ -477,6 +484,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const [dataVersion, setDataVersion] = useState(0)
   const [connectedRepos, setConnectedRepos] = useState([])
   const [repositoryPickerValue, setRepositoryPickerValue] = useState('')
+  const [reviewingDriftId, setReviewingDriftId] = useState(null)
 
   // The repositories the dropdown can offer in live mode: the API list when it
   // is available, otherwise the repository scanned in this session (the read
@@ -626,9 +634,10 @@ export default function Dashboard({ user, accessToken, onLogout }) {
     async function loadAnalytics() {
       setAnalyticsLoading(true)
 
-      const [scores, debt, drift, recommendations] = await Promise.allSettled([
+      const [scores, debt, knowledgeDebt, drift, recommendations] = await Promise.allSettled([
         getRepositoryScores(accessToken, selectedRepoId),
         getRepositoryDebt(accessToken, selectedRepoId),
+        getRepositoryKnowledgeDebt(accessToken, selectedRepoId),
         getRepositoryDrift(accessToken, selectedRepoId),
         getRepositoryRecommendations(accessToken, selectedRepoId),
       ])
@@ -638,12 +647,14 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       setAnalytics({
         scores: settledValue(scores),
         debt: settledValue(debt),
+        knowledgeDebt: settledValue(knowledgeDebt),
         drift: settledValue(drift),
         recommendations: settledValue(recommendations, []),
       })
       setAnalyticsErrors({
         scores: settledError(scores),
         debt: settledError(debt),
+        knowledgeDebt: settledError(knowledgeDebt),
         drift: settledError(drift),
         recommendations: settledError(recommendations),
       })
@@ -779,6 +790,19 @@ export default function Dashboard({ user, accessToken, onLogout }) {
     }
   }
 
+  async function handleDriftReview(finding, reviewStatus) {
+    if (demoMode || !accessToken || !selectedRepoId || !finding?.id || reviewingDriftId) return
+    setReviewingDriftId(finding.id)
+    try {
+      await reviewRepositoryDriftFinding(accessToken, selectedRepoId, finding.id, reviewStatus)
+      setDataVersion(version => version + 1)
+    } catch (error) {
+      setScanError(error instanceof Error ? error.message : 'Could not save the semantic drift review.')
+    } finally {
+      setReviewingDriftId(null)
+    }
+  }
+
   function handleTabKeyDown(event, index) {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
 
@@ -810,6 +834,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         driftItems: demoDriftFindings,
         coverageItems: demoCoverage,
         recommendations: demoRecommendations,
+        knowledgeDebt: null,
         intelligence: demoRepositoryIntelligence,
         intelligenceLoading: false,
         intelligenceError: '',
@@ -818,6 +843,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
 
     const scores = analytics.scores
     const debt = analytics.debt
+    const knowledgeDebt = analytics.knowledgeDebt
     const drift = analytics.drift
     const debtItems = mapDebtModules(debt)
     const driftItems = mapDriftFindings(drift)
@@ -829,6 +855,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       riskTrend: Array.isArray(scores?.risk?.trend) ? scores.risk.trend : [],
       debtItems,
       debtKpis: debt?.metrics ? buildDebtKpis(debt.metrics) : [],
+      knowledgeDebt,
       driftItems,
       coverageItems:
         coverageFromApi.length > 0
@@ -1125,7 +1152,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
           />
         ) : (
           <div id="dashboard-tab-panel" role="tabpanel" tabIndex={0}>
-            <MainContent activeTab={activeTab} view={view} liveMode={liveMode} />
+            <MainContent activeTab={activeTab} view={view} liveMode={liveMode} onReviewDrift={handleDriftReview} reviewingDriftId={reviewingDriftId} />
           </div>
         )}
       </main>

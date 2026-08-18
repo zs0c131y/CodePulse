@@ -38,18 +38,20 @@ function sourceDescription(file, source) {
     ...identifiers(source, /\brequire\(\s*['"]([^'"]+)['"]\s*\)/g),
     ...identifiers(source, /\bimport\s+['"]([^'"]+)['"]/g),
   ])
-  const routes = unique([...source.matchAll(/\.(?:get|post|put|patch|delete)\(\s*['"]([^'"]+)/g)].map(match => match[1]))
+  const routes = [...source.matchAll(/\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)/gi)]
+    .map(match => ({ method: match[1].toUpperCase(), path: match[2] }))
   const parts = [`${normalizePath(file.path)} is a ${file.language || 'source code'} module.`]
   if (exports.length) parts.push(`Exports ${exports.join(', ')}.`)
   if (classes.length) parts.push(`Defines classes ${classes.join(', ')}.`)
   if (functions.length) parts.push(`Defines functions ${functions.join(', ')}.`)
-  if (routes.length) parts.push(`Handles routes ${routes.join(', ')}.`)
+  if (routes.length) parts.push(`Handles routes ${routes.map(route => `${route.method} ${route.path}`).join(', ')}.`)
   if (imports.length) parts.push(`Uses ${imports.join(', ')}.`)
 
   return {
     path: normalizePath(file.path),
     modulePath: directoryOf(file.path),
     summary: parts.join(' '),
+    routes,
   }
 }
 

@@ -39,8 +39,20 @@ export async function getRepositoryDebt(accessToken, repositoryId) {
   return apiFetch(`/api/repositories/${repositoryId}/debt`, { accessToken })
 }
 
+export function getRepositoryKnowledgeDebt(accessToken, repositoryId) {
+  return apiFetch(`/api/repositories/${repositoryId}/knowledge-debt`, { accessToken })
+}
+
 export async function getRepositoryDrift(accessToken, repositoryId) {
   return apiFetch(`/api/repositories/${repositoryId}/drift`, { accessToken })
+}
+
+export function reviewRepositoryDriftFinding(accessToken, repositoryId, findingId, reviewStatus) {
+  return apiFetch(`/api/repositories/${repositoryId}/drift/${findingId}/review`, {
+    accessToken,
+    method: 'PATCH',
+    body: { reviewStatus },
+  })
 }
 
 export async function getRepositoryRecommendations(accessToken, repositoryId) {

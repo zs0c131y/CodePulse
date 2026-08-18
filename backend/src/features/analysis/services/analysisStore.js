@@ -10,6 +10,7 @@ import {
   persistAnalysisResultsWithCollections,
   serializeAnalysisScores,
   serializeTechnicalDebt,
+  serializeKnowledgeDebt,
   serializeKnowledgeDrift,
   serializeRecommendations,
 } from './analysisStoreCore.js'
@@ -57,6 +58,19 @@ export async function getRepositoryTechnicalDebt(repositoryId) {
   return { score, metrics }
 }
 
+export async function getRepositoryKnowledgeDebt(repositoryId) {
+  const normalizedRepositoryId = normalizeMongoId(repositoryId)
+  const [repositoryScores, knowledgeDebtMetrics] = await Promise.all([
+    getRepositoryScoresCollection(),
+    getKnowledgeDebtMetricsCollection(),
+  ])
+  const [score, metrics] = await Promise.all([
+    repositoryScores.findOne({ repository_id: normalizedRepositoryId }),
+    knowledgeDebtMetrics.find({ repository_id: normalizedRepositoryId }).toArray(),
+  ])
+  return { score, metrics }
+}
+
 export async function getRepositoryKnowledgeDrift(repositoryId) {
   const normalizedRepositoryId = normalizeMongoId(repositoryId)
   const [repositoryScores, driftFindings] = await Promise.all([
@@ -71,10 +85,27 @@ export async function getRepositoryKnowledgeDrift(repositoryId) {
   return { score, findings }
 }
 
+export async function updateRepositoryDriftReview(repositoryId, findingId, reviewStatus) {
+  const driftFindings = await getDriftFindingsCollection()
+  const filter = {
+    _id: normalizeMongoId(findingId),
+    repository_id: normalizeMongoId(repositoryId),
+    drift_type: 'semantic_mismatch',
+  }
+  const finding = await driftFindings.findOne(filter)
+  if (!finding) return null
+
+  const reviewedAt = new Date()
+  await driftFindings.updateOne(filter, {
+    $set: { review_status: reviewStatus, reviewed_at: reviewedAt, updated_at: reviewedAt },
+  })
+  return { ...finding, review_status: reviewStatus, reviewed_at: reviewedAt }
+}
+
 export async function getRepositoryRecommendations(repositoryId) {
   const normalizedRepositoryId = normalizeMongoId(repositoryId)
   const recommendations = await getRecommendationsCollection()
   return recommendations.find({ repository_id: normalizedRepositoryId }).toArray()
 }
 
-export { serializeAnalysisScores, serializeTechnicalDebt, serializeKnowledgeDrift, serializeRecommendations }
+export { serializeAnalysisScores, serializeTechnicalDebt, serializeKnowledgeDebt, serializeKnowledgeDrift, serializeRecommendations }

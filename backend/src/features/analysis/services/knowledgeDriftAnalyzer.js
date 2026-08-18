@@ -148,6 +148,18 @@ export function analyzeKnowledgeDrift(analysis, knowledgeDebt, options = {}) {
     }))
   }
 
+  for (const route of knowledgeDebt?.apiRoutes || []) {
+    if (route.documented) continue
+    findings.push(finding({
+      type: 'undocumented_api',
+      title: `API endpoint ${route.method} ${route.path} is not documented`,
+      filePath: route.sourcePath,
+      modulePath: route.modulePath,
+      severity: 'Medium',
+      evidence: `The scanned route ${route.method} ${route.path} was not found in the extracted documentation corpus.`,
+    }))
+  }
+
   for (const module of moduleMetrics.filter(metric => metric.documented)) {
     const codeChangedAt = latestChangeForDirectory(module.path, codeFiles, lastChangedByPath)
     if (!codeChangedAt) continue

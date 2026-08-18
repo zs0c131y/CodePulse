@@ -248,7 +248,7 @@ API"):
   It renders in a viewport-positioned overlay so the searchable menu is not
   clipped by the repository console or surrounding panels.
 * Each tab fetches its own analytics endpoint for the selected repository
-  (`GET /api/repositories/:id/scores`, `/debt`, `/drift`,
+  (`GET /api/repositories/:id/scores`, `/debt`, `/knowledge-debt`, `/drift`,
   `/recommendations`). Every request settles independently: an endpoint that
   returns `404` (engine not rolled out yet) empties only its own panels, which
   render honest "not available yet" empty states instead of sample data.
@@ -272,8 +272,9 @@ Five dashboard tabs:
   churn/duplication bar charts, a responsive module risk heatmap, and the
   ranked module table from
   `GET /api/repositories/:id/debt`.
-* **Knowledge Drift & Debt**: Drift findings queue and recharts documentation
-  coverage bars from `GET /api/repositories/:id/drift`.
+* **Knowledge Drift & Debt**: Drift findings queue, confirm/dismiss controls
+  for semantic review leads, coverage bars, and Knowledge Debt module evidence
+  from `GET /api/repositories/:id/drift` and `/knowledge-debt`.
 * **Risk & AI Recommendations**: Risk trend, pipeline state, and AI
   recommendation cards from `GET /api/repositories/:id/recommendations`, plus
   the same module heatmap when debt findings are available.

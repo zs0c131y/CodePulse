@@ -102,3 +102,25 @@ test('status, drift, and recommendation reads return stored analysis for an owne
   await controller.getRepositoryRecommendationList(ownedRequest, recommendationResponse, () => assert.fail('next should not be called'))
   assert.deepEqual(recommendationResponse.body, { recommendations: [{ id: 'recommendation-1' }] })
 })
+
+test('knowledge debt and semantic review endpoints return only owned persisted findings', async () => {
+  const deps = {
+    async findRepositoryForUser() { return { _id: 'repo-1' } },
+    async getRepositoryKnowledgeDebt() { return { score: { _id: 'score-1' }, metrics: [{ module_path: 'src/auth' }] } },
+    serializeKnowledgeDebt() { return { metrics: { knowledgeDebtScore: 42 }, modules: [] } },
+    async updateRepositoryDriftReview() { return { _id: 'semantic-1', review_status: 'confirmed', reviewed_at: '2026-08-01T00:00:00.000Z' } },
+  }
+  const controller = createAnalysisController(deps)
+
+  const debtResponse = createResponse()
+  await controller.getRepositoryKnowledgeDebtReport(ownedRequest, debtResponse, () => assert.fail('next should not be called'))
+  assert.equal(debtResponse.body.metrics.knowledgeDebtScore, 42)
+
+  const reviewResponse = createResponse()
+  await controller.reviewRepositoryDriftFinding({
+    ...ownedRequest,
+    params: { ...ownedRequest.params, findingId: '507f1f77bcf86cd799439012' },
+    body: { reviewStatus: 'confirmed' },
+  }, reviewResponse, () => assert.fail('next should not be called'))
+  assert.equal(reviewResponse.body.finding.reviewStatus, 'confirmed')
+})

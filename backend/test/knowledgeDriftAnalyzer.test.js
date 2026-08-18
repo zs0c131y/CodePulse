@@ -28,3 +28,20 @@ test('finds missing module documentation, stale documentation, and dead source r
   assert.equal(result.metrics.total, 3)
   assert.ok(result.score > 0)
 })
+
+test('finds source API routes that are absent from documentation', () => {
+  const analysis = { files: [codeFile('src/auth/routes.js')], documentation: [] }
+  const knowledgeDebt = analyzeKnowledgeDebt(analysis, {
+    codeOutlines: [{
+      path: 'src/auth/routes.js',
+      modulePath: 'src/auth',
+      summary: 'Auth routes.',
+      routes: [{ method: 'POST', path: '/oauth/callback' }],
+    }],
+  })
+  const result = analyzeKnowledgeDrift(analysis, knowledgeDebt)
+  const finding = result.findings.find(item => item.type === 'undocumented_api')
+
+  assert.equal(finding.modulePath, 'src/auth')
+  assert.match(finding.evidence, /POST \/oauth\/callback/)
+})

@@ -218,7 +218,8 @@ Stores the latest generated score snapshot for one repository. It has a
 unique `repository_id`, so a completed re-scan replaces rather than appends a
 snapshot.
 
-* `analysis_version`: Version of the scoring contract.
+* `analysis_version`: Version of the scoring contract (currently `2`, which
+  includes API coverage and explainability inputs in Knowledge Debt).
 * `health_score`: Inverse weighted combination of Technical Debt, Knowledge
   Debt, and documentation drift (0 is poorest health; 100 is healthiest).
 * `technical_debt`: Technical Debt score, grade, and aggregate metrics.
@@ -248,8 +249,10 @@ rankings.
 
 ### `knowledge_debt_metrics`
 
-Stores current module documentation evidence. One record per repository
-module identifies `documented` and, when absent, `missing_reason`.
+Stores current module documentation evidence. One record per repository module
+identifies `documented` and, when absent, `missing_reason`, along with detected
+and documented API-route counts, an explainability score, and metadata
+complexity context.
 
 ### `drift_findings`
 
@@ -263,6 +266,8 @@ Stores documentation drift findings.
 * `semantic`: Optional semantic-review evidence: embedding model, similarity,
   threshold, confidence, and bounded code/document excerpts. It is present
   only when opt-in semantic analysis flags a low-similarity pair.
+* `review_status`, `reviewed_at`: Optional human decision (`confirmed` or
+  `dismissed`) and timestamp for semantic-review findings.
 * `severity`: `Low`, `Medium`, `High`, or `Critical`.
 * `evidence`: Supporting snippets, metadata, or references.
 * `age_days`: Documentation/code age gap when applicable.

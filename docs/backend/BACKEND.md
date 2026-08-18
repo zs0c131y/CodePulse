@@ -749,6 +749,19 @@ counts from the latest scan. It accepts the same `limit` and `skip` parameters
 as the raw list endpoints. Documentation content remains bounded by the
 scan-time extraction limit.
 
+### `GET /api/repositories/:repositoryId/knowledge-debt`
+
+Returns the latest Knowledge Debt metrics and per-module evidence, including
+module documentation coverage, documented API-route coverage, module
+explainability, onboarding difficulty, and metadata complexity context.
+
+### `PATCH /api/repositories/:repositoryId/drift/:findingId/review`
+
+Records a human review of an owned semantic drift finding. The request body is
+`{ "reviewStatus": "confirmed" | "dismissed" }`. Structural findings cannot
+be reviewed through this endpoint. Review state is replaced on a re-scan with
+the rest of the current drift snapshot.
+
 ### `GET /api/repositories/:repositoryId/contributors`
 
 Aggregates the repository's full commit history by author (grouped by
@@ -881,16 +894,18 @@ represented as `null`, not a misleading zero.
 [knowledgeDebtAnalyzer.js](../../backend/src/features/analysis/services/knowledgeDebtAnalyzer.js)
 groups production code by source directory. A module is covered when it has
 adjacent or module-named documentation. A root README covers only root code,
-not all nested modules. The score combines the module documentation coverage
-gap with the absence of setup and architecture documentation; it also returns
-an onboarding-difficulty score and module-level documentation evidence.
+not all nested modules. The score combines module documentation, setup and
+architecture guidance, detected HTTP API-route coverage, and per-module
+explainability (including a bounded metadata-complexity penalty); it returns
+onboarding difficulty and module-level evidence.
 
 ### Knowledge Drift, Risk, and Recommendations
 
 [knowledgeDriftAnalyzer.js](../../backend/src/features/analysis/services/knowledgeDriftAnalyzer.js)
 compares stored source, documentation, and commit facts. It finds undocumented
-modules, module documentation older than its associated source changes, and
-backticked source-file references that no longer resolve. Optional semantic
+modules, undocumented detected HTTP endpoints, module documentation older than
+its associated source changes, and backticked source-file references that no
+longer resolve. Optional semantic
 enrichment builds compact, ephemeral code outlines, compares them with relevant
 documentation sections through a Sentence-Transformers-compatible embedding
 endpoint, and stores low-similarity results as human-review leads. Findings
