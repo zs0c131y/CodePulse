@@ -2,12 +2,68 @@
 
 This document details the configuration, workflows, and prompts for the **AI Explainability Engine** (Vertical 6) in the CodePulse platform.
 
-> **Current implementation boundary:** the live backend currently provides
+> **Current implementation boundary:** the live backend still generates its
 > deterministic, evidence-based recommendations from stored Technical Debt,
-> Knowledge Debt, drift, and risk findings. No LLM, embedding model, Qdrant
-> instance, or RAG service is configured, and repository contents are not sent
-> to an external AI provider. The architecture and prompt blueprints below are
-> the planned optional extension point for that future integration.
+> Knowledge Debt, drift, and risk findings — none of the analysis pipeline
+> calls an LLM yet. What *has* changed: an LLM is now reachable from the
+> backend (see **Current LLM Integration** below), but nothing in this
+> document's prompt blueprints, context assembler, or RAG architecture is
+> wired up to it yet. `generateWithGemma()` is a raw prompt-in/text-out
+> function; no repository contents are assembled into context or sent to it
+> by any existing code path. Everything below this point is still the planned
+> design, not the current behavior.
+
+---
+
+## 🔌 Current LLM Integration
+
+A self-hosted **Gemma 4** (`gemma4:e2b`, via [Ollama](https://ollama.com)) runs
+on a home server (`dauntless`), reachable from the backend through a
+Cloudflare Tunnel + Access service token — not a managed cloud AI API.
+
+```text
+  backend/src/utils/gemma.js (generateWithGemma)
+        │  CF-Access-Client-Id / CF-Access-Client-Secret
+        ▼
+  https://gemma.ardend.dev  (Cloudflare Tunnel + Access, public hostname)
+        ▼
+  dauntless:11434  (Ollama, self-hosted, home network)
+        ▼
+  gemma4:e2b
+```
+
+**Wire format** — Ollama's native `/api/generate` API, unmodified:
+
+```
+POST https://gemma.ardend.dev/api/generate
+Headers: CF-Access-Client-Id, CF-Access-Client-Secret, Content-Type: application/json
+Body:    { "model": "gemma4:e2b", "prompt": "<text>", "stream": false }
+Response: { "response": "<generated text>", ... }
+```
+
+**From backend code**, call `generateWithGemma(prompt)` — it fills in the
+URL, Access headers, and a request timeout (`GEMMA_REQUEST_TIMEOUT_MS`,
+default 60s) so a caller only needs to catch and surface the error to the
+user when the home server is offline:
+
+```js
+import { generateWithGemma } from '../../utils/gemma.js'
+
+const text = await generateWithGemma(prompt)
+```
+
+Config (`backend/src/config/index.js`): `GEMMA_API_URL`, `GEMMA_MODEL`,
+`GEMMA_REQUEST_TIMEOUT_MS`, `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`.
+
+**Availability caveat:** this is a home server, not a managed cloud service —
+it can be offline (power/network/reboot). `generateWithGemma()` throws rather
+than hangs when that happens; callers must catch it and return a clear
+"AI service unavailable" response rather than let it bubble up as a 500.
+
+**Gap to close before the prompt blueprints below are usable:** none of the
+context-assembly logic they assume (AST slices, drift findings, churn
+metrics compiled into prompt variables) exists yet — `generateWithGemma`
+only accepts a plain string.
 
 ---
 
