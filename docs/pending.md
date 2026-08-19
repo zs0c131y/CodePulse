@@ -23,6 +23,8 @@ infrastructure, or a deliberate product decision.
 findings into an AI-generated explanation (Prompt Blueprint 1) is the only
 remaining gap.
 
+Structural drift is implemented: undocumented modules, stale module
+documentation, and documentation references to deleted source paths are
 detected (`backend/src/features/analysis/services/knowledgeDriftAnalyzer.js`).
 Semantic comparison is also implemented as an opt-in enrichment
 (`semanticDriftAnalyzer.js`, `semanticEmbeddingClient.js`,
