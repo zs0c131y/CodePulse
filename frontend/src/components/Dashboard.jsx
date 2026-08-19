@@ -39,6 +39,7 @@ import {
   reviewRepositoryDriftFinding,
   getRepositoryScores,
   getRepositoryStatus,
+  updateRepositorySchedule,
   listRepositories,
 } from '../api/repositories'
 import { listConnectedRepositories } from '../api/integrations'
@@ -63,6 +64,7 @@ import KnowledgeDebtPanel from './dashboard/KnowledgeDebtPanel'
 import MetricStrip from './dashboard/MetricStrip'
 import PipelinePanel from './dashboard/PipelinePanel'
 import RecommendationPanel from './dashboard/RecommendationPanel'
+import AiExplainabilityPanel from './dashboard/AiExplainabilityPanel'
 import RepositoryIntelligencePanel from './dashboard/RepositoryIntelligencePanel'
 import RiskHeatmapPanel from './dashboard/RiskHeatmapPanel'
 import RiskTrendPanel from './dashboard/RiskTrendPanel'
@@ -385,7 +387,7 @@ function OverviewContent({ view, liveMode, onReviewDrift, reviewingDriftId }) {
   )
 }
 
-function MainContent({ activeTab, view, liveMode, onReviewDrift, reviewingDriftId }) {
+function MainContent({ activeTab, view, liveMode, accessToken, repositoryId, onReviewDrift, reviewingDriftId }) {
   if (activeTab === 'Repository Intelligence') {
     return (
       <RepositoryIntelligencePanel
@@ -426,7 +428,15 @@ function MainContent({ activeTab, view, liveMode, onReviewDrift, reviewingDriftI
       <div className="space-y-5">
         <KnowledgeDebtPanel data={view.knowledgeDebt} />
         <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <DriftPanel items={view.driftItems} emptyTitle={view.driftEmptyTitle} emptyDescription={view.driftEmptyDescription} onReview={onReviewDrift} reviewingId={reviewingDriftId} />
+        <DriftPanel
+          items={view.driftItems}
+          emptyTitle={view.driftEmptyTitle}
+          emptyDescription={view.driftEmptyDescription}
+          onReview={onReviewDrift}
+          reviewingId={reviewingDriftId}
+          accessToken={liveMode ? accessToken : undefined}
+          repositoryId={liveMode ? repositoryId : undefined}
+        />
         <CoveragePanel
           items={view.coverageItems}
           description={liveMode ? 'Measured documentation coverage for this repository.' : 'Coverage by repository area.'}
@@ -453,6 +463,15 @@ function MainContent({ activeTab, view, liveMode, onReviewDrift, reviewingDriftI
         </div>
         <RiskHeatmapPanel items={view.debtItems} description="Prioritized module risk combining the available debt evidence." />
         <RecommendationPanel items={view.recommendations} emptyTitle={view.recommendationsEmptyTitle} emptyDescription={view.recommendationsEmptyDescription} />
+        {liveMode && repositoryId && (
+          <AiExplainabilityPanel
+            accessToken={accessToken}
+            repositoryId={repositoryId}
+            topRiskModules={view.debtItems
+              .filter(item => ['High', 'Critical'].includes(item.risk))
+              .map(item => ({ path: item.module, risk: item.risk }))}
+          />
+        )}
       </div>
     )
   }
@@ -485,6 +504,8 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const [connectedRepos, setConnectedRepos] = useState([])
   const [repositoryPickerValue, setRepositoryPickerValue] = useState('')
   const [reviewingDriftId, setReviewingDriftId] = useState(null)
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [scheduleError, setScheduleError] = useState('')
 
   // The repositories the dropdown can offer in live mode: the API list when it
   // is available, otherwise the repository scanned in this session (the read
@@ -800,6 +821,21 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       setScanError(error instanceof Error ? error.message : 'Could not save the semantic drift review.')
     } finally {
       setReviewingDriftId(null)
+    }
+  }
+
+  async function handleScheduleChange(value) {
+    if (demoMode || !accessToken || !selectedRepoId) return
+    const intervalHours = value ? Number(value) : null
+    setScheduleSaving(true)
+    setScheduleError('')
+    try {
+      await updateRepositorySchedule(accessToken, selectedRepoId, intervalHours)
+      setDataVersion(version => version + 1)
+    } catch (error) {
+      setScheduleError(error instanceof Error ? error.message : 'Could not update the scan schedule.')
+    } finally {
+      setScheduleSaving(false)
     }
   }
 
@@ -1119,6 +1155,35 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <Users size={14} />
               <span className="truncate">Signed in as {user.email}</span>
             </span>
+            {liveMode && hasLiveRepository && (
+              <span className="inline-flex items-center gap-1.5">
+                <RefreshCw size={14} />
+                <label className="inline-flex items-center gap-1.5">
+                  Auto re-scan
+                  <select
+                    value={selectedRepo?.scanIntervalHours || ''}
+                    onChange={event => handleScheduleChange(event.target.value)}
+                    disabled={scheduleSaving}
+                    aria-label="Recurring scan interval"
+                    className="rounded-[var(--r-xs)] border border-[var(--line-2)] bg-[var(--surface-1)] px-1.5 py-0.5 text-[0.8125rem] text-[var(--ink-2)] disabled:opacity-50"
+                  >
+                    <option value="">Off</option>
+                    <option value="6">Every 6 hours</option>
+                    <option value="24">Every day</option>
+                    <option value="168">Every week</option>
+                    <option value="720">Every 30 days</option>
+                  </select>
+                </label>
+                {selectedRepo?.nextScanAt && (
+                  <span className="tnum font-mono text-xs text-[var(--ink-4)]">
+                    next {new Date(selectedRepo.nextScanAt).toLocaleString()}
+                  </span>
+                )}
+              </span>
+            )}
+            {scheduleError && (
+              <span className="inline-flex items-center gap-1.5 text-[var(--sev-critical-ink)]">{scheduleError}</span>
+            )}
           </div>
         </section>
 
@@ -1152,7 +1217,15 @@ export default function Dashboard({ user, accessToken, onLogout }) {
           />
         ) : (
           <div id="dashboard-tab-panel" role="tabpanel" tabIndex={0}>
-            <MainContent activeTab={activeTab} view={view} liveMode={liveMode} onReviewDrift={handleDriftReview} reviewingDriftId={reviewingDriftId} />
+            <MainContent
+              activeTab={activeTab}
+              view={view}
+              liveMode={liveMode}
+              accessToken={accessToken}
+              repositoryId={selectedRepo?.id || ''}
+              onReviewDrift={handleDriftReview}
+              reviewingDriftId={reviewingDriftId}
+            />
           </div>
         )}
       </main>

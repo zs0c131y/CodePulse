@@ -3,6 +3,28 @@ import '../utils/env.js'
 
 export const PORT = Number(process.env.API_PORT || process.env.PORT || 3000)
 export const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+
+// --- Controlled load-testing security bypass (never usable in production) ---
+//
+// Only the exact string "true" enables this — "false", "0", empty, or unset
+// all leave security fully enabled. This disables application-level
+// traffic-shaping (rate limiting, login-attempt lockout), never
+// authentication/authorization/input-validation/business logic. See
+// docs/backend/BACKEND.md "Controlled Load Testing" for the full contract.
+export const SECURITY_DISABLED = process.env.DISABLE_SEC === 'true'
+
+if (SECURITY_DISABLED && IS_PRODUCTION) {
+  throw new Error([
+    '',
+    '='.repeat(70),
+    'FATAL: DISABLE_SEC=true is not allowed when NODE_ENV=production.',
+    'DISABLE_SEC disables application-level rate limiting and login-attempt',
+    'lockout for controlled load testing. It must never run in production.',
+    'Refusing to start.',
+    '='.repeat(70),
+    '',
+  ].join('\n'))
+}
 export const refreshCookieName = 'codepulse_refresh'
 export const accessTokenTtlSeconds = 15 * 60
 export const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000
@@ -85,7 +107,7 @@ configureLocalDns(MONGO_URI)
 
 // --- Public URLs (frontend/backend, used for redirects and OAuth callbacks) ---
 
-export const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')
+export const FRONTEND_URL = (process.env.AUTH_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')
 export const BACKEND_URL = (process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '')
 
 function readPositiveIntegerEnv(name, fallback) {
@@ -105,9 +127,15 @@ export const REPOSITORY_CLONE_TIMEOUT_MS = readPositiveIntegerEnv('REPOSITORY_CL
 export const REPOSITORY_CLONE_DEPTH = readPositiveIntegerEnv('REPOSITORY_CLONE_DEPTH', 5)
 export const REPOSITORY_MAX_SIZE_KB = readNonNegativeIntegerEnv(
   'REPOSITORY_MAX_SIZE_KB',
-  IS_PRODUCTION ? 0 : 1024 * 1024,
+  1024 * 1024,
 )
 export const REPOSITORY_MAX_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_FILES', 10000)
+export const REPOSITORY_MAX_DOCUMENTATION_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_DOCUMENTATION_FILES', 500)
+export const REPOSITORY_MAX_DOCUMENTATION_TOTAL_BYTES = readPositiveIntegerEnv(
+  'REPOSITORY_MAX_DOCUMENTATION_TOTAL_BYTES',
+  16 * 1024 * 1024,
+)
+export const REPOSITORY_MAX_DEPENDENCY_EDGES = readPositiveIntegerEnv('REPOSITORY_MAX_DEPENDENCY_EDGES', 50_000)
 export const REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES = readPositiveIntegerEnv(
   'REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES',
   2000,
@@ -116,6 +144,34 @@ export const REPOSITORY_MAX_DEPENDENCY_FILE_BYTES = readPositiveIntegerEnv(
   'REPOSITORY_MAX_DEPENDENCY_FILE_BYTES',
   1024 * 1024,
 )
+export const ANALYSIS_MAX_CONCURRENCY = readPositiveIntegerEnv('ANALYSIS_MAX_CONCURRENCY', 1)
+export const ANALYSIS_WORKER_MAX_OLD_GENERATION_MB = readPositiveIntegerEnv(
+  'ANALYSIS_WORKER_MAX_OLD_GENERATION_MB',
+  256,
+)
+export const ANALYSIS_MAX_QUEUE_SIZE = readPositiveIntegerEnv('ANALYSIS_MAX_QUEUE_SIZE', 100)
+export const ANALYSIS_MAX_ACTIVE_PER_USER = readPositiveIntegerEnv('ANALYSIS_MAX_ACTIVE_PER_USER', 2)
+export const ANALYSIS_LEASE_TTL_MS = readPositiveIntegerEnv('ANALYSIS_LEASE_TTL_MS', 10 * 60 * 1000)
+export const ANALYSIS_LEASE_HEARTBEAT_MS = readPositiveIntegerEnv('ANALYSIS_LEASE_HEARTBEAT_MS', 30 * 1000)
+export const REPORT_SHARE_TTL_DAYS = readPositiveIntegerEnv('REPORT_SHARE_TTL_DAYS', 7)
+
+// --- Recurring scan scheduling ---
+
+export const SCAN_SCHEDULER_ENABLED = process.env.SCAN_SCHEDULER_ENABLED !== 'false'
+export const SCAN_SCHEDULER_INTERVAL_MS = readPositiveIntegerEnv('SCAN_SCHEDULER_INTERVAL_MS', 5 * 60 * 1000)
+export const SCAN_SCHEDULER_BATCH_SIZE = readPositiveIntegerEnv('SCAN_SCHEDULER_BATCH_SIZE', 20)
+export const MIN_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MIN_SCAN_INTERVAL_HOURS', 1)
+export const MAX_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MAX_SCAN_INTERVAL_HOURS', 24 * 30)
+
+// --- Observability & hardening ---
+//
+// METRICS_TOKEN is optional but recommended in production: scan volume and
+// failure-rate data can hint at what an attacker is probing, so /api/metrics
+// requires this shared secret when it is set. Left unset, the endpoint stays
+// open (matches typical local/dev and same-network Prometheus setups).
+export const METRICS_TOKEN = process.env.METRICS_TOKEN || null
+export const ANALYSIS_MAX_SCAN_DURATION_MS = readPositiveIntegerEnv('ANALYSIS_MAX_SCAN_DURATION_MS', 20 * 60 * 1000)
+export const MANIFEST_FETCH_TIMEOUT_MS = readPositiveIntegerEnv('MANIFEST_FETCH_TIMEOUT_MS', 10 * 1000)
 
 // --- Optional semantic knowledge-drift analysis ---
 //
@@ -151,3 +207,11 @@ export const VERIFICATION_EMAIL = process.env.VERIFICATION_EMAIL || null
 export const PASSWORD_RESET_EMAIL = process.env.PASSWORD_RESET_EMAIL || null
 export const AUTH_EMAIL_WEBHOOK_URL = process.env.AUTH_EMAIL_WEBHOOK_URL || null
 export const AUTH_EMAIL_WEBHOOK_TOKEN = process.env.AUTH_EMAIL_WEBHOOK_TOKEN || null
+
+// --- Gemma inference (self-hosted Ollama, reached via Cloudflare Tunnel) ---
+
+export const GEMMA_API_URL = (process.env.GEMMA_API_URL || 'https://gemma.ardend.dev').replace(/\/+$/, '')
+export const GEMMA_MODEL = process.env.GEMMA_MODEL || 'gemma4:e2b'
+export const GEMMA_REQUEST_TIMEOUT_MS = readPositiveIntegerEnv('GEMMA_REQUEST_TIMEOUT_MS', 60 * 1000)
+export const CF_ACCESS_CLIENT_ID = process.env.CF_ACCESS_CLIENT_ID || null
+export const CF_ACCESS_CLIENT_SECRET = process.env.CF_ACCESS_CLIENT_SECRET || null

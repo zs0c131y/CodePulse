@@ -46,6 +46,11 @@ export async function getOAuthAccountsCollection() {
   return db.collection('oauth_accounts')
 }
 
+export async function getOAuthStatesCollection() {
+  const db = await getDatabase()
+  return db.collection('oauth_states')
+}
+
 export async function getRepositoriesCollection() {
   const db = await getDatabase()
   return db.collection('repositories')
@@ -71,9 +76,34 @@ export async function getDocumentationCollection() {
   return db.collection('documentation')
 }
 
+export async function getCodeAnalysisSummariesCollection() {
+  const db = await getDatabase()
+  return db.collection('code_analysis_summaries')
+}
+
+export async function getCodeFactsCollection() {
+  const db = await getDatabase()
+  return db.collection('code_facts')
+}
+
+export async function getDocumentationAnalysisSummariesCollection() {
+  const db = await getDatabase()
+  return db.collection('documentation_analysis_summaries')
+}
+
+export async function getDocumentationFactsCollection() {
+  const db = await getDatabase()
+  return db.collection('documentation_facts')
+}
+
 export async function getRepositoryScoresCollection() {
   const db = await getDatabase()
   return db.collection('repository_scores')
+}
+
+export async function getRepositoryScoreHistoryCollection() {
+  const db = await getDatabase()
+  return db.collection('repository_score_history')
 }
 
 export async function getTechnicalDebtMetricsCollection() {
@@ -94,6 +124,16 @@ export async function getDriftFindingsCollection() {
 export async function getRecommendationsCollection() {
   const db = await getDatabase()
   return db.collection('recommendations')
+}
+
+export async function getReportsCollection() {
+  const db = await getDatabase()
+  return db.collection('reports')
+}
+
+export async function getAiExplanationsCollection() {
+  const db = await getDatabase()
+  return db.collection('ai_explanations')
 }
 
 export async function ensureIndexes() {
@@ -123,26 +163,66 @@ export async function ensureIndexes() {
   await oauthAccounts.createIndex({ provider: 1, provider_user_id: 1 }, { unique: true })
   await oauthAccounts.createIndex({ user_id: 1 })
 
+  const oauthStates = await getOAuthStatesCollection()
+  await oauthStates.createIndex({ state_hash: 1 }, { unique: true })
+  await oauthStates.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 })
+
   const repositories = await getRepositoriesCollection()
-  await repositories.createIndex({ user_id: 1 })
+  await repositories.createIndex({ user_id: 1, updated_at: -1, _id: -1 })
   await repositories.createIndex({ user_id: 1, repo_url: 1 }, { unique: true })
+  // MongoDB partial indexes only allow a small operator set ($eq, $exists,
+  // $gt, $gte, $lt, $lte, $type, top-level $and) — $ne desugars to $not,
+  // which is explicitly rejected. scan_interval_hours is always a positive
+  // integer when a recurring schedule is active, so $gt: 0 is both a valid
+  // partial-index expression and semantically equivalent to "is scheduled".
+  await repositories.createIndex(
+    { next_scan_at: 1 },
+    { partialFilterExpression: { scan_interval_hours: { $gt: 0 } } },
+  )
 
   const repoFiles = await getRepoFilesCollection()
-  await repoFiles.createIndex({ repository_id: 1 })
+  await repoFiles.createIndex({ repository_id: 1, file_path: 1, _id: 1 })
 
   const commits = await getCommitsCollection()
-  await commits.createIndex({ repository_id: 1 })
-  await commits.createIndex({ commit_hash: 1 }, { unique: true })
-  await commits.createIndex({ commit_date: -1 })
+  if (await commits.indexExists('commit_hash_1')) {
+    await commits.dropIndex('commit_hash_1')
+  }
+  await commits.createIndex({ repository_id: 1, commit_hash: 1 }, { unique: true })
+  await commits.createIndex({ repository_id: 1, commit_date: -1, _id: -1 })
 
   const dependencies = await getDependenciesCollection()
-  await dependencies.createIndex({ repository_id: 1 })
+  await dependencies.createIndex({ repository_id: 1, source_file: 1, target_file: 1, _id: 1 })
 
   const documentation = await getDocumentationCollection()
-  await documentation.createIndex({ repository_id: 1 })
+  await documentation.createIndex({ repository_id: 1, doc_path: 1, _id: 1 })
+
+  const codeAnalysisSummaries = await getCodeAnalysisSummariesCollection()
+  await codeAnalysisSummaries.createIndex({ repository_id: 1 }, { unique: true })
+
+  const codeFacts = await getCodeFactsCollection()
+  for (const legacyIndex of [
+    'repository_id_1_file_path_1',
+    'repository_id_1_module_path_1_file_path_1',
+  ]) {
+    if (await codeFacts.indexExists(legacyIndex)) await codeFacts.dropIndex(legacyIndex)
+  }
+  await codeFacts.createIndex({ repository_id: 1, scan_id: 1, file_path: 1 }, { unique: true })
+  await codeFacts.createIndex({ repository_id: 1, scan_id: 1, module_path: 1, file_path: 1 })
+
+  const documentationAnalysisSummaries = await getDocumentationAnalysisSummariesCollection()
+  await documentationAnalysisSummaries.createIndex({ repository_id: 1 }, { unique: true })
+
+  const documentationFacts = await getDocumentationFactsCollection()
+  if (await documentationFacts.indexExists('repository_id_1_doc_path_1')) {
+    await documentationFacts.dropIndex('repository_id_1_doc_path_1')
+  }
+  await documentationFacts.createIndex({ repository_id: 1, scan_id: 1, doc_path: 1 }, { unique: true })
 
   const repositoryScores = await getRepositoryScoresCollection()
   await repositoryScores.createIndex({ repository_id: 1 }, { unique: true })
+
+  const repositoryScoreHistory = await getRepositoryScoreHistoryCollection()
+  await repositoryScoreHistory.createIndex({ repository_id: 1, analyzed_at: -1 })
 
   const technicalDebtMetrics = await getTechnicalDebtMetricsCollection()
   await technicalDebtMetrics.createIndex({ repository_id: 1, file_path: 1 }, { unique: true })
@@ -159,9 +239,28 @@ export async function ensureIndexes() {
   const recommendations = await getRecommendationsCollection()
   await recommendations.createIndex({ repository_id: 1, recommendation_key: 1 }, { unique: true })
   await recommendations.createIndex({ repository_id: 1, impact: 1 })
+
+  const reports = await getReportsCollection()
+  await reports.createIndex({ owner_id: 1, created_at: -1, _id: -1 })
+  await reports.createIndex({ owner_id: 1, repository_id: 1, created_at: -1, _id: -1 })
+  await reports.createIndex(
+    { share_token_hash: 1 },
+    {
+      unique: true,
+      partialFilterExpression: { share_token_hash: { $type: 'string' } },
+    },
+  )
+
+  const aiExplanations = await getAiExplanationsCollection()
+  await aiExplanations.createIndex({ repository_id: 1, kind: 1, key: 1, created_at: -1 })
 }
 
 export async function pingDatabase() {
   const db = await getDatabase()
   await db.command({ ping: 1 })
+}
+
+export async function closeDatabase() {
+  await client.close()
+  database = undefined
 }

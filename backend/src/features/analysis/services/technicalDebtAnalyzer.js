@@ -2,6 +2,10 @@ export const LARGE_FILE_BYTES = 50 * 1024
 export const HIGH_COMPLEXITY_THRESHOLD = 15
 export const STALE_MODULE_DAYS = 180
 export const MINIMUM_CHURN_SAMPLE_SIZE = 5
+export const DEEP_DEPENDENCY_THRESHOLD = 6
+export const LOW_COVERAGE_THRESHOLD = 40
+
+const bugFixCommitPattern = /\b(?:bug|defect|fix(?:ed|es|ing)?|hotfix|patch|regression)\b/i
 
 const dependencyGraphLanguages = new Set([
   'JavaScript',
@@ -55,6 +59,7 @@ function buildCommitSignals(commits) {
   for (const commit of commits || []) {
     const date = toDate(commit.commit_date)
     const owner = String(commit.author || commit.author_email || 'Unassigned').trim() || 'Unassigned'
+    const isBugFix = bugFixCommitPattern.test(String(commit.message || ''))
     const changedFiles = new Set(
       (Array.isArray(commit.changed_files) ? commit.changed_files : [])
         .map(normalizePath)
@@ -66,10 +71,12 @@ function buildCommitSignals(commits) {
         changeCount: 0,
         lastChangedAt: null,
         owners: new Map(),
+        bugFixCount: 0,
       }
 
       signal.changeCount += 1
       signal.owners.set(owner, (signal.owners.get(owner) || 0) + 1)
+      if (isBugFix) signal.bugFixCount += 1
 
       if (date && (!signal.lastChangedAt || date > signal.lastChangedAt)) {
         signal.lastChangedAt = date
@@ -80,6 +87,26 @@ function buildCommitSignals(commits) {
   }
 
   return byPath
+}
+
+function findDependencyDepths(graph) {
+  const memo = new Map()
+
+  function visit(node, active) {
+    if (memo.has(node)) return memo.get(node)
+    if (active.has(node)) return 0
+
+    const nextActive = new Set(active).add(node)
+    let depth = 0
+    for (const target of graph.get(node) || []) {
+      depth = Math.max(depth, 1 + visit(target, nextActive))
+    }
+    memo.set(node, depth)
+    return depth
+  }
+
+  for (const node of graph.keys()) visit(node, new Set())
+  return memo
 }
 
 function buildResolvedGraph(codePaths, dependencies) {
@@ -165,26 +192,63 @@ export function gradeForTechnicalDebt(score) {
   return 'F'
 }
 
-function debtScoreForModule({ file, complexity, churnPercent, circular, orphan, stale }) {
+function debtScoreForModule({
+  file,
+  complexity,
+  churnPercent,
+  duplicationPercent,
+  circular,
+  orphan,
+  stale,
+  contributorConcentrationPercent,
+  bugFixPercent,
+  dependencyDepth,
+  coverageAvailable,
+  coveragePercent,
+}) {
   const sizeContribution = clamp((Number(file.size) || 0) / LARGE_FILE_BYTES, 0, 1) * 20 + (Number(file.size) >= LARGE_FILE_BYTES ? 10 : 0)
   const complexityContribution = clamp(complexity / HIGH_COMPLEXITY_THRESHOLD, 0, 1) * 30
   const churnContribution = clamp(churnPercent, 0, 100) * 0.15
+  const duplicationContribution = clamp(duplicationPercent || 0, 0, 100) * 0.15
   const structuralContribution = circular ? 20 : orphan ? 6 : 0
   const staleContribution = stale ? 5 : 0
+  const ownershipContribution = contributorConcentrationPercent >= 75 ? 5 : 0
+  const bugPronenessContribution = bugFixPercent >= 50 ? 5 : 0
+  const dependencyDepthContribution = dependencyDepth >= DEEP_DEPENDENCY_THRESHOLD ? 5 : 0
+  const lowCoverageContribution = coverageAvailable && coveragePercent < LOW_COVERAGE_THRESHOLD ? 5 : 0
 
-  return round(clamp(sizeContribution + complexityContribution + churnContribution + structuralContribution + staleContribution, 0, 100))
+  return round(clamp(
+    sizeContribution
+      + complexityContribution
+      + churnContribution
+      + duplicationContribution
+      + structuralContribution
+      + staleContribution
+      + ownershipContribution
+      + bugPronenessContribution
+      + dependencyDepthContribution
+      + lowCoverageContribution,
+    0,
+    100,
+  ))
 }
 
 /**
- * Calculates an intentionally transparent, metadata-based debt estimate.
- * It is not a cyclomatic-complexity parser: the complexity score combines
- * source-file size with resolved internal dependency fan-in/fan-out so it can
- * run from the repository facts already persisted by Repository Intelligence.
+ * Calculates an intentionally transparent debt estimate. Source-supported
+ * files use bounded structural heuristics; unsupported or skipped files fall
+ * back to size and resolved dependency metadata, and expose which method won.
  */
 export function analyzeTechnicalDebt(analysis, options = {}) {
   const files = Array.isArray(analysis?.files) ? analysis.files : []
   const commits = Array.isArray(analysis?.commits) ? analysis.commits : []
   const dependencies = Array.isArray(analysis?.dependencies) ? analysis.dependencies : []
+  const codeFactsByPath = new Map(
+    (analysis?.codeAnalysis?.files || []).map(fact => [normalizePath(fact.filePath), fact]),
+  )
+  const coverageAvailable = Boolean(analysis?.coverage?.available)
+  const coverageByPath = new Map(
+    (analysis?.coverage?.modules || []).map(module => [normalizePath(module.filePath), module]),
+  )
   const scannedDependencyPaths = Array.isArray(analysis?.dependencyGraph?.scannedFilePaths)
     ? new Set(analysis.dependencyGraph.scannedFilePaths.map(normalizePath))
     : null
@@ -197,6 +261,7 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
   const latestCommitAt = commitDates.length > 0 ? new Date(Math.max(...commitDates.map(date => date.getTime()))) : now
   const churnAvailable = commits.length >= MINIMUM_CHURN_SAMPLE_SIZE
   const { graph, incoming } = buildResolvedGraph(codePaths, dependencies)
+  const dependencyDepths = findDependencyDepths(graph)
   const circularGroups = findCircularGroups(graph)
   const circularPaths = new Set(circularGroups.flat())
   const circularGroupByPath = new Map()
@@ -213,35 +278,86 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
     const signal = signals.get(path)
     const outgoing = graph.get(path)?.size || 0
     const inbound = incoming.get(path)?.size || 0
-    const complexity = clamp(1 + Math.ceil((Number(file.size) || 0) / 1024) + outgoing * 2 + inbound, 1, 100)
+    const codeFact = codeFactsByPath.get(path)
+    const measuredComplexity = Number(codeFact?.metrics?.cyclomaticComplexity)
+    const complexity = Number.isFinite(measuredComplexity)
+      ? clamp(measuredComplexity, 1, 100)
+      : clamp(1 + Math.ceil((Number(file.size) || 0) / 1024) + outgoing * 2 + inbound, 1, 100)
+    const complexityMethod = Number.isFinite(measuredComplexity) ? 'source-heuristic' : 'metadata-heuristic'
+    const measuredDuplication = Number(codeFact?.metrics?.duplicationPercent)
+    const duplicationPercent = Number.isFinite(measuredDuplication) ? measuredDuplication : null
     const observedChurnPercent = commits.length > 0 ? round(((signal?.changeCount || 0) / commits.length) * 100, 1) : 0
     const churnPercent = churnAvailable ? observedChurnPercent : 0
     const lastChangedAt = signal?.lastChangedAt || null
+    const ownerCounts = [...(signal?.owners?.values?.() || [])]
+    const contributorCount = ownerCounts.length
+    const contributorConcentrationPercent = signal?.changeCount
+      ? round((Math.max(...ownerCounts) / signal.changeCount) * 100, 1)
+      : 0
+    const bugFixCount = signal?.bugFixCount || 0
+    const bugFixPercent = signal?.changeCount
+      ? round((bugFixCount / signal.changeCount) * 100, 1)
+      : 0
     const stale = Boolean(churnAvailable && lastChangedAt && lastChangedAt < staleCutoff && latestCommitAt >= staleCutoff)
     const circular = circularPaths.has(path)
     const dependencyGraphAvailable = supportsDependencyGraph(file) && (!scannedDependencyPaths || scannedDependencyPaths.has(path))
     const orphan = dependencyGraphAvailable && !circular && !isEntrypoint(path) && outgoing === 0 && inbound === 0
     const large = (Number(file.size) || 0) >= LARGE_FILE_BYTES
     const highComplexity = complexity >= HIGH_COMPLEXITY_THRESHOLD
-    const debtScore = debtScoreForModule({ file, complexity, churnPercent, circular, orphan, stale })
+    const dependencyDepth = dependencyDepths.get(path) || 0
+    const coverageRecord = coverageAvailable ? coverageByPath.get(path) : null
+    const moduleCoverageAvailable = Boolean(coverageRecord && coverageRecord.coveredPercent !== null)
+    const coveragePercent = moduleCoverageAvailable ? coverageRecord.coveredPercent : null
+    const debtScore = debtScoreForModule({
+      file,
+      complexity,
+      churnPercent,
+      duplicationPercent,
+      circular,
+      orphan,
+      stale,
+      contributorConcentrationPercent,
+      bugFixPercent,
+      dependencyDepth,
+      coverageAvailable: moduleCoverageAvailable,
+      coveragePercent,
+    })
     const reasons = []
 
     if (large) reasons.push(`Large source file (${file.size} bytes)`)
     if (highComplexity) reasons.push(`High complexity heuristic (${complexity})`)
+    if (duplicationPercent >= 20) reasons.push(`Repeated source blocks (${duplicationPercent}%)`)
+    if ((codeFact?.metrics?.longFunctionCount || 0) > 0) reasons.push(`${codeFact.metrics.longFunctionCount} long function(s)`)
     if (churnAvailable && churnPercent >= 50) reasons.push(`High churn (${churnPercent}%)`)
     if (circular) reasons.push('Circular internal dependency')
     if (orphan) reasons.push('No resolved internal dependencies')
     if (stale) reasons.push(`No observed changes in ${STALE_MODULE_DAYS}+ days`)
+    if (churnAvailable && signal?.changeCount >= 3 && contributorConcentrationPercent >= 75) {
+      reasons.push(`Contributor concentration (${contributorConcentrationPercent}% by one contributor)`)
+    }
+    if (bugFixCount >= 2 && bugFixPercent >= 50) reasons.push(`Bug-fix hotspot (${bugFixCount} captured fixes)`)
+    if (dependencyDepth >= DEEP_DEPENDENCY_THRESHOLD) reasons.push(`Deep dependency chain (${dependencyDepth} edges)`)
+    if (moduleCoverageAvailable && coveragePercent < LOW_COVERAGE_THRESHOLD) {
+      reasons.push(`Low test coverage (${coveragePercent}%)`)
+    }
 
     return {
       path,
       owner: topOwner(signal?.owners),
       size: Number(file.size) || 0,
       complexity,
+      complexityMethod,
       churnPercent,
       observedChurnPercent,
       churnAvailable,
-      duplicationPercent: null,
+      contributorCount,
+      contributorConcentrationPercent,
+      bugFixCount,
+      bugFixPercent,
+      duplicationPercent,
+      dependencyDepth,
+      coveragePercent,
+      coverageAvailable: moduleCoverageAvailable,
       lastChangedAt: lastChangedAt ? lastChangedAt.toISOString() : null,
       large,
       highComplexity,
@@ -263,6 +379,16 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
   const orphanModules = count(module => module.orphan)
   const highComplexityFiles = count(module => module.highComplexity)
   const criticalModules = count(module => module.risk === 'Critical')
+  const ownershipConcentrationModules = count(module => (
+    module.churnAvailable
+      && module.contributorConcentrationPercent >= 75
+      && (signals.get(module.path)?.changeCount || 0) >= 3
+  ))
+  const bugProneModules = count(module => module.bugFixCount >= 2 && module.bugFixPercent >= 50)
+  const deepDependencyModules = count(module => module.dependencyDepth >= DEEP_DEPENDENCY_THRESHOLD)
+  const duplicationModules = modules.filter(module => module.duplicationPercent !== null)
+  const coverageModules = modules.filter(module => module.coverageAvailable)
+  const lowCoverageModules = count(module => module.coverageAvailable && module.coveragePercent < LOW_COVERAGE_THRESHOLD)
   const averageModuleDebt = average('debtScore')
   const score = totalCodeFiles === 0
     ? 0
@@ -286,12 +412,24 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
       averageChurnPercent: average('churnPercent'),
       churnSampleSize: commits.length,
       churnAvailable,
-      duplicationPercent: null,
+      duplicationPercent: duplicationModules.length === 0
+        ? null
+        : round(duplicationModules.reduce((sum, module) => sum + module.duplicationPercent, 0) / duplicationModules.length, 1),
       circularDependencies: circularGroups.length,
       circularDependencyEdges,
       orphanModules,
       staleModules,
       criticalModules,
+      ownershipConcentrationModules,
+      bugProneModules,
+      deepDependencyModules,
+      longestDependencyChain: modules.reduce((maximum, module) => Math.max(maximum, module.dependencyDepth), 0),
+      coverageAvailable,
+      averageCoveragePercent: coverageModules.length === 0
+        ? null
+        : round(coverageModules.reduce((sum, module) => sum + module.coveragePercent, 0) / coverageModules.length, 1),
+      coverageSampleSize: coverageModules.length,
+      lowCoverageModules,
     },
     modules,
     circularGroups,

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { extname, join } from 'node:path'
 
 const documentationDirectories = new Set(['docs', 'doc', 'documentation', 'wiki'])
 const namedDocumentationFiles = [
@@ -10,6 +10,7 @@ const namedDocumentationFiles = [
   /^license(?:\.[^.]+)?$/i,
   /^api(?:\.[^.]+)?$/i,
 ]
+const textDocumentationExtensions = new Set(['.md', '.mdx', '.rst', '.adoc', '.txt'])
 const maxContentBytes = 1024 * 1024
 
 function normalizeWhitespace(value) {
@@ -38,11 +39,13 @@ export function getDocumentationType(filePath) {
 export function isDocumentationCandidate(file) {
   const pathParts = file.path.split('/')
   const fileName = pathParts.at(-1) || ''
+  const extension = extname(fileName).toLowerCase()
+  const isReadableTextDocument = extension === '' || textDocumentationExtensions.has(extension)
 
   return (
-    file.file_type === 'documentation' ||
-    namedDocumentationFiles.some(pattern => pattern.test(fileName)) ||
-    pathParts.some(part => documentationDirectories.has(part.toLowerCase()))
+    (file.file_type === 'documentation' && isReadableTextDocument) ||
+    (isReadableTextDocument && namedDocumentationFiles.some(pattern => pattern.test(fileName))) ||
+    (textDocumentationExtensions.has(extension) && pathParts.some(part => documentationDirectories.has(part.toLowerCase())))
   )
 }
 
@@ -61,14 +64,21 @@ export function summarizeDocumentation(content) {
   return normalizeWhitespace(lines.join(' ')).slice(0, 280)
 }
 
-export async function extractDocumentation(repositoryPath, files) {
+export async function extractDocumentation(repositoryPath, files, options = {}) {
   const docs = []
+  const maxFiles = Math.max(1, Number(options.maxFiles) || 500)
+  const maxTotalBytes = Math.max(maxContentBytes, Number(options.maxTotalBytes) || 16 * 1024 * 1024)
+  let totalBytes = 0
 
-  for (const file of files.filter(isDocumentationCandidate)) {
+  for (const file of files.filter(isDocumentationCandidate).slice(0, maxFiles)) {
+    if (totalBytes >= maxTotalBytes) break
     const absolutePath = absolutePathFromRepo(repositoryPath, file.path)
     const buffer = await readFile(absolutePath)
-    const truncated = buffer.length > maxContentBytes
-    const content = buffer.subarray(0, maxContentBytes).toString('utf8')
+    const remainingBytes = maxTotalBytes - totalBytes
+    const selectedBytes = Math.min(buffer.length, maxContentBytes, remainingBytes)
+    const truncated = selectedBytes < buffer.length
+    const content = buffer.subarray(0, selectedBytes).toString('utf8')
+    totalBytes += selectedBytes
 
     docs.push({
       doc_path: file.path,

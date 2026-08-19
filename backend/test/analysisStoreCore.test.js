@@ -46,6 +46,7 @@ class FakeCollection {
 function createCollections() {
   return {
     repositoryScores: new FakeCollection(),
+    repositoryScoreHistory: new FakeCollection(),
     technicalDebtMetrics: new FakeCollection(),
     knowledgeDebtMetrics: new FakeCollection(),
     driftFindings: new FakeCollection(),
@@ -77,6 +78,7 @@ test('upserts repository scores and replaces module metric snapshots on a rescan
   }, collections)
 
   assert.equal(collections.repositoryScores.records.length, 1)
+  assert.equal(collections.repositoryScoreHistory.records.length, 1)
   assert.equal(collections.technicalDebtMetrics.records.length, 2)
   assert.equal(collections.knowledgeDebtMetrics.records.length, 1)
   assert.equal(collections.driftFindings.records.length, 1)
@@ -91,15 +93,21 @@ test('upserts repository scores and replaces module metric snapshots on a rescan
   }, collections)
 
   assert.equal(collections.repositoryScores.records.length, 1)
+  assert.equal(collections.repositoryScoreHistory.records.length, 2)
   assert.equal(collections.technicalDebtMetrics.records.length, 1)
   assert.equal(collections.technicalDebtMetrics.records[0].file_path, 'src/current.js')
   assert.equal(collections.knowledgeDebtMetrics.records.length, 1)
   assert.equal(collections.driftFindings.records.length, 1)
 
-  const scorePayload = serializeAnalysisScores(collections.repositoryScores.records[0])
+  const scorePayload = serializeAnalysisScores({
+    ...collections.repositoryScores.records[0],
+    score_history: collections.repositoryScoreHistory.records,
+  })
   const debtPayload = serializeTechnicalDebt(collections.repositoryScores.records[0], collections.technicalDebtMetrics.records)
   const driftPayload = serializeKnowledgeDrift(collections.repositoryScores.records[0], collections.driftFindings.records)
   assert.equal(scorePayload.technicalDebt.score, secondResults.technicalDebt.score)
+  assert.deepEqual(scorePayload.healthTrend, [firstResults.scores.healthScore, secondResults.scores.healthScore])
+  assert.equal(scorePayload.risk.trend.length, 2)
   assert.equal(debtPayload.modules[0].path, 'src/current.js')
   assert.equal(driftPayload.findings[0].filePath, 'src')
 })

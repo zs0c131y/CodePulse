@@ -282,6 +282,30 @@ db.oauth_accounts.createIndex({ provider: 1, provider_user_id: 1 }, { unique: tr
 db.oauth_accounts.createIndex({ user_id: 1 });
 
 // =========================================
+// OAUTH STATES
+// =========================================
+
+db.createCollection("oauth_states", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["provider", "intent", "state_hash", "created_at", "expires_at"],
+            properties: {
+                provider: { enum: ["github", "gitlab"] },
+                intent: { enum: ["signin", "connect"] },
+                user_id: { bsonType: ["objectId", "null"] },
+                state_hash: { bsonType: "string" },
+                created_at: { bsonType: "date" },
+                expires_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.oauth_states.createIndex({ state_hash: 1 }, { unique: true });
+db.oauth_states.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+
+// =========================================
 // REPOSITORIES
 // =========================================
 
@@ -316,6 +340,15 @@ db.createCollection("repositories", {
                 status: {
                     enum: ["queued", "running", "completed", "failed"]
                 },
+                scan_id: { bsonType: "string" },
+                commit_limit: { bsonType: "int" },
+                error: { bsonType: ["string", "null"] },
+                worker_id: { bsonType: ["string", "null"] },
+                lease_expires_at: { bsonType: ["date", "null"] },
+                queued_at: { bsonType: ["date", "null"] },
+                started_at: { bsonType: ["date", "null"] },
+                completed_at: { bsonType: ["date", "null"] },
+                failed_at: { bsonType: ["date", "null"] },
                 total_files: {
                     bsonType: "int"
                 },
@@ -339,7 +372,7 @@ db.createCollection("repositories", {
     }
 });
 
-db.repositories.createIndex({ user_id: 1 });
+db.repositories.createIndex({ user_id: 1, updated_at: -1, _id: -1 });
 db.repositories.createIndex({ user_id: 1, repo_url: 1 }, { unique: true });
 
 // =========================================
@@ -384,7 +417,7 @@ db.createCollection("repo_files", {
     }
 });
 
-db.repo_files.createIndex({ repository_id: 1 });
+db.repo_files.createIndex({ repository_id: 1, file_path: 1, _id: 1 });
 
 // =========================================
 // COMMITS
@@ -428,9 +461,8 @@ db.createCollection("commits", {
     }
 });
 
-db.commits.createIndex({ repository_id: 1 });
-db.commits.createIndex({ commit_hash: 1 }, { unique: true });
-db.commits.createIndex({ commit_date: -1 });
+db.commits.createIndex({ repository_id: 1, commit_hash: 1 }, { unique: true });
+db.commits.createIndex({ repository_id: 1, commit_date: -1, _id: -1 });
 
 // =========================================
 // DEPENDENCIES
@@ -469,7 +501,7 @@ db.createCollection("dependencies", {
     }
 });
 
-db.dependencies.createIndex({ repository_id: 1 });
+db.dependencies.createIndex({ repository_id: 1, source_file: 1, target_file: 1, _id: 1 });
 
 // =========================================
 // DOCUMENTATION
@@ -513,7 +545,117 @@ db.createCollection("documentation", {
     }
 });
 
-db.documentation.createIndex({ repository_id: 1 });
+db.documentation.createIndex({ repository_id: 1, doc_path: 1, _id: 1 });
+
+// =========================================
+// STRUCTURED CODE & DOCUMENTATION FACTS
+// =========================================
+
+db.createCollection("code_analysis_summaries", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id", "scan_id", "analysis_version", "metrics"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                scan_id: { bsonType: "string" },
+                analysis_version: { bsonType: "int" },
+                metrics: { bsonType: "object" },
+                modules: { bsonType: "array" },
+                routes: { bsonType: "array" },
+                orphan_files: { bsonType: "array" },
+                skipped_files: { bsonType: "array" },
+                totals: { bsonType: "object" },
+                truncated: { bsonType: "object" },
+                analyzed_at: { bsonType: "date" },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.code_analysis_summaries.createIndex({ repository_id: 1 }, { unique: true });
+
+db.createCollection("code_facts", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id", "scan_id", "file_path", "language"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                scan_id: { bsonType: "string" },
+                file_path: { bsonType: "string" },
+                module_path: { bsonType: "string" },
+                module_name: { bsonType: "string" },
+                language: { bsonType: "string" },
+                is_test: { bsonType: "bool" },
+                line_count: { bsonType: "number" },
+                metrics: { bsonType: "object" },
+                imports: { bsonType: "array" },
+                exports: { bsonType: "array" },
+                functions: { bsonType: "array" },
+                classes: { bsonType: "array" },
+                routes: { bsonType: "array" },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.code_facts.createIndex({ repository_id: 1, scan_id: 1, file_path: 1 }, { unique: true });
+db.code_facts.createIndex({ repository_id: 1, scan_id: 1, module_path: 1, file_path: 1 });
+
+db.createCollection("documentation_analysis_summaries", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id", "scan_id", "analysis_version", "metrics", "coverage"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                scan_id: { bsonType: "string" },
+                analysis_version: { bsonType: "int" },
+                metrics: { bsonType: "object" },
+                coverage: { bsonType: "object" },
+                facts: { bsonType: "object" },
+                totals: { bsonType: "object" },
+                truncated: { bsonType: "object" },
+                analyzed_at: { bsonType: "date" },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.documentation_analysis_summaries.createIndex({ repository_id: 1 }, { unique: true });
+
+db.createCollection("documentation_facts", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id", "scan_id", "doc_path"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                scan_id: { bsonType: "string" },
+                doc_path: { bsonType: "string" },
+                documentation_type: { bsonType: "string" },
+                title: { bsonType: "string" },
+                truncated: { bsonType: "bool" },
+                headings: { bsonType: "array" },
+                setup: { bsonType: "object" },
+                api: { bsonType: "object" },
+                architecture: { bsonType: "object" },
+                source_references: { bsonType: "array" },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.documentation_facts.createIndex({ repository_id: 1, scan_id: 1, doc_path: 1 }, { unique: true });
 
 // =========================================
 // ANALYSIS SCORES
@@ -547,6 +689,27 @@ db.createCollection("repository_scores", {
 
 db.repository_scores.createIndex({ repository_id: 1 }, { unique: true });
 
+db.createCollection("repository_score_history", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["repository_id", "health_score", "risk_score", "analyzed_at"],
+            properties: {
+                repository_id: { bsonType: "objectId" },
+                health_score: { bsonType: "number" },
+                technical_debt_score: { bsonType: "number" },
+                knowledge_debt_score: { bsonType: "number" },
+                drift_score: { bsonType: "number" },
+                risk_score: { bsonType: "number" },
+                analyzed_at: { bsonType: "date" },
+                created_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.repository_score_history.createIndex({ repository_id: 1, analyzed_at: -1 });
+
 // =========================================
 // TECHNICAL DEBT METRICS
 // =========================================
@@ -562,10 +725,16 @@ db.createCollection("technical_debt_metrics", {
                 owner: { bsonType: "string" },
                 size: { bsonType: "number" },
                 complexity: { bsonType: "number" },
+                complexity_method: { bsonType: "string" },
                 churn_percent: { bsonType: "number" },
                 observed_churn_percent: { bsonType: "number" },
                 churn_available: { bsonType: "bool" },
+                contributor_count: { bsonType: "number" },
+                contributor_concentration_percent: { bsonType: "number" },
+                bug_fix_count: { bsonType: "number" },
+                bug_fix_percent: { bsonType: "number" },
                 duplication_percent: { bsonType: ["number", "null"] },
+                dependency_depth: { bsonType: "number" },
                 last_changed_at: { bsonType: ["date", "null"] },
                 is_large_file: { bsonType: "bool" },
                 is_high_complexity: { bsonType: "bool" },
@@ -706,6 +875,43 @@ db.recommendations.createIndex({ repository_id: 1, recommendation_key: 1 }, { un
 db.recommendations.createIndex({ repository_id: 1, impact: 1 });
 
 // =========================================
+// DURABLE REPORT SNAPSHOTS
+// =========================================
+
+db.createCollection("reports", {
+    validator: {
+        $jsonSchema: {
+            bsonType: "object",
+            required: ["owner_id", "repository_id", "schema", "schema_version", "snapshot", "generated_at"],
+            properties: {
+                owner_id: { bsonType: "objectId" },
+                repository_id: { bsonType: "objectId" },
+                schema: { bsonType: "string" },
+                schema_version: { bsonType: "int" },
+                snapshot: { bsonType: "object" },
+                generated_at: { bsonType: "date" },
+                source_analyzed_at: { bsonType: ["date", "null"] },
+                share_token_hash: { bsonType: "string" },
+                shared_at: { bsonType: "date" },
+                share_expires_at: { bsonType: "date" },
+                created_at: { bsonType: "date" },
+                updated_at: { bsonType: "date" }
+            }
+        }
+    }
+});
+
+db.reports.createIndex({ owner_id: 1, created_at: -1, _id: -1 });
+db.reports.createIndex({ owner_id: 1, repository_id: 1, created_at: -1, _id: -1 });
+db.reports.createIndex(
+    { share_token_hash: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { share_token_hash: { $type: "string" } }
+    }
+);
+
+// =========================================
 // FINISHED
 // =========================================
 
@@ -719,14 +925,21 @@ print("- auth_attempts");
 print("- email_verification_tokens");
 print("- password_reset_tokens");
 print("- oauth_accounts");
+print("- oauth_states");
 print("- repositories");
 print("- repo_files");
 print("- commits");
 print("- dependencies");
 print("- documentation");
+print("- code_analysis_summaries");
+print("- code_facts");
+print("- documentation_analysis_summaries");
+print("- documentation_facts");
 print("- repository_scores");
+print("- repository_score_history");
 print("- technical_debt_metrics");
 print("- knowledge_debt_metrics");
 print("- drift_findings");
 print("- recommendations");
+print("- reports");
 print("==================================");

@@ -20,6 +20,8 @@ import {
 import { buildAppLink, deliverAuthLink } from '../../../utils/email.js'
 import { createVerificationToken, createSession, getSessionFromCookie } from '../../../utils/session.js'
 import { assertLoginAllowed, recordLoginFailure, clearLoginFailures } from '../../../utils/loginAttempts.js'
+import { claimPasswordResetTokenWithCollection } from '../../../utils/passwordReset.js'
+import { passwordMatchesUser } from '../../../utils/passwordAuth.js'
 
 export async function signup(request, response, next) {
   try {
@@ -156,7 +158,7 @@ export async function signin(request, response, next) {
     const users = await getUsersCollection()
     const user = await users.findOne({ email })
 
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    if (!(await passwordMatchesUser(password, user))) {
       await recordLoginFailure(email, request.ip)
       response.status(401).json({ message: 'Invalid email or password.' })
       return
@@ -343,11 +345,7 @@ export async function resetPassword(request, response, next) {
     }
 
     const resetTokens = await getPasswordResetTokensCollection()
-    const record = await resetTokens.findOne({
-      token_hash: hashToken(token),
-      used_at: null,
-      expires_at: { $gt: new Date() },
-    })
+    const record = await claimPasswordResetTokenWithCollection(token, resetTokens)
 
     if (!record) {
       response.status(400).json({ message: 'Password reset link is invalid or expired.' })
@@ -361,7 +359,6 @@ export async function resetPassword(request, response, next) {
       { _id: record.user_id },
       { $set: { password_hash: passwordHash, updated_at: new Date() } },
     )
-    await resetTokens.updateOne({ _id: record._id }, { $set: { used_at: new Date() } })
     await (await getSessionsCollection()).updateMany(
       { user_id: record.user_id, revoked_at: null },
       { $set: { revoked_at: new Date() } },

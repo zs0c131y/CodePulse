@@ -1,6 +1,7 @@
 import { ObjectId } from 'mongodb'
 import {
   getRepositoryScoresCollection,
+  getRepositoryScoreHistoryCollection,
   getTechnicalDebtMetricsCollection,
   getKnowledgeDebtMetricsCollection,
   getDriftFindingsCollection,
@@ -24,6 +25,7 @@ function normalizeMongoId(value) {
 export async function getAnalysisCollections(overrides = {}) {
   return {
     repositoryScores: overrides.repositoryScores || (await getRepositoryScoresCollection()),
+    repositoryScoreHistory: overrides.repositoryScoreHistory || (await getRepositoryScoreHistoryCollection()),
     technicalDebtMetrics: overrides.technicalDebtMetrics || (await getTechnicalDebtMetricsCollection()),
     knowledgeDebtMetrics: overrides.knowledgeDebtMetrics || (await getKnowledgeDebtMetricsCollection()),
     driftFindings: overrides.driftFindings || (await getDriftFindingsCollection()),
@@ -40,8 +42,21 @@ export async function persistAnalysisResults({ repositoryId, results, now }, opt
 }
 
 export async function getRepositoryScore(repositoryId) {
-  const repositoryScores = await getRepositoryScoresCollection()
-  return repositoryScores.findOne({ repository_id: normalizeMongoId(repositoryId) })
+  const normalizedRepositoryId = normalizeMongoId(repositoryId)
+  const [repositoryScores, repositoryScoreHistory] = await Promise.all([
+    getRepositoryScoresCollection(),
+    getRepositoryScoreHistoryCollection(),
+  ])
+  const [score, history] = await Promise.all([
+    repositoryScores.findOne({ repository_id: normalizedRepositoryId }),
+    repositoryScoreHistory
+      .find({ repository_id: normalizedRepositoryId })
+      .sort({ analyzed_at: -1 })
+      .limit(30)
+      .toArray(),
+  ])
+
+  return score ? { ...score, score_history: history.reverse() } : null
 }
 
 export async function getRepositoryTechnicalDebt(repositoryId) {

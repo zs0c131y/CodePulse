@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb'
 import * as repositoryQueries from './services/repositoryQueries.js'
 import { aggregateContributors } from './services/contributorAggregator.js'
 import { fetchRepositoryManifests } from './services/manifestFetcher.js'
+import { MIN_SCAN_INTERVAL_HOURS, MAX_SCAN_INTERVAL_HOURS } from '../../config/index.js'
 
 const defaultReader = { ...repositoryQueries, fetchRepositoryManifests }
 
@@ -62,6 +63,11 @@ export function createReadController(deps = defaultReader) {
       }
 
       const deleted = await deps.deleteRepositoryForUser(request.user._id, repositoryId)
+
+      if (deleted === 'active') {
+        response.status(409).json({ message: 'Wait for the active repository analysis to finish before deleting it.' })
+        return
+      }
 
       if (!deleted) {
         response.status(404).json({ message: 'Repository not found.' })
@@ -156,6 +162,39 @@ export function createReadController(deps = defaultReader) {
     }
   }
 
+  async function updateRepositorySchedule(request, response, next) {
+    try {
+      const repositoryId = parseRepositoryId(request.params.repositoryId)
+      if (!repositoryId) {
+        response.status(400).json({ message: 'Invalid repository id.' })
+        return
+      }
+
+      const raw = request.body?.intervalHours
+      let intervalHours = null
+      if (raw !== null && raw !== undefined) {
+        const parsed = Number(raw)
+        if (!Number.isInteger(parsed) || parsed < MIN_SCAN_INTERVAL_HOURS || parsed > MAX_SCAN_INTERVAL_HOURS) {
+          response.status(400).json({
+            message: `intervalHours must be an integer between ${MIN_SCAN_INTERVAL_HOURS} and ${MAX_SCAN_INTERVAL_HOURS}, or null to disable recurring scans.`,
+          })
+          return
+        }
+        intervalHours = parsed
+      }
+
+      const repository = await deps.setRepositoryScanSchedule(request.user._id, repositoryId, intervalHours)
+      if (!repository) {
+        response.status(404).json({ message: 'Repository not found.' })
+        return
+      }
+
+      response.json({ repository })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   async function getRepositoryManifest(request, response, next) {
     try {
       const repository = await requireOwnedRepository(request, response)
@@ -176,6 +215,7 @@ export function createReadController(deps = defaultReader) {
     listRepositories,
     getRepository,
     deleteRepository,
+    updateRepositorySchedule,
     getRepositoryFiles,
     getRepositoryCommits,
     getRepositoryDependencies,
@@ -191,6 +231,7 @@ export const {
   listRepositories,
   getRepository,
   deleteRepository,
+  updateRepositorySchedule,
   getRepositoryFiles,
   getRepositoryCommits,
   getRepositoryDependencies,

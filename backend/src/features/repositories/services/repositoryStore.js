@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { ObjectId } from 'mongodb'
 import {
   getRepositoriesCollection,
@@ -6,7 +7,14 @@ import {
   getDependenciesCollection,
   getDocumentationCollection,
 } from '../../../db/index.js'
-import { persistRepositoryAnalysisWithCollections } from './repositoryStoreCore.js'
+import {
+  markRepositoryAnalysisCompletedWithCollection,
+  markRepositoryAnalysisFailedWithCollection,
+  markRepositoryAnalysisRunningWithCollection,
+  renewRepositoryAnalysisLeaseWithCollection,
+  persistRepositoryAnalysisWithCollections,
+  queueRepositoryAnalysisWithCollection,
+} from './repositoryStoreCore.js'
 
 function normalizeMongoId(value) {
   if (value instanceof ObjectId) return value
@@ -33,6 +41,78 @@ export async function persistRepositoryAnalysis(analysis, options = {}) {
       userId: normalizeMongoId(analysis.userId),
     },
     collections,
+    {
+      repositoryId: normalizeMongoId(options.repositoryId),
+      scanId: options.scanId,
+      status: options.status,
+      workerId: options.workerId,
+    },
+  )
+}
+
+export async function queueRepositoryAnalysis(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+
+  return queueRepositoryAnalysisWithCollection(
+    {
+      ...input,
+      userId: normalizeMongoId(input.userId),
+      scanId: input.scanId || randomUUID(),
+    },
+    repositories,
+    options,
+  )
+}
+
+export async function markRepositoryAnalysisRunning(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+  return markRepositoryAnalysisRunningWithCollection(
+    {
+      ...input,
+      repositoryId: normalizeMongoId(input.repositoryId),
+      userId: normalizeMongoId(input.userId),
+    },
+    repositories,
+    options,
+  )
+}
+
+export async function renewRepositoryAnalysisLease(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+  return renewRepositoryAnalysisLeaseWithCollection(
+    {
+      ...input,
+      repositoryId: normalizeMongoId(input.repositoryId),
+      userId: normalizeMongoId(input.userId),
+    },
+    repositories,
+    options,
+  )
+}
+
+export async function markRepositoryAnalysisCompleted(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+  return markRepositoryAnalysisCompletedWithCollection(
+    {
+      ...input,
+      repositoryId: normalizeMongoId(input.repositoryId),
+      userId: normalizeMongoId(input.userId),
+    },
+    repositories,
+    options,
+  )
+}
+
+export async function markRepositoryAnalysisFailed(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+  return markRepositoryAnalysisFailedWithCollection(
+    {
+      ...input,
+      repositoryId: normalizeMongoId(input.repositoryId),
+      userId: normalizeMongoId(input.userId),
+    },
+    repositories,
+    options,
   )
 }
 

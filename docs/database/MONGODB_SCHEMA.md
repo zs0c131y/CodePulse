@@ -17,16 +17,19 @@ persistent storage.
 | `email_verification_tokens` | Stores hashed email verification tokens. | `token_hash` unique, `user_id`, `expires_at` TTL |
 | `password_reset_tokens` | Stores hashed password reset tokens. | `token_hash` unique, `user_id`, `expires_at` TTL |
 | `oauth_accounts` | Links a user to a GitHub/GitLab OAuth identity. | `provider`+`provider_user_id` unique, `user_id` |
-| `repositories` | Stores repositories tracked by a user. | `user_id`, `user_id`+`repo_url` unique |
-| `repo_files` | Stores parsed files for a repository. | `repository_id` |
-| `commits` | Stores git commit metadata. | `repository_id`, `commit_hash` unique, `commit_date` descending |
-| `dependencies` | Stores file-to-file dependency edges. | `repository_id` |
-| `documentation` | Stores parsed documentation entries. | `repository_id` |
+| `oauth_states` | Stores one-time OAuth sign-in/connection handoffs. | `state_hash` unique, `expires_at` TTL |
+| `repositories` | Stores repositories tracked by a user. | owner/update order, `user_id`+`repo_url` unique |
+| `repo_files` | Stores parsed files for a repository. | repository/path order |
+| `commits` | Stores git commit metadata. | `repository_id`+`commit_hash` unique, repository/date order |
+| `dependencies` | Stores file-to-file dependency edges. | repository/source/target order |
+| `documentation` | Stores parsed documentation entries. | repository/path order |
 | `repository_scores` | Stores the latest debt, drift, health, and risk summary. | `repository_id` unique |
+| `repository_score_history` | Stores compact score points for rescan trends. | `repository_id`+`analyzed_at` descending |
 | `technical_debt_metrics` | Stores per-code-file Technical Debt evidence. | `repository_id`+`file_path` unique; score ranking |
 | `knowledge_debt_metrics` | Stores per-module documentation evidence. | `repository_id`+`module_path` unique |
 | `drift_findings` | Stores current structural and optional semantic documentation-drift findings. | `repository_id`+`finding_key` unique; severity |
 | `recommendations` | Stores ranked, evidence-based remediation actions. | `repository_id`+`recommendation_key` unique; impact |
+| `reports` | Stores immutable, shareable report snapshots. | owner/date, owner/repository/date, share token hash unique |
 
 ---
 
@@ -35,19 +38,23 @@ persistent storage.
 ```mermaid
 erDiagram
     users ||--o{ repositories : owns
+    users ||--o{ reports : owns
     users ||--o{ auth_sessions : authenticates
     users ||--o{ email_verification_tokens : verifies
     users ||--o{ password_reset_tokens : resets
     users ||--o{ oauth_accounts : links
+    users ||--o{ oauth_states : initiates
     repositories ||--o{ repo_files : contains
     repositories ||--o{ commits : records
     repositories ||--o{ dependencies : maps
     repositories ||--o{ documentation : parses
     repositories ||--|| repository_scores : summarizes
+    repositories ||--o{ repository_score_history : trends
     repositories ||--o{ technical_debt_metrics : ranks
     repositories ||--o{ knowledge_debt_metrics : documents
     repositories ||--o{ drift_findings : reports
     repositories ||--o{ recommendations : prioritizes
+    repositories ||--o{ reports : snapshots
 ```
 
 References use `objectId` values in the draft MongoDB schema.
@@ -180,6 +187,25 @@ Indexes:
 * `{ provider: 1, provider_user_id: 1 }`, unique.
 * `{ user_id: 1 }`.
 
+### `oauth_states`
+
+Required fields:
+
+* `provider` (`enum`): `github` or `gitlab`.
+* `intent` (`enum`): `signin` or `connect`.
+* `state_hash` (`string`): SHA-256 hash of the provider state.
+* `created_at`, `expires_at` (`date`): Lifetime of the one-time handoff.
+
+Optional fields:
+
+* `user_id` (`objectId|null`): CodePulse user that initiated an authenticated
+  provider connection; `null` for ordinary OAuth sign-in.
+
+Indexes:
+
+* `{ state_hash: 1 }`, unique.
+* `{ expires_at: 1 }`, TTL with `expireAfterSeconds: 0`.
+
 ### `repositories`
 
 Required fields:
@@ -202,7 +228,7 @@ Optional fields:
 
 Indexes:
 
-* `{ user_id: 1 }`.
+* `{ user_id: 1, updated_at: -1, _id: -1 }`.
 * `{ user_id: 1, repo_url: 1 }`, unique.
 
 ### `repo_files`
@@ -223,7 +249,7 @@ Optional fields:
 
 Indexes:
 
-* `{ repository_id: 1 }`.
+* `{ repository_id: 1, file_path: 1, _id: 1 }`.
 
 ### `commits`
 
@@ -243,9 +269,8 @@ Optional fields:
 
 Indexes:
 
-* `{ repository_id: 1 }`.
-* `{ commit_hash: 1 }`, unique.
-* `{ commit_date: -1 }`.
+* `{ repository_id: 1, commit_hash: 1 }`, unique.
+* `{ repository_id: 1, commit_date: -1, _id: -1 }`.
 
 ### `dependencies`
 
@@ -264,7 +289,7 @@ Optional fields:
 
 Indexes:
 
-* `{ repository_id: 1 }`.
+* `{ repository_id: 1, source_file: 1, target_file: 1, _id: 1 }`.
 
 ### `documentation`
 
@@ -285,7 +310,7 @@ Optional fields:
 
 Indexes:
 
-* `{ repository_id: 1 }`.
+* `{ repository_id: 1, doc_path: 1, _id: 1 }`.
 
 ### `repository_scores`
 
@@ -297,8 +322,8 @@ Optional fields:
 
 * `analysis_version` (`int`): Scoring-contract version.
 * `health_score` (`number`): Current inverse debt health score.
-* `health_trend` (`array<number>`): Empty until historical snapshots are
-  supported.
+* `health_trend` (`array<number>`): Legacy snapshot field; live trend payloads
+  are assembled from `repository_score_history`.
 * `technical_debt` (`object`): Score, grade, and aggregate Technical Debt
   metrics.
 * `knowledge_debt` (`object`): Score, documentation coverage, onboarding
@@ -312,6 +337,24 @@ Optional fields:
 Indexes:
 
 * `{ repository_id: 1 }`, unique.
+
+### `repository_score_history`
+
+Required fields:
+
+* `repository_id` (`objectId`): Parent repository reference.
+* `health_score`, `risk_score` (`number`): Scan health and risk values.
+* `analyzed_at` (`date`): Scan completion timestamp.
+
+Optional fields:
+
+* `technical_debt_score`, `knowledge_debt_score`, `drift_score` (`number`):
+  Component score snapshots.
+* `created_at` (`date`): Record creation timestamp.
+
+Indexes:
+
+* `{ repository_id: 1, analyzed_at: -1 }`.
 
 ### `technical_debt_metrics`
 
@@ -413,3 +456,26 @@ Indexes:
 
 * `{ repository_id: 1, recommendation_key: 1 }`, unique.
 * `{ repository_id: 1, impact: 1 }`.
+
+### `reports`
+
+Required fields:
+
+* `owner_id` (`objectId`): User that generated and controls the report.
+* `repository_id` (`objectId`): Source repository identity at generation time.
+* `schema` (`string`), `schema_version` (`int`): Versioned snapshot contract.
+* `snapshot` (`object`): Bounded immutable report content.
+* `generated_at` (`date`): Report generation timestamp.
+
+Optional fields:
+
+* `source_analyzed_at` (`date|null`): Timestamp of the underlying scan.
+* `share_token_hash` (`string`), `shared_at` (`date`): Revocable public-share
+  state; raw share tokens are never stored.
+* `created_at`, `updated_at` (`date`): Record timestamps.
+
+Indexes:
+
+* `{ owner_id: 1, created_at: -1, _id: -1 }`.
+* `{ owner_id: 1, repository_id: 1, created_at: -1, _id: -1 }`.
+* `{ share_token_hash: 1 }`, unique and partial for string values.

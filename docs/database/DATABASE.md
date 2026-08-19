@@ -44,19 +44,23 @@ and Knowledge Debt metrics.
 ```mermaid
 erDiagram
     users ||--o{ repositories : owns
+    users ||--o{ reports : owns
     users ||--o{ auth_sessions : authenticates
     users ||--o{ email_verification_tokens : verifies
     users ||--o{ password_reset_tokens : resets
     users ||--o{ oauth_accounts : links
+    users ||--o{ oauth_states : initiates
     repositories ||--o{ repo_files : contains
     repositories ||--o{ commits : records
     repositories ||--o{ dependencies : maps
     repositories ||--o{ documentation : parses
     repositories ||--|| repository_scores : summarizes
+    repositories ||--o{ repository_score_history : trends
     repositories ||--o{ technical_debt_metrics : ranks
     repositories ||--o{ knowledge_debt_metrics : documents
     repositories ||--o{ drift_findings : reports
     repositories ||--o{ recommendations : prioritizes
+    repositories ||--o{ reports : snapshots
 ```
 
 ---
@@ -143,6 +147,21 @@ Links a CodePulse user to an external OAuth identity (GitHub or GitLab).
 * `updated_at` (`date`, optional): Most recent OAuth connection refresh.
 * `created_at`: Link creation timestamp.
 
+### `oauth_states`
+
+Stores one-time, server-side OAuth handoffs for GitHub/GitLab sign-in and
+authenticated provider connection flows.
+
+* `provider`: `github` or `gitlab`.
+* `intent`: `signin` or `connect`.
+* `user_id`: Initiating CodePulse user for `connect`; `null` for sign-in.
+* `state_hash`: SHA-256 hash of the opaque state value sent to the provider.
+* `created_at`, `expires_at`: Creation and ten-minute expiry timestamps.
+
+The state hash is unique, consumed atomically with `findOneAndDelete`, and has
+a TTL index on `expires_at`, preventing replay and keeping abandoned handoffs
+bounded.
+
 ### `repositories`
 
 Stores high-level metadata for tracked repositories.
@@ -176,6 +195,9 @@ Stores files analyzed during repository intelligence.
 * `size`: File size in bytes.
 * `depth`: Repository-relative path depth.
 
+The compound `{ repository_id: 1, file_path: 1, _id: 1 }` index supports
+stable database-side pagination of the file inventory.
+
 ### `commits`
 
 Stores git commit metadata for churn and ownership analysis.
@@ -188,6 +210,13 @@ Stores git commit metadata for churn and ownership analysis.
 * `commit_date`: Commit timestamp.
 * `changed_files`: Repository-relative files changed by the commit.
 
+Commit identity is unique within a repository (`repository_id` +
+`commit_hash`), allowing different users or forks to contain the same Git
+commit without conflicting.
+
+The `{ repository_id: 1, commit_date: -1, _id: -1 }` index supports newest-
+first database pagination for commit reads.
+
 ### `dependencies`
 
 Stores file-to-file dependency edges.
@@ -198,6 +227,9 @@ Stores file-to-file dependency edges.
 * `dependency_type`: Import, require, package dependency, etc.
 * `import_path`: Raw import specifier found in the source file.
 * `resolved`: Whether the import was resolved to an internal repository file.
+
+The `{ repository_id: 1, source_file: 1, target_file: 1, _id: 1 }` index
+supports stable source-ordered dependency pages.
 
 ### `documentation`
 
@@ -211,6 +243,9 @@ Stores parsed documentation entries.
 * `content`: Extracted documentation text, capped for large files.
 * `size`: Source file size in bytes.
 * `truncated`: Whether stored content was capped during extraction.
+
+The `{ repository_id: 1, doc_path: 1, _id: 1 }` index supports stable
+path-ordered documentation pages.
 
 ### `repository_scores`
 
@@ -226,10 +261,20 @@ snapshot.
 * `knowledge_debt`: Knowledge Debt score, coverage, onboarding difficulty,
   and aggregate metrics.
 * `drift`: Current structural documentation-drift totals and coverage.
-* `risk`: Current score-derived risk summary. Historical risk and health
-  trends remain empty until a history feature is introduced.
+* `risk`: Current score-derived risk summary. Health and risk trend arrays are
+  assembled at read time from `repository_score_history`.
 * `recommendations_ready`: Count of persisted evidence-based recommendations.
 * `analyzed_at`, `created_at`, `updated_at`: Score timing metadata.
+
+### `repository_score_history`
+
+Stores one compact score point per completed scan so health and risk trends
+survive page refreshes and backend restarts.
+
+* `repository_id`: Parent repository reference.
+* `health_score`, `technical_debt_score`, `knowledge_debt_score`,
+  `drift_score`, `risk_score`: Numeric scan snapshot.
+* `analyzed_at`, `created_at`: Snapshot timing metadata.
 
 ### `technical_debt_metrics`
 
@@ -291,3 +336,22 @@ an external model.
 * `effort`: Human-readable estimated effort band.
 * `order`: Current display priority.
 * `created_at`, `updated_at`: Snapshot timestamps.
+
+### `reports`
+
+Stores immutable, versioned repository-health report snapshots. Reports are
+owned by a user and intentionally survive deletion or rescanning of the source
+repository so previously shared evidence does not change unexpectedly.
+
+* `owner_id`, `repository_id`: Owner and source-repository references.
+* `schema`, `schema_version`: Snapshot contract identity and version.
+* `snapshot`: Bounded report JSON containing repository totals, health and debt
+  summaries, drift evidence, recommendations, and contributor distribution.
+* `generated_at`, `source_analyzed_at`: Report and source-analysis timestamps.
+* `share_token_hash`, `shared_at`: Optional revocable public-sharing state. The
+  raw 256-bit share token is returned once and never persisted.
+* `created_at`, `updated_at`: Record timestamps.
+
+Report metadata lists use bounded `limit`/`skip` pagination and the compound
+owner/date indexes (`owner_id`, optional `repository_id`, `created_at`, `_id`)
+so immutable snapshots are not loaded wholesale for list views.

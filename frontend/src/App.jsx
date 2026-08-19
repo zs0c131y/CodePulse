@@ -9,6 +9,7 @@ import MarketingPage from './components/MarketingPage'
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const AccountPage = lazy(() => import('./components/AccountPage'))
 const ReportsPage = lazy(() => import('./components/ReportsPage'))
+const SharedReportPage = lazy(() => import('./components/SharedReportPage'))
 
 const legacyRoutes = new Set([
   'signin',
@@ -19,6 +20,7 @@ const legacyRoutes = new Set([
   'profile',
   'settings',
   'reports',
+  'shared-report',
 ])
 
 function LoadingScreen({ label }) {
@@ -214,6 +216,9 @@ function AppRoutes() {
 
   const authError = new URLSearchParams(location.search).get('error') || ''
   const authToken = new URLSearchParams(location.search).get('token') || ''
+  const sharedReportToken = location.pathname === '/shared-report'
+    ? new URLSearchParams(location.hash.replace(/^#/, '')).get('token') || authToken
+    : ''
 
   return (
     <>
@@ -230,6 +235,14 @@ function AppRoutes() {
         />
         <Route path="/reset-password" element={<AuthPage mode="reset-password" token={authToken} onAuthSuccess={handleAuthSuccess} />} />
         <Route path="/verify-email" element={<AuthPage mode="verify-email" token={authToken} onAuthSuccess={handleAuthSuccess} />} />
+        <Route
+          path="/shared-report"
+          element={(
+            <Suspense fallback={<LoadingScreen label="Loading shared report…" />}>
+              <SharedReportPage token={sharedReportToken} />
+            </Suspense>
+          )}
+        />
         <Route
           path="/dashboard"
           element={(

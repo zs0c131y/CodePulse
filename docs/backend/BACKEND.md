@@ -59,6 +59,11 @@ modules for cloning repositories, parsing files, extracting documentation,
 reading commit history, building a basic dependency graph, orchestrating scans,
 and persisting metadata.
 
+Durable report generation and revocable sharing are implemented under
+[backend/src/features/reports](../../backend/src/features/reports). Reports
+store versioned, immutable JSON snapshots; browser rendering remains the PDF
+export path.
+
 Repository analysis shells out to the `git` executable for cloning and commit
 history extraction. Local development requires Git on `PATH`; the production
 Docker image installs Git in the runtime layer. The production image uses the
@@ -100,8 +105,9 @@ The backend uses Express and MongoDB. Runtime configuration is read from:
 Authentication also reads:
 
 * `JWT_SECRET`: required in production for signed access tokens.
-* `FRONTEND_URL`: public frontend URL used to build verification/reset links
-  and OAuth redirect targets (`http://localhost:5173` local fallback).
+* `AUTH_APP_URL`: public frontend URL used to build verification/reset email
+  links and OAuth redirect targets (`http://localhost:5173` local fallback).
+  `FRONTEND_URL` is accepted as a fallback alias if `AUTH_APP_URL` is unset.
 * `BACKEND_URL`: public backend URL used to build OAuth callback URLs
   (`http://localhost:3000` local fallback). See
   [backend/src/utils/urls.js](../../backend/src/utils/urls.js) for the derived
@@ -110,7 +116,7 @@ Authentication also reads:
   emails through `POST https://api.smtp2go.com/v3/email/send`.
 * `VERIFICATION_EMAIL`: verified SMTP2GO sender address used for email
   verification messages. SMTP2GO requires the sender domain or address to be
-  verified. Emails are sent with the display name `CodePulse Account Team`.
+  verified. Emails are sent with the display name `CodePulse Team`.
 * `PASSWORD_RESET_EMAIL`: optional verified SMTP2GO sender address used for
   password reset messages. If omitted, password reset emails use
   `VERIFICATION_EMAIL`.
@@ -125,6 +131,25 @@ Authentication also reads:
   disabled (`503`) when unset.
 * `GITLAB_ID` / `GITLAB_SECRET`: GitLab OAuth Application credentials. GitLab
   login is disabled (`503`) when unset.
+
+The AI Explainability Engine (see [docs/ai/AI_ENGINE.md](../ai/AI_ENGINE.md))
+reads:
+
+* `GEMMA_API_URL`: base URL of the self-hosted Gemma model's Ollama-compatible
+  API (e.g. `https://gemma.example.dev`). The backend calls
+  `POST {GEMMA_API_URL}/api/chat`.
+* `GEMMA_MODEL`: model name passed to the chat endpoint (e.g. `gemma4:e2b`).
+* `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`: optional Cloudflare
+  Access service token headers, sent as `CF-Access-Client-Id` /
+  `CF-Access-Client-Secret` when the Gemma endpoint sits behind Cloudflare
+  Access.
+* `AI_REQUEST_TIMEOUT_MS`: request timeout in milliseconds for calls to
+  Gemma. Defaults to `30000`.
+
+AI generation endpoints report `503` when `GEMMA_API_URL` or `GEMMA_MODEL` is
+unset (`GET /api/repositories/:id/ai/status` reports `{ configured: false }`
+in that case); the deterministic scores, technical/knowledge debt, drift, and
+recommendation endpoints never depend on this configuration.
 
 Repository Intelligence also reads:
 
@@ -205,6 +230,65 @@ starting the backend in production.
 
 ---
 
+## 🧪 Controlled Load Testing
+
+`DISABLE_SEC=true` disables the application-level traffic-shaping and
+abuse-prevention that would otherwise distort a controlled load test whose
+traffic originates from one or a few IPs (see
+[backend/scripts/loadTest.mjs](../../backend/scripts/loadTest.mjs)). It is
+parsed once into `SECURITY_DISABLED` in
+[backend/src/config/index.js](../../backend/src/config/index.js) — only the
+exact string `"true"` enables it; `"false"`, empty, `"0"`, or unset all leave
+security fully enabled. Every other file checks the parsed
+`SECURITY_DISABLED` constant, never `process.env.DISABLE_SEC` directly.
+
+**What it disables** (traffic-shaping only, gated centrally inside
+`createRateLimiter()` in
+[backend/src/middleware/rateLimiter.js](../../backend/src/middleware/rateLimiter.js)
+so callers never branch on the flag themselves):
+
+* The general per-IP HTTP rate limiter (`backend/src/app.js`, 300
+  requests/15 min).
+* `authRateLimiter`, applied to the auth routes in
+  [backend/src/features/auth/router.js](../../backend/src/features/auth/router.js)
+  (30 requests/15 min per IP+path) — becomes a pass-through automatically
+  since it's built from the same `createRateLimiter()` factory.
+* The failed-sign-in lockout (`assertLoginAllowed` in
+  [backend/src/utils/loginAttempts.js](../../backend/src/utils/loginAttempts.js))
+  — an anti-brute-force cooldown keyed by email+IP, not credential
+  verification itself. `recordLoginFailure`/`clearLoginFailures` keep
+  running either way, so the `auth_attempts` audit trail is unaffected.
+
+**What it does NOT disable** — authentication (JWT verification, password
+comparison), authorization/ownership checks, input/schema validation, CORS,
+security headers, CSRF-relevant behavior, or any database integrity
+constraint. Every request still runs through real handlers with real
+business logic; only the "reject before it gets there" traffic-shaping is
+removed.
+
+**Production safety**: if `NODE_ENV=production` and `DISABLE_SEC=true`, the
+backend throws a loud, multi-line `FATAL` error from `config/index.js` at
+import time and refuses to start — there is no code path where this flag can
+run against a production deployment. A one-time (not per-request) warning
+banner is also printed to the console whenever the bypass is active.
+
+**Observability stays on regardless** — `/api/metrics` (see "Observability
+API" above), request logging, and error logging are unaffected by
+`DISABLE_SEC`, so a load
+test run with it enabled can still distinguish real application/database/
+infrastructure saturation (5xx rate, latency percentiles, queue depth,
+connection behavior) from security middleware that would otherwise have
+rejected the traffic outright.
+
+**What this cannot touch**: any rate limiting, WAF rules, or DDoS protection
+enforced by the hosting platform or a CDN in front of it (Railway, Fly,
+Cloudflare, etc.) — those live outside this repository. A `429` that
+persists with `DISABLE_SEC=true` set and the warning banner printed at
+startup is coming from outside this application, not from anything covered
+above.
+
+---
+
 ## 🔐 Authentication API
 
 Implemented in [backend/src/features/auth/controler/credentials.controller.js](../../backend/src/features/auth/controler/credentials.controller.js).
@@ -223,6 +307,13 @@ SMTP2GO standard email API with `sender`, a single-recipient `to` array,
 `subject`, `text_body`, and `html_body`. The HTML bodies use branded
 responsive, table-based templates with inline CSS for broad email-client
 compatibility. Plain-text fallbacks are always sent.
+
+OAuth-only accounts deliberately follow the same bcrypt-cost credential
+failure path as unknown users and return the generic `401` response; a missing
+password hash is never passed to bcrypt. Password-reset tokens are claimed in
+one atomic MongoDB update before a password is changed, so concurrent replay
+attempts cannot both succeed. A successful reset still revokes every active
+refresh session for the account.
 
 ### `GET /api/health/live`
 
@@ -556,9 +647,11 @@ Response:
 
 ### `GET /auth/github`
 
-Redirects the browser to GitHub's OAuth consent screen. Sets a short-lived,
-`HttpOnly` CSRF state cookie scoped to `/auth/github`. Returns `503` when
-`GITHUB_ID`/`GITHUB_SECRET` are not configured.
+Redirects the browser to GitHub's OAuth consent screen. Creates a short-lived,
+hashed server-side OAuth state and sets its raw value in an `HttpOnly` CSRF
+cookie scoped to `/auth/github`. The callback atomically consumes the state,
+so it cannot be replayed. Returns `503` when `GITHUB_ID`/`GITHUB_SECRET` are
+not configured.
 
 ### `GET /auth/github/callback`
 
@@ -571,9 +664,10 @@ redirects to `FRONTEND_URL/#signin?error=<message>`.
 
 ### `GET /auth/gitlab`
 
-Redirects the browser to GitLab's OAuth consent screen. Sets a short-lived,
-`HttpOnly` CSRF state cookie scoped to `/auth/gitlab`. Returns `503` when
-`GITLAB_ID`/`GITLAB_SECRET` are not configured.
+Redirects the browser to GitLab's OAuth consent screen. It uses the same
+hashed, one-time server-side state contract as GitHub plus an `HttpOnly`
+callback cookie. Returns `503` when `GITLAB_ID`/`GITLAB_SECRET` are not
+configured.
 
 ### `GET /auth/gitlab/callback`
 
@@ -614,6 +708,10 @@ Request:
 }
 ```
 
+`commitLimit` is optional, defaults to `100`, and must be an integer from
+`1` through `500`. Invalid values are rejected with `400` before a scan is
+queued.
+
 Response:
 
 ```json
@@ -651,7 +749,9 @@ Implementation modules:
 * [fileParser.js](../../backend/src/features/repositories/services/fileParser.js):
   walks the repository tree, skips ignored directories, and classifies files.
 * [documentationExtractor.js](../../backend/src/features/repositories/services/documentationExtractor.js):
-  reads README, docs, changelog, contributing, license, and API docs.
+  reads README, docs, changelog, contributing, license, and API docs. Files
+  discovered through documentation directories are restricted to recognized
+  text-document extensions; binary assets are never decoded as documentation.
 * [commitExtractor.js](../../backend/src/features/repositories/services/commitExtractor.js):
   extracts recent Git commit metadata and changed files.
 * [dependencyGraph.js](../../backend/src/features/repositories/services/dependencyGraph.js):
@@ -689,12 +789,17 @@ Lists the signed-in user's repositories, most recently updated first.
       "totalCommits": 100,
       "totalDependencies": 43,
       "totalDocumentation": 5,
+      "scanIntervalHours": 24,
+      "nextScanAt": "2026-07-22T09:15:00.000Z",
       "createdAt": "2026-07-01T07:30:00.000Z",
       "updatedAt": "2026-07-21T09:15:00.000Z"
     }
   ]
 }
 ```
+
+`scanIntervalHours`/`nextScanAt` are `null` when the repository has no
+recurring schedule.
 
 ### `GET /api/repositories/:repositoryId`
 
@@ -706,9 +811,31 @@ and `404` when the repository does not exist or belongs to another user.
 
 Deletes a repository owned by the signed-in user and cascades the delete to
 its `repo_files`, `commits`, `dependencies`, `documentation`,
-`repository_scores`, `technical_debt_metrics`, and `knowledge_debt_metrics`
-records.
+`repository_scores`, `repository_score_history`, `technical_debt_metrics`,
+`knowledge_debt_metrics`, `drift_findings`, and `recommendations` records.
+Previously generated report snapshots intentionally remain available to their
+owner and through any active share link.
 Returns `404` when the repository does not exist or belongs to another user.
+
+### `PATCH /api/repositories/:repositoryId/schedule`
+
+Sets or clears a repository's recurring scan schedule. Body:
+`{ "intervalHours": 24 }` — an integer between `MIN_SCAN_INTERVAL_HOURS`
+(default `1`) and `MAX_SCAN_INTERVAL_HOURS` (default `720`, 30 days) — or
+`{ "intervalHours": null }` to disable it. Returns `200` with
+`{ "repository": { ... } }` (the same shape as `GET /api/repositories/:repositoryId`).
+`400` for an out-of-range or non-integer `intervalHours`; `404` when the
+repository does not exist or belongs to another user.
+
+A background scheduler (`backend/src/features/repositories/services/scanScheduler.js`,
+started from `backend/index.js` when `SCAN_SCHEDULER_ENABLED` is not `false`)
+polls every `SCAN_SCHEDULER_INTERVAL_MS` (default 5 minutes, capped at
+`SCAN_SCHEDULER_BATCH_SIZE` repositories per tick, default 20) for
+repositories whose `nextScanAt` has passed and enqueues them onto the same
+worker-thread `analysisQueue.js` a manual `POST /api/repositories/analyze`
+uses — scheduled scans never block HTTP requests and share the same
+concurrency caps. `nextScanAt` advances on every tick regardless of outcome,
+so a failing scheduled scan retries at its normal interval, not immediately.
 
 ### `GET /api/repositories/:repositoryId/files`
 
@@ -732,7 +859,9 @@ with:
 ```
 
 Files are sorted by path, commits by date (newest first), dependencies by
-source file, and documentation by path.
+source file, and documentation by path. Sorting, offsetting, limiting, and the
+total count are executed by MongoDB so these endpoints do not materialize the
+repository's entire evidence collection in application memory.
 
 ### `GET /api/repositories/:repositoryId/code-analysis`
 
@@ -958,8 +1087,9 @@ or has not completed scoring yet.
 }
 ```
 
-Historical score and risk trends are intentionally empty until score-history
-persistence is added.
+Completed rescans append compact score points to `repository_score_history`.
+The scores endpoint returns up to the latest 30 health values and matching
+risk trend points in chronological order.
 
 ### `GET /api/repositories/:repositoryId/debt`
 
@@ -973,13 +1103,17 @@ scores endpoint.
     "technicalDebtScore": 36,
     "grade": "B",
     "averageComplexity": 8.2,
-    "duplicationPercent": null,
+    "duplicationPercent": 4.5,
     "circularDependencies": 1,
     "largeFiles": 2,
     "orphanModules": 1,
     "staleModules": 0,
     "churnSampleSize": 5,
-    "churnAvailable": true
+    "churnAvailable": true,
+    "coverageAvailable": true,
+    "averageCoveragePercent": 61.4,
+    "coverageSampleSize": 18,
+    "lowCoverageModules": 3
   },
   "modules": [
     {
@@ -989,19 +1123,29 @@ scores endpoint.
       "churnPercent": 60,
       "observedChurnPercent": 60,
       "churnAvailable": true,
-      "duplicationPercent": null,
+      "duplicationPercent": 12.5,
+      "coverageAvailable": true,
+      "coveragePercent": 28.6,
       "isLargeFile": true,
       "inCircularDependency": true,
       "isOrphan": false,
       "isStale": false,
       "debtScore": 74,
       "risk": "High",
-      "reasons": ["Large source file (65536 bytes)"]
+      "reasons": ["Large source file (65536 bytes)", "Low test coverage (28.6%)"]
     }
   ],
   "generatedAt": "2026-07-25T00:00:00.000Z"
 }
 ```
+
+`coverageAvailable`/`coveragePercent` come from an LCOV report already present in the
+cloned repository at scan time (`coverage/lcov.info`, `coverage/lcov-report/lcov.info`,
+`.nyc_output/lcov.info`, or `lcov.info`, checked in that order) —
+`backend/src/features/repositories/services/coverageParser.js`. CodePulse never runs a
+project's test suite or any other repository command to produce this file; when no
+report is found, `coverageAvailable` is `false` and `coveragePercent` is `null`
+(never `0`, which would misrepresent "not measured" as "measured and empty").
 
 ---
 
@@ -1078,6 +1222,80 @@ Response:
 }
 ```
 
+## AI Explainability API (opt-in)
+
+Requires `Authorization: Bearer <accessToken>` and enforces repository
+ownership like the endpoints above. See
+[docs/ai/AI_ENGINE.md](../ai/AI_ENGINE.md) for prompt blueprints and the
+provider contract.
+
+### `GET /api/repositories/:repositoryId/ai/status`
+
+`{ "configured": true }` when `GEMMA_API_URL` and `GEMMA_MODEL` are both set;
+`false` otherwise. The frontend uses this to decide whether to show AI actions.
+
+### `POST /api/repositories/:repositoryId/ai/drift-explanation`
+
+Body: `{ "findingId": "<drift finding id>" }`. Generates a documentation-drift
+explanation (what's outdated, the conflicting evidence, and a suggested
+remediation) for one persisted drift finding, and persists the result.
+Returns `201` with `{ "explanation": { ... } }`. `404` when no drift finding
+with that id exists for the repository; `503` when AI is not configured;
+`502` when the model call fails. Best-suited to `semantic_mismatch` findings,
+which carry the compared code interface and documentation excerpt; other
+finding types still generate but with those sections noted as not captured.
+
+### `GET /api/repositories/:repositoryId/ai/drift-explanation?findingId=...`
+
+Reads back the most recently generated explanation for a drift finding
+without calling the model. `404` when none has been generated yet.
+
+### `POST /api/repositories/:repositoryId/ai/risk-explanation`
+
+Body: `{ "modulePath": "src/billing/invoice.js" }`. Generates a risk
+explanation and refactor action plan for one module from its persisted
+Technical Debt metrics, and persists the result. Returns `201` with
+`{ "explanation": { ... } }`. `404` when the module has no stored debt
+metrics; `503` when AI is not configured; `502` when the model call fails.
+
+### `GET /api/repositories/:repositoryId/ai/risk-explanation?modulePath=...`
+
+Reads back the most recently generated explanation for a module without
+calling the model. `404` when none has been generated yet.
+
+### `POST /api/repositories/:repositoryId/ai/executive-summary`
+
+Generates a leadership-readable 3-paragraph summary from the repository's
+scores, top risk modules, and top drift findings, and persists the result.
+Returns `201` with `{ "explanation": { ... } }`. `409` when the repository has
+no completed analysis; `503` when AI is not configured; `502` when the model
+call fails.
+
+### `GET /api/repositories/:repositoryId/ai/executive-summary`
+
+Reads back the most recently generated executive summary without calling the
+model. `404` when none has been generated yet.
+
+An `explanation` object always has the shape:
+
+```json
+{
+  "id": "explanation-id",
+  "kind": "drift",
+  "key": "<drift finding id, module path, or 'executive-summary'>",
+  "model": "gemma4:e2b",
+  "promptVersion": 1,
+  "output": { "...": "drift-, risk-, or summary-shaped payload" },
+  "generatedAt": "2026-08-19T00:00:00.000Z"
+}
+```
+
+`kind` is `"drift"` (`output: { explanation, evidence, remediation }`),
+`"risk"` (`output: { explanation, implications, actionPlan }`), or
+`"summary"` (`output: { summary }`), matching which endpoint generated it.
+
+---
+
 ### `GET /api/auth/usage`
 
 Account-level usage snapshot shown on the profile page. `aiActions` is the
@@ -1099,15 +1317,74 @@ Response:
 
 ---
 
+## Durable Reports API
+
+The reports feature persists immutable `codepulse.report.snapshot` version 1
+JSON artifacts. Evidence arrays are bounded and expose total/included counts
+plus a `truncated` flag. Private routes require
+`Authorization: Bearer <accessToken>` and enforce report ownership.
+
+### `POST /api/repositories/:repositoryId/reports`
+
+Generates a report from the latest completed, scored analysis and returns
+`201` with `{ "report": { ... } }`. Returns `409` while analysis or scoring is
+incomplete.
+
+### `GET /api/reports?repositoryId=<optional-id>&limit=50&skip=0`
+
+Lists the signed-in user's report metadata, newest first. Section evidence is
+omitted from list items. `repositoryId` remains optional; `limit` defaults to
+`50` and is capped at `200`, while `skip` defaults to `0`. The response keeps
+the `reports` array and adds the bounded-page metadata used by other list APIs:
+
+```json
+{
+  "reports": ["..."],
+  "total": 12,
+  "limit": 50,
+  "skip": 0
+}
+```
+
+### `GET /api/reports/:reportId`
+
+Returns one owned report including its immutable evidence sections.
+
+### `POST /api/reports/:reportId/share`
+
+Creates or rotates a 256-bit opaque share token. Only its SHA-256 hash is
+stored. The response contains the token once under `share.token` and the API
+path under `share.path`.
+
+### `DELETE /api/reports/:reportId/share`
+
+Revokes the active public link while retaining the private report.
+
+### `GET /api/reports/shared/:shareToken`
+
+Publicly returns a shared report snapshot while its token remains active.
+Malformed, unknown, and revoked tokens all return `404`. Shared responses use
+`Cache-Control: no-store`.
+
+---
+
 ## 🔌 Connected Repository Sources
 
 Authenticated users can connect GitHub or GitLab from Settings using the
-existing OAuth routes. If the browser already has a CodePulse refresh session,
-the callback links the provider to that signed-in user rather than changing the
-session. Provider access tokens are AES-256-GCM encrypted by
+protected `POST /api/integrations/:provider/authorize` route. It returns a
+provider authorization URL whose one-time Mongo-backed state stores the
+initiating CodePulse user ID. The callback consumes that state atomically and
+links the provider to exactly that user. A dedicated short-lived state cookie
+binds the same handoff to the initiating browser; the flow does not depend on
+the refresh cookie being visible under `/auth/*`. Ordinary unauthenticated OAuth sign-in
+continues to use `GET /auth/github` and `GET /auth/gitlab` plus an `HttpOnly`
+state cookie. Provider identities are never reassigned from another user,
+including during concurrent callbacks. Provider access tokens are AES-256-GCM encrypted by
 [oauthToken.js](../../backend/src/utils/oauthToken.js) before storage in
 `oauth_accounts`; they are only decrypted server-side when listing sources.
 
+* `POST /api/integrations/:provider/authorize` returns
+  `{ "authorizationUrl": "..." }` for `github` or `gitlab`.
 * `GET /api/integrations` returns each provider's connection status and account
   name.
 * `GET /api/integrations/repositories` returns repositories accessible through
@@ -1117,10 +1394,49 @@ OAuth requests include repository-read scopes (`repo` on GitHub and
 `read_api` on GitLab). The provider calls never send access tokens to the
 frontend.
 
+## 📈 Observability API
+
+### `GET /api/metrics`
+
+Prometheus text-exposition format (`backend/src/observability/metrics.js`, a
+small dependency-free registry — Counter/Gauge/Histogram). No
+`Authorization: Bearer` requirement by default; if `METRICS_TOKEN` is set in
+the environment, requests must present it as `Authorization: Bearer <token>`
+or an `X-Metrics-Token` header, or the endpoint returns `401`. Reports:
+
+* `codepulse_scans_total{status="completed|failed|crashed|timeout|lease_lost"}`
+  and `codepulse_scan_duration_seconds` — recorded in the main process from a
+  `postMessage` the worker thread sends back on exit, since metrics recorded
+  inside a `worker_threads` worker live in that worker's own isolated module
+  state and would otherwise vanish when it exits.
+* `codepulse_scheduled_scans_total{outcome="started|skipped|error|unparseable_url"}`
+  — from `scanScheduler.js`.
+* `codepulse_ai_requests_total{outcome="success|failure"}` and
+  `codepulse_ai_request_duration_seconds` — from the AI Explainability
+  layer's calls to Gemma.
+* `codepulse_http_requests_total{status_class="2xx|3xx|4xx|5xx"}` and
+  `codepulse_rate_limited_requests_total` — no path or user label on either,
+  to avoid unbounded label cardinality from attacker-controlled input.
+* `codepulse_analysis_queue_active_workers` /
+  `codepulse_analysis_queue_pending_jobs` /
+  `codepulse_analysis_queue_scheduled_jobs` — read from the existing
+  `getAnalysisQueueSnapshot()` at scrape time.
+* `codepulse_db_collection_documents{collection="repositories|users|reports"}`
+  — `estimatedDocumentCount()` at scrape time (fast; does not scan).
+
 ## ⚙️ Current Analysis Boundaries
 
 The implemented engines operate on repository facts gathered during a scan.
-Semantic drift is available as an opt-in embedding enrichment with explicit
-provider consent; AST-level cyclomatic complexity, source-duplication
-detection, contributor-concentration risk, score history, and external LLM/RAG
-recommendations remain future integrations.
+AST-level cyclomatic complexity, source-duplication detection,
+contributor-concentration risk, score history, and an opt-in AI
+Explainability layer (risk explanations and executive summaries via a
+self-hosted Gemma model — see [docs/ai/AI_ENGINE.md](../ai/AI_ENGINE.md)) are
+all implemented. Semantic documentation drift is available as an opt-in
+embedding enrichment with explicit provider consent (see
+[docs/pending.md](../pending.md) for what it does and does not yet cover).
+Test coverage/bug-proneness ingestion, recurring scan scheduling, the
+evaluation/benchmarking harness, and a Prometheus metrics endpoint are all
+implemented too. What remains open is narrower: OS-level CPU/network
+resource isolation for scan workers and load/security testing under
+concurrent scans — see [docs/pending.md](../pending.md) for the current
+list.

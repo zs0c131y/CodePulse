@@ -34,10 +34,18 @@ function technicalMetricRecord(repositoryId, module, now) {
     owner: module.owner,
     size: module.size,
     complexity: module.complexity,
+    complexity_method: module.complexityMethod,
     churn_percent: module.churnPercent,
     observed_churn_percent: module.observedChurnPercent,
     churn_available: module.churnAvailable,
+    contributor_count: module.contributorCount,
+    contributor_concentration_percent: module.contributorConcentrationPercent,
+    bug_fix_count: module.bugFixCount,
+    bug_fix_percent: module.bugFixPercent,
     duplication_percent: module.duplicationPercent,
+    dependency_depth: module.dependencyDepth,
+    coverage_percent: module.coveragePercent,
+    coverage_available: module.coverageAvailable,
     last_changed_at: toDate(module.lastChangedAt),
     is_large_file: module.large,
     is_high_complexity: module.highComplexity,
@@ -105,6 +113,19 @@ function recommendationRecord(repositoryId, recommendation, now) {
   }
 }
 
+function scoreHistoryRecord(repositoryId, scores, now) {
+  return {
+    repository_id: repositoryId,
+    health_score: scores.healthScore,
+    technical_debt_score: scores.technicalDebt?.score ?? 0,
+    knowledge_debt_score: scores.knowledgeDebt?.score ?? 0,
+    drift_score: scores.drift?.score ?? 0,
+    risk_score: scores.risk?.score ?? 0,
+    analyzed_at: now,
+    created_at: now,
+  }
+}
+
 export async function persistAnalysisResultsWithCollections({ repositoryId, results, now }, collections) {
   const analyzedAt = toDate(now) || new Date()
   const scores = results.scores
@@ -140,6 +161,12 @@ export async function persistAnalysisResultsWithCollections({ repositoryId, resu
     analyzedAt,
   )
 
+  if (collections.repositoryScoreHistory) {
+    await collections.repositoryScoreHistory.insertOne(
+      scoreHistoryRecord(repositoryId, scores, analyzedAt),
+    )
+  }
+
   await replaceModuleMetrics(
     collections.technicalDebtMetrics,
     repositoryId,
@@ -163,6 +190,7 @@ export async function persistAnalysisResultsWithCollections({ repositoryId, resu
 
   return {
     repositoryScore,
+    scoreHistoryCount: collections.repositoryScoreHistory ? 1 : 0,
     technicalDebtMetricCount: technicalDebt.modules.length,
     knowledgeDebtMetricCount: knowledgeDebt.moduleMetrics.length,
     driftFindingCount: drift.findings.length,
@@ -176,10 +204,20 @@ export function serializeAnalysisScores(record) {
   const technicalDebt = record.technical_debt || {}
   const knowledgeDebt = record.knowledge_debt || {}
   const risk = record.risk || {}
+  const scoreHistory = Array.isArray(record.score_history) ? record.score_history : []
+  const healthTrend = scoreHistory.length > 0
+    ? scoreHistory.map(entry => entry.health_score ?? 0)
+    : (Array.isArray(record.health_trend) ? record.health_trend : [])
+  const riskTrend = scoreHistory.length > 0
+    ? scoreHistory.map(entry => ({
+      label: toIso(entry.analyzed_at)?.slice(5, 16).replace('T', ' ') || 'Unknown',
+      value: entry.risk_score ?? 0,
+    }))
+    : (Array.isArray(risk.trend) ? risk.trend : [])
 
   return {
     healthScore: record.health_score ?? 0,
-    healthTrend: Array.isArray(record.health_trend) ? record.health_trend : [],
+    healthTrend,
     technicalDebt: {
       score: technicalDebt.score ?? 0,
       grade: technicalDebt.grade || 'A',
@@ -194,7 +232,7 @@ export function serializeAnalysisScores(record) {
     risk: {
       score: risk.score ?? 0,
       criticalModules: risk.criticalModules ?? 0,
-      trend: Array.isArray(risk.trend) ? risk.trend : [],
+      trend: riskTrend,
     },
     recommendationsReady: record.recommendations_ready ?? 0,
     generatedAt: toIso(record.analyzed_at || record.updated_at),
@@ -207,10 +245,18 @@ function serializeTechnicalMetric(record) {
     owner: record.owner || 'Unassigned',
     size: record.size ?? 0,
     complexity: record.complexity ?? 0,
+    complexityMethod: record.complexity_method || 'metadata-heuristic',
     churnPercent: record.churn_percent ?? 0,
     observedChurnPercent: record.observed_churn_percent ?? record.churn_percent ?? 0,
     churnAvailable: Boolean(record.churn_available),
+    contributorCount: record.contributor_count ?? 0,
+    contributorConcentrationPercent: record.contributor_concentration_percent ?? 0,
+    bugFixCount: record.bug_fix_count ?? 0,
+    bugFixPercent: record.bug_fix_percent ?? 0,
     duplicationPercent: record.duplication_percent ?? null,
+    dependencyDepth: record.dependency_depth ?? 0,
+    coveragePercent: record.coverage_percent ?? null,
+    coverageAvailable: Boolean(record.coverage_available),
     lastChangedAt: toIso(record.last_changed_at),
     isLargeFile: Boolean(record.is_large_file),
     isHighComplexity: Boolean(record.is_high_complexity),
@@ -245,6 +291,14 @@ export function serializeTechnicalDebt(scoreRecord, metricRecords) {
       churnSampleSize: metrics.churnSampleSize ?? 0,
       churnAvailable: Boolean(metrics.churnAvailable),
       totalCodeFiles: metrics.totalCodeFiles ?? 0,
+      ownershipConcentrationModules: metrics.ownershipConcentrationModules ?? 0,
+      bugProneModules: metrics.bugProneModules ?? 0,
+      deepDependencyModules: metrics.deepDependencyModules ?? 0,
+      longestDependencyChain: metrics.longestDependencyChain ?? 0,
+      coverageAvailable: Boolean(metrics.coverageAvailable),
+      averageCoveragePercent: metrics.averageCoveragePercent ?? null,
+      coverageSampleSize: metrics.coverageSampleSize ?? 0,
+      lowCoverageModules: metrics.lowCoverageModules ?? 0,
     },
     modules: (metricRecords || [])
       .map(serializeTechnicalMetric)

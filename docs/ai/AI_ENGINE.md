@@ -2,14 +2,121 @@
 
 This document details the configuration, workflows, and prompts for the **AI Explainability Engine** (Vertical 6) in the CodePulse platform.
 
-> **Current implementation boundary:** the live backend currently provides
-> deterministic, evidence-based recommendations from stored Technical Debt,
-> Knowledge Debt, drift, and risk findings. Semantic drift is an opt-in,
-> Sentence-Transformers-compatible embedding enrichment with optional Qdrant
-> indexing; it is disabled without configuration and requires explicit consent
-> before a hosted provider receives compact code outlines or documentation
-> sections. No LLM or RAG service is configured. The architecture and prompt
-> blueprints below remain the optional extension point for richer explanations.
+> **Current implementation boundary:** the backend provides deterministic,
+> evidence-based recommendations from stored Technical Debt, Knowledge Debt,
+> drift, and risk findings by default — that pipeline never depends on an AI
+> provider. Two separate AI capabilities are layered on top of it, each with
+> its own provider and consent model, and together they implement all three
+> prompt blueprints below:
+>
+> 1. **Semantic drift detection** (`backend/src/features/analysis/services/semanticDriftAnalyzer.js`,
+>    `semanticEmbeddingClient.js`) — an opt-in, Sentence-Transformers-compatible
+>    embedding enrichment with optional Qdrant indexing. It is disabled
+>    without configuration and requires explicit provider consent before a
+>    hosted provider receives compact code outlines or documentation
+>    sections. It produces the `semantic_mismatch` findings (with the compared
+>    code interface and documentation excerpt) that Prompt Blueprint 1 below
+>    explains.
+> 2. **AI Explainability layer** (this document, all three Prompt Blueprints) —
+>    on top of the LLM transport described below (`generateWithGemma()`), an
+>    **opt-in** layer that turns stored drift/risk/debt evidence into
+>    human-readable explanations. It is only invoked when a caller explicitly
+>    requests generation — never during a scan — and repository source is
+>    never sent; only the smallest relevant stored evidence (a drift finding's
+>    code/doc excerpt, module debt metrics, scores) is assembled into the
+>    prompt.
+>
+> **API surface** (`backend/src/features/analysis/aiController.js`,
+> `backend/src/features/analysis/services/aiExplainabilityService.js`):
+> - `GET  /api/repositories/:repositoryId/ai/status`
+> - `POST /api/repositories/:repositoryId/ai/drift-explanation` `{ findingId }`
+>   — generates and persists Blueprint 1 output for one drift finding.
+> - `GET  /api/repositories/:repositoryId/ai/drift-explanation?findingId=...`
+>   — reads back the latest persisted explanation without regenerating.
+> - `POST /api/repositories/:repositoryId/ai/risk-explanation` `{ modulePath }`
+>   — generates and persists Blueprint 2 output for one module.
+> - `GET  /api/repositories/:repositoryId/ai/risk-explanation?modulePath=...`
+>   — reads back the latest persisted explanation without regenerating.
+> - `POST /api/repositories/:repositoryId/ai/executive-summary`
+>   — generates and persists Blueprint 3 output for the repository.
+> - `GET  /api/repositories/:repositoryId/ai/executive-summary`
+>   — reads back the latest persisted summary without regenerating.
+>
+> Every generated explanation is persisted to the `ai_explanations` collection
+> with its prompt version and source model, so it stays traceable to the
+> deterministic evidence it was built from. A provider failure (timeout,
+> non-2xx, malformed output, or the home server being offline) returns `502`
+> and never partially persists — the deterministic recommendations remain the
+> source of truth. The frontend surfaces this as an on-demand "Explain with
+> AI" / "Generate" action: `AiExplainabilityPanel.jsx` on the Risk & AI tab
+> (Blueprints 2 & 3), and `DriftPanel.jsx` on the Knowledge Drift tab for
+> semantic findings (Blueprint 1).
+
+---
+
+## 🔌 Current LLM Integration
+
+A self-hosted **Gemma 4** (`gemma4:e2b`, via [Ollama](https://ollama.com)) runs
+on a home server (`dauntless`), reachable from the backend through a
+Cloudflare Tunnel + Access service token — not a managed cloud AI API.
+
+```text
+  backend/src/utils/gemma.js (generateWithGemma)
+        │  CF-Access-Client-Id / CF-Access-Client-Secret
+        ▼
+  https://gemma.ardend.dev  (Cloudflare Tunnel + Access, public hostname)
+        ▼
+  dauntless:11434  (Ollama, self-hosted, home network)
+        ▼
+  gemma4:e2b
+```
+
+**Wire format** — Ollama's native `/api/generate` API, unmodified:
+
+```
+POST https://gemma.ardend.dev/api/generate
+Headers: CF-Access-Client-Id, CF-Access-Client-Secret, Content-Type: application/json
+Body:    { "model": "gemma4:e2b", "prompt": "<text>", "stream": false }
+Response: { "response": "<generated text>", ... }
+```
+
+**From backend code**, call `generateWithGemma(prompt)` — it fills in the
+URL, Access headers, and a request timeout (`GEMMA_REQUEST_TIMEOUT_MS`,
+default 60s) so a caller only needs to catch and surface the error to the
+user when the home server is offline:
+
+```js
+import { generateWithGemma } from '../../utils/gemma.js'
+
+const text = await generateWithGemma(prompt)
+```
+
+Config (`backend/src/config/index.js`): `GEMMA_API_URL`, `GEMMA_MODEL`,
+`GEMMA_REQUEST_TIMEOUT_MS`, `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`.
+`GEMMA_API_URL` and `GEMMA_MODEL` default to the `dauntless` deployment above,
+so they are effectively always "configured"; `isAiExplainabilityConfigured()`
+in `aiExplainabilityService.js` is a safety net for a deployment that
+explicitly overrides them, not the primary way availability is signaled — a
+home server that's powered off is a `502` at call time, not a `503`.
+
+**Availability caveat:** this is a home server, not a managed cloud service —
+it can be offline (power/network/reboot). `generateWithGemma()` throws rather
+than hangs when that happens; callers must catch it and return a clear
+"AI service unavailable" response rather than let it bubble up as a 500. The
+AI Explainability layer's `callGemma()` wrapper (in
+`aiExplainabilityService.js`) does exactly this: it turns any
+`generateWithGemma()` failure into an `AiProviderError`, which the controller
+maps to `502`.
+
+**Context assembly:** `generateWithGemma()` itself is a raw prompt-in/text-out
+function — it does not assemble context. The AI Explainability layer (all
+three Prompt Blueprints, described above) is what closes that gap, combining
+a blueprint's `[SYSTEM PROMPT]`/`[USER PROMPT]` into one string before calling
+`generateWithGemma()`: Blueprint 1 pulls a drift finding's stored code
+interface and documentation excerpt (populated by semantic drift detection
+for `semantic_mismatch` findings), Blueprint 2 pulls a module's technical
+debt metrics, and Blueprint 3 pulls the repository's scores and top
+risk/drift evidence.
 
 ---
 

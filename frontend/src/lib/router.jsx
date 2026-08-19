@@ -14,7 +14,11 @@ export function BrowserRouter({ children }) {
   useEffect(() => {
     const syncLocation = () => setLocation(browserLocation())
     window.addEventListener('popstate', syncLocation)
-    return () => window.removeEventListener('popstate', syncLocation)
+    window.addEventListener('hashchange', syncLocation)
+    return () => {
+      window.removeEventListener('popstate', syncLocation)
+      window.removeEventListener('hashchange', syncLocation)
+    }
   }, [])
 
   const navigate = useCallback((to, { replace = false } = {}) => {
