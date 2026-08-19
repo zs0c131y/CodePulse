@@ -1,5 +1,65 @@
-import { CheckCircle2, Clock3, FileWarning, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CheckCircle2, Clock3, FileWarning, Loader2, Sparkles, XCircle } from 'lucide-react'
 import { EmptyPanel, SeverityBadge } from './shared'
+import { generateDriftExplanation, getDriftExplanation } from '../../api/ai'
+
+function DriftAiExplanation({ accessToken, repositoryId, findingId }) {
+  const [explanation, setExplanation] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    setExplanation(null)
+    setError('')
+    getDriftExplanation(accessToken, repositoryId, findingId)
+      .then(result => { if (!cancelled) setExplanation(result) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [accessToken, repositoryId, findingId])
+
+  async function handleGenerate() {
+    setLoading(true)
+    setError('')
+    try {
+      const result = await generateDriftExplanation(accessToken, repositoryId, findingId)
+      setExplanation(result)
+    } catch (requestError) {
+      setError(requestError.message || 'Could not generate an explanation for this finding.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const output = explanation?.output
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={handleGenerate}
+        disabled={loading}
+        className="inline-flex items-center gap-1.5 rounded-[var(--r-xs)] border border-[var(--line-2)] px-2 py-1 text-xs font-medium text-[var(--ink-2)] disabled:opacity-50"
+      >
+        {loading ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+        {output ? 'Regenerate explanation' : 'Explain with AI'}
+      </button>
+
+      {error && <p className="mt-2 text-xs text-[var(--sev-critical-ink)]">{error}</p>}
+
+      {output && (
+        <div className="mt-3 space-y-2 rounded-[var(--r-sm)] border border-[var(--line-2)] bg-[var(--surface-2)] p-3 text-sm leading-6 text-[var(--ink-2)]">
+          <p><span className="font-semibold text-[var(--ink-1)]">Explanation: </span>{output.explanation}</p>
+          <p><span className="font-semibold text-[var(--ink-1)]">Evidence: </span>{output.evidence}</p>
+          <div>
+            <span className="font-semibold text-[var(--ink-1)]">Suggested update:</span>
+            <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded-[var(--r-xs)] bg-[var(--surface-1)] p-2 font-mono text-xs text-[var(--ink-2)]">{output.remediation}</pre>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function DriftPanel({
   items = [],
@@ -7,6 +67,8 @@ export default function DriftPanel({
   emptyDescription = 'Knowledge drift findings appear here after the drift detection engine compares documentation against the analyzed code structure.',
   onReview,
   reviewingId = null,
+  accessToken,
+  repositoryId,
 }) {
   if (items.length === 0) {
     return <EmptyPanel title={emptyTitle} description={emptyDescription} icon={FileWarning} />
@@ -49,6 +111,10 @@ export default function DriftPanel({
                     </div>
                   )}
                 </div>
+              )}
+
+              {item.semantic && accessToken && repositoryId && item.id && (
+                <DriftAiExplanation accessToken={accessToken} repositoryId={repositoryId} findingId={item.id} />
               )}
 
               <p className="mt-3 flex items-center gap-2 text-xs font-medium text-[var(--ink-3)]">

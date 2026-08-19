@@ -19,9 +19,8 @@ infrastructure, or a deliberate product decision.
 
 ## 1. Semantic Knowledge Drift Detection
 
-**Status:** Implemented as an opt-in embedding enrichment; feeding its
-findings into an AI-generated explanation (Prompt Blueprint 1) is the only
-remaining gap.
+**Status:** Implemented, including the AI-generated explanation (Prompt
+Blueprint 1).
 
 Structural drift is implemented: undocumented modules, stale module
 documentation, and documentation references to deleted source paths are
@@ -53,11 +52,21 @@ that conflicts with the current code outline (done), show the supporting
 code/doc sections (done), and allow a user to mark the result confirmed or
 dismissed (done).
 
-**Remaining gap:** semantic findings are not yet fed into **Prompt Blueprint
-1** (documentation drift explanation and update suggestions) in
-[docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) — the AI Explainability layer
-implements Blueprints 2 and 3 (see item 6 below) and can now be pointed at
-real semantic findings, but nothing calls Blueprint 1 yet.
+Prompt Blueprint 1 (documentation drift explanation and update suggestions,
+[docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md)) is implemented end to end: given a
+drift finding, `aiExplainabilityService.js` builds the blueprint prompt from
+the finding's stored code interface and documentation excerpt (populated for
+`semantic_mismatch` findings by the embedding enrichment above), calls the
+same self-hosted Gemma model used by Blueprints 2 and 3, and persists a
+structured `{ explanation, evidence, remediation }` result to
+`ai_explanations` via `POST /api/repositories/:id/ai/drift-explanation`
+(`{ findingId }`) / `GET .../ai/drift-explanation?findingId=...`. The
+dashboard's Knowledge Drift queue surfaces this as an "Explain with AI"
+action on semantic findings
+(`frontend/src/components/dashboard/DriftPanel.jsx`). Structural (non-semantic)
+findings can also be sent through the same endpoint but degrade gracefully —
+the prompt notes the code interface / documentation content as "not captured
+for this finding type" since only semantic findings currently carry both.
 
 ## 2. Test Coverage and Bug-Proneness Signals
 
@@ -166,10 +175,9 @@ repository lifecycle end to end (not yet run).
 
 ## 6. External LLM/RAG Explainability Layer
 
-**Status:** Implemented for risk explanations and executive summaries
-(Prompt Blueprints 2 & 3); documentation-update suggestions (Blueprint 1)
-remain pending — the semantic drift findings that would feed it are now
-implemented (see item 1), but nothing generates Blueprint 1 text from them yet.
+**Status:** Implemented — all three prompt blueprints (documentation drift
+explanation, risk explanation, executive summary) are wired to the
+self-hosted Gemma model. See item 1 for Blueprint 1's details.
 
 Current recommendations are deterministic and grounded in stored evidence and
 remain fully functional without an AI provider. On top of that, an opt-in AI

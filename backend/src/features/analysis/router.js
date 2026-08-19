@@ -13,6 +13,8 @@ import {
   getAiStatus,
   postRiskExplanation,
   getRiskExplanation,
+  postDriftExplanation,
+  getDriftExplanation,
   postExecutiveSummary,
   getExecutiveSummary,
 } from './aiController.js'
@@ -30,6 +32,8 @@ router.get('/api/repositories/:repositoryId/recommendations', requireAccessToken
 router.get('/api/repositories/:repositoryId/ai/status', requireAccessToken, getAiStatus)
 router.post('/api/repositories/:repositoryId/ai/risk-explanation', requireAccessToken, postRiskExplanation)
 router.get('/api/repositories/:repositoryId/ai/risk-explanation', requireAccessToken, getRiskExplanation)
+router.post('/api/repositories/:repositoryId/ai/drift-explanation', requireAccessToken, postDriftExplanation)
+router.get('/api/repositories/:repositoryId/ai/drift-explanation', requireAccessToken, getDriftExplanation)
 router.post('/api/repositories/:repositoryId/ai/executive-summary', requireAccessToken, postExecutiveSummary)
 router.get('/api/repositories/:repositoryId/ai/executive-summary', requireAccessToken, getExecutiveSummary)
 

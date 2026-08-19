@@ -1150,6 +1150,22 @@ provider contract.
 `{ "configured": true }` when `GEMMA_API_URL` and `GEMMA_MODEL` are both set;
 `false` otherwise. The frontend uses this to decide whether to show AI actions.
 
+### `POST /api/repositories/:repositoryId/ai/drift-explanation`
+
+Body: `{ "findingId": "<drift finding id>" }`. Generates a documentation-drift
+explanation (what's outdated, the conflicting evidence, and a suggested
+remediation) for one persisted drift finding, and persists the result.
+Returns `201` with `{ "explanation": { ... } }`. `404` when no drift finding
+with that id exists for the repository; `503` when AI is not configured;
+`502` when the model call fails. Best-suited to `semantic_mismatch` findings,
+which carry the compared code interface and documentation excerpt; other
+finding types still generate but with those sections noted as not captured.
+
+### `GET /api/repositories/:repositoryId/ai/drift-explanation?findingId=...`
+
+Reads back the most recently generated explanation for a drift finding
+without calling the model. `404` when none has been generated yet.
+
 ### `POST /api/repositories/:repositoryId/ai/risk-explanation`
 
 Body: `{ "modulePath": "src/billing/invoice.js" }`. Generates a risk
@@ -1181,14 +1197,18 @@ An `explanation` object always has the shape:
 ```json
 {
   "id": "explanation-id",
-  "kind": "risk",
-  "key": "src/billing/invoice.js",
+  "kind": "drift",
+  "key": "<drift finding id, module path, or 'executive-summary'>",
   "model": "gemma4:e2b",
   "promptVersion": 1,
-  "output": { "...": "explanation- or summary-shaped payload" },
+  "output": { "...": "drift-, risk-, or summary-shaped payload" },
   "generatedAt": "2026-08-19T00:00:00.000Z"
 }
 ```
+
+`kind` is `"drift"` (`output: { explanation, evidence, remediation }`),
+`"risk"` (`output: { explanation, implications, actionPlan }`), or
+`"summary"` (`output: { summary }`), matching which endpoint generated it.
 
 ---
 

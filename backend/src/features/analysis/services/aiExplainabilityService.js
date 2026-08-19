@@ -1,6 +1,10 @@
 import { GEMMA_API_URL, GEMMA_MODEL } from '../../../config/index.js'
 import { generateWithGemma } from '../../../utils/gemma.js'
-import { getAiExplanationsCollection, getTechnicalDebtMetricsCollection } from '../../../db/index.js'
+import {
+  getAiExplanationsCollection,
+  getTechnicalDebtMetricsCollection,
+  getDriftFindingsCollection,
+} from '../../../db/index.js'
 import {
   getRepositoryScore,
   getRepositoryKnowledgeDrift,
@@ -98,6 +102,59 @@ Provide your findings in JSON format only, with no prose outside the JSON object
   return { system, user }
 }
 
+/** Prompt Blueprint 1 (docs/ai/AI_ENGINE.md) — documentation drift analysis & update suggestions. */
+export function buildDriftExplanationPrompt(finding) {
+  const system = `You are CodePulse-Drift-Analyzer, a specialized AI coding assistant.
+Your task is to compare code implementation semantics with its documentation and identify documentation drift.
+Be precise, locate outdated sections, and propose exact corrections.`
+
+  const user = `Analyze the discrepancy between the file structure and its documentation below:
+
+--- DATABASE DRIFT FINDING ---
+File Path: ${finding.filePath}
+Drift Type: ${finding.driftType}
+Description: ${finding.description}
+
+--- CURRENT CODE INTERFACE (AST) ---
+${finding.codeInterface || 'Not captured for this finding type.'}
+
+--- CURRENT DOCUMENTATION CONTENT ---
+${finding.documentationContent || 'Not captured for this finding type.'}
+
+Provide your findings in JSON format only, with no prose outside the JSON object:
+{
+  "explanation": "What specific information in the documentation is outdated, missing, or incorrect.",
+  "evidence": "The code lines/signatures and documentation paragraphs that conflict.",
+  "remediation": "A unified diff or replacement text block for the documentation file that resolves the drift."
+}`
+
+  return { system, user }
+}
+
+export function parseDriftExplanationResponse(rawText) {
+  let parsed
+  try {
+    parsed = JSON.parse(stripCodeFence(rawText))
+  } catch {
+    throw new AiProviderError('The AI explanation service returned invalid JSON.')
+  }
+
+  if (
+    !parsed
+    || typeof parsed.explanation !== 'string'
+    || typeof parsed.evidence !== 'string'
+    || typeof parsed.remediation !== 'string'
+  ) {
+    throw new AiProviderError('The AI explanation service returned an unexpected response shape.')
+  }
+
+  return {
+    explanation: parsed.explanation,
+    evidence: parsed.evidence,
+    remediation: parsed.remediation,
+  }
+}
+
 function stripCodeFence(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
   return (fenced ? fenced[1] : text).trim()
@@ -180,6 +237,16 @@ function moduleRecordToPromptInput(record) {
   }
 }
 
+function driftFindingRecordToPromptInput(record) {
+  return {
+    filePath: record.file_path || record.module_path || 'Unknown file',
+    driftType: record.drift_type || 'unknown',
+    description: record.title || record.evidence || 'No description recorded.',
+    codeInterface: record.semantic?.codeSection || null,
+    documentationContent: record.semantic?.documentationSection || null,
+  }
+}
+
 function serializeExplanationRecord(record) {
   const createdAt = record.created_at instanceof Date ? record.created_at : new Date(record.created_at)
   return {
@@ -201,6 +268,7 @@ const defaultDeps = {
   serializeAnalysisScores,
   serializeKnowledgeDrift,
   getTechnicalDebtMetricsCollection,
+  getDriftFindingsCollection,
   getAiExplanationsCollection,
   now: () => new Date(),
 }
@@ -216,6 +284,11 @@ export function createAiExplainabilityService(deps = defaultDeps) {
   async function findModuleRecord(repositoryId, modulePath) {
     const collection = await deps.getTechnicalDebtMetricsCollection()
     return collection.findOne({ repository_id: repositoryId, file_path: modulePath })
+  }
+
+  async function findDriftFindingRecord(repositoryId, findingId) {
+    const collection = await deps.getDriftFindingsCollection()
+    return collection.findOne({ _id: findingId, repository_id: repositoryId })
   }
 
   async function persistExplanation({ repositoryId, kind, key, model, output }) {
@@ -256,6 +329,30 @@ export function createAiExplainabilityService(deps = defaultDeps) {
       repositoryId,
       kind: 'risk',
       key: modulePath,
+      model: GEMMA_MODEL,
+      output: parsed,
+    })
+
+    return { kind: 'generated', explanation: serializeExplanationRecord(record) }
+  }
+
+  async function generateDriftExplanation(repositoryId, findingId) {
+    if (!deps.isAiExplainabilityConfigured()) {
+      return { kind: 'not-configured' }
+    }
+
+    const findingRecord = await findDriftFindingRecord(repositoryId, findingId)
+    if (!findingRecord) {
+      return { kind: 'finding-not-found' }
+    }
+
+    const prompt = buildDriftExplanationPrompt(driftFindingRecordToPromptInput(findingRecord))
+    const rawText = await deps.callGemma(prompt)
+    const parsed = parseDriftExplanationResponse(rawText)
+    const record = await persistExplanation({
+      repositoryId,
+      kind: 'drift',
+      key: findingRecord._id.toString(),
       model: GEMMA_MODEL,
       output: parsed,
     })
@@ -308,6 +405,11 @@ export function createAiExplainabilityService(deps = defaultDeps) {
     return record ? serializeExplanationRecord(record) : null
   }
 
+  async function getDriftExplanation(repositoryId, findingId) {
+    const record = await getCachedRecord(repositoryId, 'drift', findingId.toString())
+    return record ? serializeExplanationRecord(record) : null
+  }
+
   async function getExecutiveSummary(repositoryId) {
     const record = await getCachedRecord(repositoryId, 'summary', 'executive-summary')
     return record ? serializeExplanationRecord(record) : null
@@ -316,8 +418,10 @@ export function createAiExplainabilityService(deps = defaultDeps) {
   return {
     isAiExplainabilityConfigured: deps.isAiExplainabilityConfigured,
     generateRiskExplanation,
+    generateDriftExplanation,
     generateExecutiveSummary,
     getRiskExplanation,
+    getDriftExplanation,
     getExecutiveSummary,
   }
 }

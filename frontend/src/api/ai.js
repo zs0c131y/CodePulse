@@ -30,6 +30,26 @@ export async function getRiskExplanation(accessToken, repositoryId, modulePath) 
   }
 }
 
+export async function generateDriftExplanation(accessToken, repositoryId, findingId) {
+  const data = await apiFetch(`/api/repositories/${repositoryId}/ai/drift-explanation`, {
+    accessToken,
+    method: 'POST',
+    body: { findingId },
+  })
+  return data.explanation || null
+}
+
+export async function getDriftExplanation(accessToken, repositoryId, findingId) {
+  try {
+    const query = new URLSearchParams({ findingId })
+    const data = await apiFetch(`/api/repositories/${repositoryId}/ai/drift-explanation?${query.toString()}`, { accessToken })
+    return data.explanation || null
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null
+    throw error
+  }
+}
+
 export async function generateExecutiveSummary(accessToken, repositoryId) {
   const data = await apiFetch(`/api/repositories/${repositoryId}/ai/executive-summary`, {
     accessToken,

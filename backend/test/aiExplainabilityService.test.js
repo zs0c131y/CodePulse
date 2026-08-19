@@ -3,8 +3,10 @@ import assert from 'node:assert/strict'
 import {
   createAiExplainabilityService,
   buildRiskExplanationPrompt,
+  buildDriftExplanationPrompt,
   buildExecutiveSummaryPrompt,
   parseRiskExplanationResponse,
+  parseDriftExplanationResponse,
   AiProviderError,
 } from '../src/features/analysis/services/aiExplainabilityService.js'
 
@@ -25,6 +27,16 @@ function createModuleCollection(records) {
         },
         async toArray() { return matched.slice(0, this._limit ?? matched.length) },
       }
+    },
+  }
+}
+
+function createDriftFindingsCollection(records) {
+  return {
+    async findOne(query) {
+      return records.find(record => (
+        record._id === query._id && record.repository_id === query.repository_id
+      )) || null
     },
   }
 }
@@ -74,6 +86,25 @@ function createDeps(overrides = {}) {
     },
   ]
   const explanations = overrides.explanationsCollection || createExplanationsCollection()
+  const driftFindingRecords = overrides.driftFindingRecords || [
+    {
+      _id: 'finding-1',
+      repository_id: 'repo-1',
+      finding_key: 'semantic_mismatch:src/auth.js:docs/auth.md:0',
+      drift_type: 'semantic_mismatch',
+      title: 'Review documentation alignment for src/auth.js',
+      file_path: 'docs/auth.md',
+      module_path: 'src',
+      evidence: 'Code and documentation summaries have 24% semantic similarity.',
+      semantic: {
+        similarity: 0.24,
+        threshold: 0.42,
+        model: 'all-MiniLM-L6-v2',
+        codeSection: 'function authenticate(request) { return verifyOAuthToken(request.headers.authorization) }',
+        documentationSection: '## Auth\nAuthentication uses a signed JWT passed in the Authorization header.',
+      },
+    },
+  ]
 
   return {
     isAiExplainabilityConfigured: () => true,
@@ -93,6 +124,7 @@ function createDeps(overrides = {}) {
       return { findings: [{ filePath: 'docs/auth.md', title: 'Outdated auth flow', severity: 'High' }] }
     },
     async getTechnicalDebtMetricsCollection() { return createModuleCollection(moduleRecords) },
+    async getDriftFindingsCollection() { return createDriftFindingsCollection(driftFindingRecords) },
     async getAiExplanationsCollection() { return explanations },
     now: () => new Date('2026-08-19T00:00:00.000Z'),
     ...overrides,
@@ -182,6 +214,85 @@ test('generateRiskExplanation surfaces provider failures instead of persisting a
   assert.equal(explanations.store.length, 0)
 })
 
+test('buildDriftExplanationPrompt embeds the semantic finding evidence and asks for structured JSON', () => {
+  const { system, user } = buildDriftExplanationPrompt({
+    filePath: 'docs/auth.md',
+    driftType: 'semantic_mismatch',
+    description: 'Review documentation alignment for src/auth.js',
+    codeInterface: 'function authenticate(request) { return verifyOAuthToken(...) }',
+    documentationContent: 'Authentication uses a signed JWT.',
+  })
+
+  assert.match(system, /CodePulse-Drift-Analyzer/)
+  assert.match(user, /docs\/auth\.md/)
+  assert.match(user, /semantic_mismatch/)
+  assert.match(user, /verifyOAuthToken/)
+  assert.match(user, /signed JWT/)
+  assert.match(user, /"remediation"/)
+})
+
+test('buildDriftExplanationPrompt degrades gracefully when code/doc sections were not captured', () => {
+  const { user } = buildDriftExplanationPrompt({
+    filePath: 'src/module',
+    driftType: 'missing_documentation',
+    description: 'No documentation found for src/module',
+    codeInterface: null,
+    documentationContent: null,
+  })
+
+  assert.match(user, /Not captured for this finding type\./)
+})
+
+test('parseDriftExplanationResponse accepts fenced JSON and rejects malformed shapes', () => {
+  const fenced = '```json\n{"explanation":"x","evidence":"y","remediation":"z"}\n```'
+  const parsed = parseDriftExplanationResponse(fenced)
+  assert.deepEqual(parsed, { explanation: 'x', evidence: 'y', remediation: 'z' })
+
+  assert.throws(() => parseDriftExplanationResponse('not json'), AiProviderError)
+  assert.throws(() => parseDriftExplanationResponse('{"explanation":"x"}'), AiProviderError)
+})
+
+test('generateDriftExplanation returns finding-not-found for ids outside the repository', async () => {
+  const service = createAiExplainabilityService(createDeps())
+  const result = await service.generateDriftExplanation('repo-1', 'missing-finding')
+  assert.deepEqual(result, { kind: 'finding-not-found' })
+})
+
+test('generateDriftExplanation persists a structured explanation built from the semantic finding and getDriftExplanation reads it back', async () => {
+  let capturedPrompt
+  const service = createAiExplainabilityService(createDeps({
+    async callGemma(prompt) {
+      capturedPrompt = prompt
+      return JSON.stringify({
+        explanation: 'The documentation still describes JWT auth, but the code now verifies OAuth tokens.',
+        evidence: 'verifyOAuthToken(...) vs. "Authentication uses a signed JWT."',
+        remediation: '- Authentication uses a signed JWT.\n+ Authentication uses OAuth2 access tokens.',
+      })
+    },
+  }))
+
+  const generated = await service.generateDriftExplanation('repo-1', 'finding-1')
+  assert.equal(generated.kind, 'generated')
+  assert.equal(generated.explanation.kind, 'drift')
+  assert.equal(generated.explanation.key, 'finding-1')
+  assert.match(generated.explanation.output.explanation, /OAuth tokens/)
+  assert.match(capturedPrompt.user, /verifyOAuthToken/)
+
+  const cached = await service.getDriftExplanation('repo-1', 'finding-1')
+  assert.match(cached.output.remediation, /OAuth2 access tokens/)
+})
+
+test('generateDriftExplanation surfaces provider failures instead of persisting a partial record', async () => {
+  const explanations = createExplanationsCollection()
+  const service = createAiExplainabilityService(createDeps({
+    explanationsCollection: explanations,
+    async callGemma() { throw new AiProviderError('boom') },
+  }))
+
+  await assert.rejects(() => service.generateDriftExplanation('repo-1', 'finding-1'), AiProviderError)
+  assert.equal(explanations.store.length, 0)
+})
+
 test('generateExecutiveSummary requires a completed analysis before calling the model', async () => {
   const service = createAiExplainabilityService(createDeps({
     async getRepositoryScore() { return null },
@@ -208,8 +319,9 @@ test('generateExecutiveSummary persists the generated summary and getExecutiveSu
   assert.match(cached.output.summary, /Paragraph three/)
 })
 
-test('getRiskExplanation and getExecutiveSummary return null when nothing was generated yet', async () => {
+test('getRiskExplanation, getDriftExplanation, and getExecutiveSummary return null when nothing was generated yet', async () => {
   const service = createAiExplainabilityService(createDeps())
   assert.equal(await service.getRiskExplanation('repo-1', 'src/unknown.js'), null)
+  assert.equal(await service.getDriftExplanation('repo-1', 'finding-1'), null)
   assert.equal(await service.getExecutiveSummary('repo-1'), null)
 })

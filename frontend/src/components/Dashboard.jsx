@@ -427,7 +427,15 @@ function MainContent({ activeTab, view, liveMode, accessToken, repositoryId, onR
       <div className="space-y-5">
         <KnowledgeDebtPanel data={view.knowledgeDebt} />
         <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <DriftPanel items={view.driftItems} emptyTitle={view.driftEmptyTitle} emptyDescription={view.driftEmptyDescription} onReview={onReviewDrift} reviewingId={reviewingDriftId} />
+        <DriftPanel
+          items={view.driftItems}
+          emptyTitle={view.driftEmptyTitle}
+          emptyDescription={view.driftEmptyDescription}
+          onReview={onReviewDrift}
+          reviewingId={reviewingDriftId}
+          accessToken={liveMode ? accessToken : undefined}
+          repositoryId={liveMode ? repositoryId : undefined}
+        />
         <CoveragePanel
           items={view.coverageItems}
           description={liveMode ? 'Measured documentation coverage for this repository.' : 'Coverage by repository area.'}

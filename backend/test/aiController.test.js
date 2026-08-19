@@ -27,12 +27,16 @@ function createService(overrides = {}) {
   return {
     isAiExplainabilityConfigured: () => true,
     async generateRiskExplanation() { return { kind: 'generated', explanation: { id: 'exp-1' } } },
+    async generateDriftExplanation() { return { kind: 'generated', explanation: { id: 'exp-3' } } },
     async generateExecutiveSummary() { return { kind: 'generated', explanation: { id: 'exp-2' } } },
     async getRiskExplanation() { return { id: 'exp-1' } },
+    async getDriftExplanation() { return { id: 'exp-3' } },
     async getExecutiveSummary() { return { id: 'exp-2' } },
     ...overrides,
   }
 }
+
+const VALID_FINDING_ID = '507f1f77bcf86cd799439012'
 
 function createDeps(overrides = {}) {
   return {
@@ -123,6 +127,69 @@ test('getRiskExplanation requires modulePath and returns 404 when nothing was ge
 
   const notFound = createResponse()
   await controller.getRiskExplanation({ ...ownedRequest, query: { modulePath: 'src/app.js' } }, notFound, () => assert.fail())
+  assert.equal(notFound.statusCode, 404)
+})
+
+test('postDriftExplanation validates findingId and maps service outcomes to status codes', async () => {
+  const { postDriftExplanation } = createAiController(createService(), createDeps())
+
+  const missingFinding = createResponse()
+  await postDriftExplanation({ ...ownedRequest, body: {} }, missingFinding, () => assert.fail())
+  assert.equal(missingFinding.statusCode, 400)
+
+  const malformedFinding = createResponse()
+  await postDriftExplanation({ ...ownedRequest, body: { findingId: 'not-an-id' } }, malformedFinding, () => assert.fail())
+  assert.equal(malformedFinding.statusCode, 400)
+
+  const notConfigured = createResponse()
+  const disabledController = createAiController(
+    createService({ async generateDriftExplanation() { return { kind: 'not-configured' } } }),
+    createDeps(),
+  )
+  await disabledController.postDriftExplanation({ ...ownedRequest, body: { findingId: VALID_FINDING_ID } }, notConfigured, () => assert.fail())
+  assert.equal(notConfigured.statusCode, 503)
+
+  const findingNotFound = createResponse()
+  const missingController = createAiController(
+    createService({ async generateDriftExplanation() { return { kind: 'finding-not-found' } } }),
+    createDeps(),
+  )
+  await missingController.postDriftExplanation({ ...ownedRequest, body: { findingId: VALID_FINDING_ID } }, findingNotFound, () => assert.fail())
+  assert.equal(findingNotFound.statusCode, 404)
+
+  const success = createResponse()
+  await postDriftExplanation({ ...ownedRequest, body: { findingId: VALID_FINDING_ID } }, success, () => assert.fail())
+  assert.equal(success.statusCode, 201)
+  assert.deepEqual(success.body, { explanation: { id: 'exp-3' } })
+})
+
+test('postDriftExplanation returns 502 when the provider fails instead of a generic 500', async () => {
+  const controller = createAiController(
+    createService({ async generateDriftExplanation() { throw new AiProviderError('provider down') } }),
+    createDeps(),
+  )
+  const response = createResponse()
+  await controller.postDriftExplanation(
+    { ...ownedRequest, body: { findingId: VALID_FINDING_ID } },
+    response,
+    () => assert.fail('next should not be called for provider errors'),
+  )
+  assert.equal(response.statusCode, 502)
+  assert.equal(response.body.message, 'provider down')
+})
+
+test('getDriftExplanation requires a valid findingId and returns 404 when nothing was generated', async () => {
+  const controller = createAiController(
+    createService({ async getDriftExplanation() { return null } }),
+    createDeps(),
+  )
+
+  const missingQuery = createResponse()
+  await controller.getDriftExplanation({ ...ownedRequest, query: {} }, missingQuery, () => assert.fail())
+  assert.equal(missingQuery.statusCode, 400)
+
+  const notFound = createResponse()
+  await controller.getDriftExplanation({ ...ownedRequest, query: { findingId: VALID_FINDING_ID } }, notFound, () => assert.fail())
   assert.equal(notFound.statusCode, 404)
 })
 

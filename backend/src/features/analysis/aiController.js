@@ -6,6 +6,10 @@ function parseRepositoryId(value) {
   return typeof value === 'string' && ObjectId.isValid(value) ? new ObjectId(value) : null
 }
 
+function parseObjectId(value) {
+  return typeof value === 'string' && ObjectId.isValid(value) ? new ObjectId(value) : null
+}
+
 function trimmedString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -89,6 +93,60 @@ export function createAiController(service = aiExplainabilityService, deps = { f
     }
   }
 
+  async function postDriftExplanation(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      const findingId = parseObjectId(request.body?.findingId)
+      if (!findingId) {
+        response.status(400).json({ message: 'A valid findingId is required.' })
+        return
+      }
+
+      const result = await service.generateDriftExplanation(repository._id, findingId)
+      if (result.kind === 'not-configured') {
+        response.status(503).json({ message: 'AI explanations are not configured for this deployment.' })
+        return
+      }
+      if (result.kind === 'finding-not-found') {
+        response.status(404).json({ message: 'No drift finding found for this id.' })
+        return
+      }
+
+      response.status(201).json({ explanation: result.explanation })
+    } catch (error) {
+      if (error instanceof AiProviderError) {
+        response.status(502).json({ message: error.message })
+        return
+      }
+      next(error)
+    }
+  }
+
+  async function getDriftExplanation(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      const findingId = parseObjectId(request.query?.findingId)
+      if (!findingId) {
+        response.status(400).json({ message: 'A valid findingId is required.' })
+        return
+      }
+
+      const explanation = await service.getDriftExplanation(repository._id, findingId)
+      if (!explanation) {
+        response.status(404).json({ message: 'No AI explanation has been generated for this drift finding yet.' })
+        return
+      }
+
+      response.json({ explanation })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   async function postExecutiveSummary(request, response, next) {
     try {
       const repository = await requireOwnedRepository(request, response)
@@ -135,6 +193,8 @@ export function createAiController(service = aiExplainabilityService, deps = { f
     getAiStatus,
     postRiskExplanation,
     getRiskExplanation,
+    postDriftExplanation,
+    getDriftExplanation,
     postExecutiveSummary,
     getExecutiveSummary,
     requireOwnedRepository,
@@ -145,6 +205,8 @@ export const {
   getAiStatus,
   postRiskExplanation,
   getRiskExplanation,
+  postDriftExplanation,
+  getDriftExplanation,
   postExecutiveSummary,
   getExecutiveSummary,
 } = createAiController()
