@@ -1,7 +1,16 @@
-import { maxLoginFailures, loginLockTtlMs } from '../config/index.js'
+import { maxLoginFailures, loginLockTtlMs, SECURITY_DISABLED } from '../config/index.js'
 import { getAuthAttemptsCollection } from '../db/index.js'
 
+/**
+ * The failed-sign-in lockout gate (docs/backend/BACKEND.md "Controlled Load
+ * Testing") — an anti-brute-force cooldown keyed by email+IP, not credential
+ * verification itself. Bypassed under SECURITY_DISABLED the same way the
+ * rate limiters are; recordLoginFailure/clearLoginFailures keep running so
+ * the audit trail in auth_attempts stays intact either way.
+ */
 export async function assertLoginAllowed(email, ip) {
+  if (SECURITY_DISABLED) return true
+
   const attempts = await getAuthAttemptsCollection()
   const key = `${email}:${ip}`
   const record = await attempts.findOne({ key })

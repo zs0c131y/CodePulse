@@ -1,6 +1,18 @@
 import { rateLimitedRequestsTotal } from '../observability/metrics.js'
+import { SECURITY_DISABLED } from '../config/index.js'
 
+/**
+ * Single gate point for every rate limiter in the app (docs/backend/BACKEND.md
+ * "Controlled Load Testing"). When SECURITY_DISABLED, every limiter built by
+ * this factory becomes an inert pass-through instead of being conditionally
+ * registered at each call site — callers (app.js, auth/router.js) never need
+ * to know or check the flag themselves.
+ */
 export function createRateLimiter({ windowMs, max, key = request => request.ip, maxBuckets = 10_000 }) {
+  if (SECURITY_DISABLED) {
+    return (_request, _response, next) => next()
+  }
+
   const hits = new Map()
 
   return (request, response, next) => {

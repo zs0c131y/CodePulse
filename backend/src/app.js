@@ -1,7 +1,7 @@
 import express from 'express'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { IS_PRODUCTION } from './config/index.js'
+import { IS_PRODUCTION, SECURITY_DISABLED } from './config/index.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
 import { cors } from './middleware/cors.js'
 import { createRateLimiter } from './middleware/rateLimiter.js'
@@ -20,6 +20,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // Only present in production images — never required for local development.
 const frontendDistPath = join(__dirname, '../../dist')
 const frontendIndexPath = join(frontendDistPath, 'index.html')
+
+if (SECURITY_DISABLED) {
+  // Printed once at module load, never per-request.
+  console.warn([
+    '',
+    '='.repeat(50),
+    'WARNING: SECURITY RATE-LIMIT PROTECTIONS DISABLED',
+    'Controlled load-testing mode is ACTIVE.',
+    'DO NOT USE THIS CONFIGURATION IN PRODUCTION.',
+    '='.repeat(50),
+    '',
+  ].join('\n'))
+}
 
 const app = express()
 

@@ -3,6 +3,28 @@ import '../utils/env.js'
 
 export const PORT = Number(process.env.API_PORT || process.env.PORT || 3000)
 export const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+
+// --- Controlled load-testing security bypass (never usable in production) ---
+//
+// Only the exact string "true" enables this — "false", "0", empty, or unset
+// all leave security fully enabled. This disables application-level
+// traffic-shaping (rate limiting, login-attempt lockout), never
+// authentication/authorization/input-validation/business logic. See
+// docs/backend/BACKEND.md "Controlled Load Testing" for the full contract.
+export const SECURITY_DISABLED = process.env.DISABLE_SEC === 'true'
+
+if (SECURITY_DISABLED && IS_PRODUCTION) {
+  throw new Error([
+    '',
+    '='.repeat(70),
+    'FATAL: DISABLE_SEC=true is not allowed when NODE_ENV=production.',
+    'DISABLE_SEC disables application-level rate limiting and login-attempt',
+    'lockout for controlled load testing. It must never run in production.',
+    'Refusing to start.',
+    '='.repeat(70),
+    '',
+  ].join('\n'))
+}
 export const refreshCookieName = 'codepulse_refresh'
 export const accessTokenTtlSeconds = 15 * 60
 export const refreshTokenTtlMs = 7 * 24 * 60 * 60 * 1000

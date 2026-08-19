@@ -230,6 +230,65 @@ starting the backend in production.
 
 ---
 
+## 🧪 Controlled Load Testing
+
+`DISABLE_SEC=true` disables the application-level traffic-shaping and
+abuse-prevention that would otherwise distort a controlled load test whose
+traffic originates from one or a few IPs (see
+[backend/scripts/loadTest.mjs](../../backend/scripts/loadTest.mjs)). It is
+parsed once into `SECURITY_DISABLED` in
+[backend/src/config/index.js](../../backend/src/config/index.js) — only the
+exact string `"true"` enables it; `"false"`, empty, `"0"`, or unset all leave
+security fully enabled. Every other file checks the parsed
+`SECURITY_DISABLED` constant, never `process.env.DISABLE_SEC` directly.
+
+**What it disables** (traffic-shaping only, gated centrally inside
+`createRateLimiter()` in
+[backend/src/middleware/rateLimiter.js](../../backend/src/middleware/rateLimiter.js)
+so callers never branch on the flag themselves):
+
+* The general per-IP HTTP rate limiter (`backend/src/app.js`, 300
+  requests/15 min).
+* `authRateLimiter`, applied to the auth routes in
+  [backend/src/features/auth/router.js](../../backend/src/features/auth/router.js)
+  (30 requests/15 min per IP+path) — becomes a pass-through automatically
+  since it's built from the same `createRateLimiter()` factory.
+* The failed-sign-in lockout (`assertLoginAllowed` in
+  [backend/src/utils/loginAttempts.js](../../backend/src/utils/loginAttempts.js))
+  — an anti-brute-force cooldown keyed by email+IP, not credential
+  verification itself. `recordLoginFailure`/`clearLoginFailures` keep
+  running either way, so the `auth_attempts` audit trail is unaffected.
+
+**What it does NOT disable** — authentication (JWT verification, password
+comparison), authorization/ownership checks, input/schema validation, CORS,
+security headers, CSRF-relevant behavior, or any database integrity
+constraint. Every request still runs through real handlers with real
+business logic; only the "reject before it gets there" traffic-shaping is
+removed.
+
+**Production safety**: if `NODE_ENV=production` and `DISABLE_SEC=true`, the
+backend throws a loud, multi-line `FATAL` error from `config/index.js` at
+import time and refuses to start — there is no code path where this flag can
+run against a production deployment. A one-time (not per-request) warning
+banner is also printed to the console whenever the bypass is active.
+
+**Observability stays on regardless** — `/api/metrics` (see "Observability
+API" above), request logging, and error logging are unaffected by
+`DISABLE_SEC`, so a load
+test run with it enabled can still distinguish real application/database/
+infrastructure saturation (5xx rate, latency percentiles, queue depth,
+connection behavior) from security middleware that would otherwise have
+rejected the traffic outright.
+
+**What this cannot touch**: any rate limiting, WAF rules, or DDoS protection
+enforced by the hosting platform or a CDN in front of it (Railway, Fly,
+Cloudflare, etc.) — those live outside this repository. A `429` that
+persists with `DISABLE_SEC=true` set and the warning banner printed at
+startup is coming from outside this application, not from anything covered
+above.
+
+---
+
 ## 🔐 Authentication API
 
 Implemented in [backend/src/features/auth/controler/credentials.controller.js](../../backend/src/features/auth/controler/credentials.controller.js).
