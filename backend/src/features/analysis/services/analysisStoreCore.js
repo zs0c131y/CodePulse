@@ -44,6 +44,8 @@ function technicalMetricRecord(repositoryId, module, now) {
     bug_fix_percent: module.bugFixPercent,
     duplication_percent: module.duplicationPercent,
     dependency_depth: module.dependencyDepth,
+    coverage_percent: module.coveragePercent,
+    coverage_available: module.coverageAvailable,
     last_changed_at: toDate(module.lastChangedAt),
     is_large_file: module.large,
     is_high_complexity: module.highComplexity,
@@ -253,6 +255,8 @@ function serializeTechnicalMetric(record) {
     bugFixPercent: record.bug_fix_percent ?? 0,
     duplicationPercent: record.duplication_percent ?? null,
     dependencyDepth: record.dependency_depth ?? 0,
+    coveragePercent: record.coverage_percent ?? null,
+    coverageAvailable: Boolean(record.coverage_available),
     lastChangedAt: toIso(record.last_changed_at),
     isLargeFile: Boolean(record.is_large_file),
     isHighComplexity: Boolean(record.is_high_complexity),
@@ -291,6 +295,10 @@ export function serializeTechnicalDebt(scoreRecord, metricRecords) {
       bugProneModules: metrics.bugProneModules ?? 0,
       deepDependencyModules: metrics.deepDependencyModules ?? 0,
       longestDependencyChain: metrics.longestDependencyChain ?? 0,
+      coverageAvailable: Boolean(metrics.coverageAvailable),
+      averageCoveragePercent: metrics.averageCoveragePercent ?? null,
+      coverageSampleSize: metrics.coverageSampleSize ?? 0,
+      lowCoverageModules: metrics.lowCoverageModules ?? 0,
     },
     modules: (metricRecords || [])
       .map(serializeTechnicalMetric)

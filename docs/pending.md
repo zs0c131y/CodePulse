@@ -61,8 +61,7 @@ real semantic findings, but nothing calls Blueprint 1 yet.
 
 ## 2. Test Coverage and Bug-Proneness Signals
 
-**Status:** Partially implemented — bug-proneness done, coverage ingestion
-pending
+**Status:** Implemented
 
 Bug-proneness is implemented: `technicalDebtAnalyzer.js` classifies commits as
 likely fixes using a configurable message pattern
@@ -71,13 +70,20 @@ surfaces "bug-fix hotspot" evidence once a module has at least 2 captured
 fixes making up 50%+ of its sampled changes — a weak, transparently-labelled
 signal rather than a claim of an objectively defective file.
 
-Test coverage ingestion is not implemented. There is no LCOV, Cobertura, or
-Python coverage-XML parsing anywhere in the backend, and no adapter that reads
-existing CI coverage artifacts. Add optional, sandboxed adapters for those
-formats; read existing CI artifacts or run only explicitly approved commands,
-never execute arbitrary repository code by default. Map coverage files to
-production modules and clearly distinguish "no coverage report available"
-from "zero coverage."
+Test coverage ingestion is implemented for the LCOV format
+(`backend/src/features/repositories/services/coverageParser.js`). It reads
+whatever coverage report already exists in the cloned repository at scan time
+— `coverage/lcov.info`, `coverage/lcov-report/lcov.info`, `.nyc_output/lcov.info`,
+or `lcov.info`, checked in that priority order — and never runs a project's
+test suite or any other repository command; a missing, empty, oversized
+(>8 MB), or unparseable report produces `coverageAvailable: false`, never a
+fabricated `0%`. Per-file line coverage feeds `technicalDebtAnalyzer.js` as
+`coveragePercent`/`coverageAvailable`, contributes a small debt-score
+increment and a `"Low test coverage (N%)"` evidence reason once a module
+drops below 40% covered, and rolls up into repository-level
+`averageCoveragePercent`/`coverageSampleSize`/`lowCoverageModules` metrics.
+Cobertura and Python coverage-XML formats are not implemented — only LCOV,
+which covers the common Istanbul/nyc/Jest toolchain output locations.
 
 **Acceptance criteria:** test coverage is an optional input, absent rather
 than fabricated when unavailable, and contributes explainable evidence to

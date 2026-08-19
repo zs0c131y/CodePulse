@@ -1019,13 +1019,17 @@ scores endpoint.
     "technicalDebtScore": 36,
     "grade": "B",
     "averageComplexity": 8.2,
-    "duplicationPercent": null,
+    "duplicationPercent": 4.5,
     "circularDependencies": 1,
     "largeFiles": 2,
     "orphanModules": 1,
     "staleModules": 0,
     "churnSampleSize": 5,
-    "churnAvailable": true
+    "churnAvailable": true,
+    "coverageAvailable": true,
+    "averageCoveragePercent": 61.4,
+    "coverageSampleSize": 18,
+    "lowCoverageModules": 3
   },
   "modules": [
     {
@@ -1035,19 +1039,29 @@ scores endpoint.
       "churnPercent": 60,
       "observedChurnPercent": 60,
       "churnAvailable": true,
-      "duplicationPercent": null,
+      "duplicationPercent": 12.5,
+      "coverageAvailable": true,
+      "coveragePercent": 28.6,
       "isLargeFile": true,
       "inCircularDependency": true,
       "isOrphan": false,
       "isStale": false,
       "debtScore": 74,
       "risk": "High",
-      "reasons": ["Large source file (65536 bytes)"]
+      "reasons": ["Large source file (65536 bytes)", "Low test coverage (28.6%)"]
     }
   ],
   "generatedAt": "2026-07-25T00:00:00.000Z"
 }
 ```
+
+`coverageAvailable`/`coveragePercent` come from an LCOV report already present in the
+cloned repository at scan time (`coverage/lcov.info`, `coverage/lcov-report/lcov.info`,
+`.nyc_output/lcov.info`, or `lcov.info`, checked in that order) —
+`backend/src/features/repositories/services/coverageParser.js`. CodePulse never runs a
+project's test suite or any other repository command to produce this file; when no
+report is found, `coverageAvailable` is `false` and `coveragePercent` is `null`
+(never `0`, which would misrepresent "not measured" as "measured and empty").
 
 ---
 

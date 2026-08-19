@@ -5,6 +5,7 @@ import { extractCommitHistory } from './commitExtractor.js'
 import { generateDependencyGraph, getDependencyGraphCoverage } from './dependencyGraph.js'
 import { analyzeCodeStructure } from './codeAnalyzer.js'
 import { analyzeDocumentation } from './documentationAnalyzer.js'
+import { extractCoverageReport } from './coverageParser.js'
 import { persistStructuredAnalysis } from './structuredAnalysisStore.js'
 import { scoreRepositoryAnalysis } from '../../analysis/services/analysisScorer.js'
 import {
@@ -55,6 +56,7 @@ export async function analyzeRepositorySource({
       files: structure.files,
       codeAnalysis,
     })
+    const coverage = await extractCoverageReport(clonedRepository.localPath)
     const analysis = {
       userId,
       repositoryId,
@@ -68,6 +70,7 @@ export async function analyzeRepositorySource({
       dependencyGraph,
       codeAnalysis,
       documentationAnalysis,
+      coverage,
       fileSummary: structure.summary,
     }
     const persisted = persistAnalysis ? await persistAnalysis(analysis) : null

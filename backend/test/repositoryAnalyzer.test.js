@@ -112,6 +112,51 @@ test('runs the repository intelligence pipeline against a local fixture reposito
     assert.equal(structuredInput.documentationAnalysis.metrics.documentCount, 1)
     assert.equal(result.summary.totalCodeFacts, 2)
     assert.equal(result.scoring.healthScore, 80)
+    assert.deepEqual(scoringInput.analysis.coverage, { available: false, reason: 'no-report-found', modules: [] })
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 3 })
+  }
+})
+
+test('ingests an LCOV coverage report already committed in the repository', async () => {
+  const root = join(tmpdir(), `codepulse-analyzer-coverage-${Date.now()}`)
+  const source = join(root, 'source')
+  const workspace = join(root, 'workspace')
+  const collections = createCollections()
+  let scoringInput
+
+  try {
+    await mkdir(join(source, 'src'), { recursive: true })
+    await mkdir(join(source, 'coverage'), { recursive: true })
+    await git(['init', '-b', 'main'], source)
+    await git(['config', 'user.email', 'test@example.com'], source)
+    await git(['config', 'user.name', 'CodePulse Test'], source)
+    await writeFile(join(source, 'src', 'util.js'), 'export const value = 1\n', 'utf8')
+    await writeFile(
+      join(source, 'coverage', 'lcov.info'),
+      'SF:src/util.js\nDA:1,1\nDA:2,0\nend_of_record\n',
+      'utf8',
+    )
+    await git(['add', '.'], source)
+    await git(['commit', '-m', 'Initial repository'], source)
+
+    await analyzeRepositorySource({
+      sourceUrl: source,
+      userId: 'user-1',
+      cloneOptions: { allowLocalPath: true, workspaceRoot: workspace },
+      persistAnalysis: analysis => persistRepositoryAnalysisWithCollections(analysis, collections),
+      persistStructured: async () => ({}),
+      scoreAnalysis: async input => {
+        scoringInput = input
+        return { healthScore: 80 }
+      },
+    })
+
+    assert.equal(scoringInput.analysis.coverage.available, true)
+    assert.equal(scoringInput.analysis.coverage.reportPath, 'coverage/lcov.info')
+    assert.deepEqual(scoringInput.analysis.coverage.modules, [
+      { filePath: 'src/util.js', linesFound: 2, linesHit: 1, coveredPercent: 50 },
+    ])
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 3 })
   }

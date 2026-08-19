@@ -3,6 +3,7 @@ export const HIGH_COMPLEXITY_THRESHOLD = 15
 export const STALE_MODULE_DAYS = 180
 export const MINIMUM_CHURN_SAMPLE_SIZE = 5
 export const DEEP_DEPENDENCY_THRESHOLD = 6
+export const LOW_COVERAGE_THRESHOLD = 40
 
 const bugFixCommitPattern = /\b(?:bug|defect|fix(?:ed|es|ing)?|hotfix|patch|regression)\b/i
 
@@ -202,6 +203,8 @@ function debtScoreForModule({
   contributorConcentrationPercent,
   bugFixPercent,
   dependencyDepth,
+  coverageAvailable,
+  coveragePercent,
 }) {
   const sizeContribution = clamp((Number(file.size) || 0) / LARGE_FILE_BYTES, 0, 1) * 20 + (Number(file.size) >= LARGE_FILE_BYTES ? 10 : 0)
   const complexityContribution = clamp(complexity / HIGH_COMPLEXITY_THRESHOLD, 0, 1) * 30
@@ -212,6 +215,7 @@ function debtScoreForModule({
   const ownershipContribution = contributorConcentrationPercent >= 75 ? 5 : 0
   const bugPronenessContribution = bugFixPercent >= 50 ? 5 : 0
   const dependencyDepthContribution = dependencyDepth >= DEEP_DEPENDENCY_THRESHOLD ? 5 : 0
+  const lowCoverageContribution = coverageAvailable && coveragePercent < LOW_COVERAGE_THRESHOLD ? 5 : 0
 
   return round(clamp(
     sizeContribution
@@ -222,7 +226,8 @@ function debtScoreForModule({
       + staleContribution
       + ownershipContribution
       + bugPronenessContribution
-      + dependencyDepthContribution,
+      + dependencyDepthContribution
+      + lowCoverageContribution,
     0,
     100,
   ))
@@ -239,6 +244,10 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
   const dependencies = Array.isArray(analysis?.dependencies) ? analysis.dependencies : []
   const codeFactsByPath = new Map(
     (analysis?.codeAnalysis?.files || []).map(fact => [normalizePath(fact.filePath), fact]),
+  )
+  const coverageAvailable = Boolean(analysis?.coverage?.available)
+  const coverageByPath = new Map(
+    (analysis?.coverage?.modules || []).map(module => [normalizePath(module.filePath), module]),
   )
   const scannedDependencyPaths = Array.isArray(analysis?.dependencyGraph?.scannedFilePaths)
     ? new Set(analysis.dependencyGraph.scannedFilePaths.map(normalizePath))
@@ -296,6 +305,9 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
     const large = (Number(file.size) || 0) >= LARGE_FILE_BYTES
     const highComplexity = complexity >= HIGH_COMPLEXITY_THRESHOLD
     const dependencyDepth = dependencyDepths.get(path) || 0
+    const coverageRecord = coverageAvailable ? coverageByPath.get(path) : null
+    const moduleCoverageAvailable = Boolean(coverageRecord && coverageRecord.coveredPercent !== null)
+    const coveragePercent = moduleCoverageAvailable ? coverageRecord.coveredPercent : null
     const debtScore = debtScoreForModule({
       file,
       complexity,
@@ -307,6 +319,8 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
       contributorConcentrationPercent,
       bugFixPercent,
       dependencyDepth,
+      coverageAvailable: moduleCoverageAvailable,
+      coveragePercent,
     })
     const reasons = []
 
@@ -323,6 +337,9 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
     }
     if (bugFixCount >= 2 && bugFixPercent >= 50) reasons.push(`Bug-fix hotspot (${bugFixCount} captured fixes)`)
     if (dependencyDepth >= DEEP_DEPENDENCY_THRESHOLD) reasons.push(`Deep dependency chain (${dependencyDepth} edges)`)
+    if (moduleCoverageAvailable && coveragePercent < LOW_COVERAGE_THRESHOLD) {
+      reasons.push(`Low test coverage (${coveragePercent}%)`)
+    }
 
     return {
       path,
@@ -339,6 +356,8 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
       bugFixPercent,
       duplicationPercent,
       dependencyDepth,
+      coveragePercent,
+      coverageAvailable: moduleCoverageAvailable,
       lastChangedAt: lastChangedAt ? lastChangedAt.toISOString() : null,
       large,
       highComplexity,
@@ -368,6 +387,8 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
   const bugProneModules = count(module => module.bugFixCount >= 2 && module.bugFixPercent >= 50)
   const deepDependencyModules = count(module => module.dependencyDepth >= DEEP_DEPENDENCY_THRESHOLD)
   const duplicationModules = modules.filter(module => module.duplicationPercent !== null)
+  const coverageModules = modules.filter(module => module.coverageAvailable)
+  const lowCoverageModules = count(module => module.coverageAvailable && module.coveragePercent < LOW_COVERAGE_THRESHOLD)
   const averageModuleDebt = average('debtScore')
   const score = totalCodeFiles === 0
     ? 0
@@ -403,6 +424,12 @@ export function analyzeTechnicalDebt(analysis, options = {}) {
       bugProneModules,
       deepDependencyModules,
       longestDependencyChain: modules.reduce((maximum, module) => Math.max(maximum, module.dependencyDepth), 0),
+      coverageAvailable,
+      averageCoveragePercent: coverageModules.length === 0
+        ? null
+        : round(coverageModules.reduce((sum, module) => sum + module.coveragePercent, 0) / coverageModules.length, 1),
+      coverageSampleSize: coverageModules.length,
+      lowCoverageModules,
     },
     modules,
     circularGroups,

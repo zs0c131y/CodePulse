@@ -4,6 +4,7 @@ import {
   analyzeTechnicalDebt,
   LARGE_FILE_BYTES,
   MINIMUM_CHURN_SAMPLE_SIZE,
+  LOW_COVERAGE_THRESHOLD,
 } from '../src/features/analysis/services/technicalDebtAnalyzer.js'
 
 function codeFile(path, size = 1024, language = 'JavaScript') {
@@ -147,4 +148,55 @@ test('surfaces dependency depth, bug-fix hotspots, and contributor concentration
   assert.match(hotspot.reasons.join(' '), /Contributor concentration/)
   assert.match(hotspot.reasons.join(' '), /Bug-fix hotspot/)
   assert.match(hotspot.reasons.join(' '), /Deep dependency chain/)
+})
+
+test('is coverage-neutral when no coverage report was ingested', () => {
+  const result = analyzeTechnicalDebt({
+    files: [codeFile('src/untested.js')],
+    commits: [],
+    dependencies: [],
+  })
+
+  assert.equal(result.modules[0].coverageAvailable, false)
+  assert.equal(result.modules[0].coveragePercent, null)
+  assert.equal(result.metrics.coverageAvailable, false)
+  assert.equal(result.metrics.averageCoveragePercent, null)
+  assert.equal(result.metrics.lowCoverageModules, 0)
+  assert.doesNotMatch(result.modules[0].reasons.join(' '), /coverage/i)
+})
+
+test('surfaces low test coverage as evidence without penalizing well-covered modules', () => {
+  const result = analyzeTechnicalDebt({
+    files: [codeFile('src/covered.js'), codeFile('src/uncovered.js'), codeFile('src/no-report.js')],
+    commits: [],
+    dependencies: [],
+    coverage: {
+      available: true,
+      modules: [
+        { filePath: 'src/covered.js', coveredPercent: 92 },
+        { filePath: 'src/uncovered.js', coveredPercent: 10 },
+      ],
+    },
+  })
+  const byPath = new Map(result.modules.map(module => [module.path, module]))
+
+  assert.equal(byPath.get('src/covered.js').coverageAvailable, true)
+  assert.equal(byPath.get('src/covered.js').coveragePercent, 92)
+  assert.doesNotMatch(byPath.get('src/covered.js').reasons.join(' '), /coverage/i)
+
+  const uncovered = byPath.get('src/uncovered.js')
+  assert.equal(uncovered.coverageAvailable, true)
+  assert.ok(uncovered.coveragePercent < LOW_COVERAGE_THRESHOLD)
+  assert.match(uncovered.reasons.join(' '), /Low test coverage \(10%\)/)
+
+  // A file absent from the coverage report is "unavailable", never "0%".
+  const noReport = byPath.get('src/no-report.js')
+  assert.equal(noReport.coverageAvailable, false)
+  assert.equal(noReport.coveragePercent, null)
+  assert.doesNotMatch(noReport.reasons.join(' '), /coverage/i)
+
+  assert.equal(result.metrics.coverageAvailable, true)
+  assert.equal(result.metrics.coverageSampleSize, 2)
+  assert.equal(result.metrics.averageCoveragePercent, 51)
+  assert.equal(result.metrics.lowCoverageModules, 1)
 })
