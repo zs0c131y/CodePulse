@@ -163,6 +163,24 @@ test('getRepositoryCommits, getRepositoryDependencies, and getRepositoryDocument
   assert.deepEqual(documentationResponse.body, { items: ['doc'] })
 })
 
+test('structured analysis reads delegate only after ownership is confirmed', async () => {
+  const deps = {
+    async findRepositoryForUser() { return { _id: 'repo-1' } },
+    async getCodeAnalysisForRepository() { return { summary: { codeFiles: 2 }, files: { items: [] }, dependencies: { items: [] } } },
+    async getDocumentationAnalysisForRepository() { return { summary: { totalDocuments: 1 }, documents: { items: [] } } },
+  }
+  const { getRepositoryCodeAnalysis, getRepositoryDocumentationAnalysis } = createReadController(deps)
+  const request = { user: { _id: 'user-1' }, params: { repositoryId: '507f1f77bcf86cd799439011' }, query: {} }
+
+  const codeResponse = createResponse()
+  await getRepositoryCodeAnalysis(request, codeResponse, () => assert.fail('next should not be called'))
+  assert.equal(codeResponse.body.summary.codeFiles, 2)
+
+  const documentationResponse = createResponse()
+  await getRepositoryDocumentationAnalysis(request, documentationResponse, () => assert.fail('next should not be called'))
+  assert.equal(documentationResponse.body.summary.totalDocuments, 1)
+})
+
 test('getRepositoryContributors aggregates commits fetched for the owned repository', async () => {
   const deps = {
     async findRepositoryForUser() { return { _id: 'repo-1' } },

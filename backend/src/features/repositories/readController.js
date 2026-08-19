@@ -127,6 +127,28 @@ export function createReadController(deps = defaultReader) {
     }
   }
 
+  async function getRepositoryCodeAnalysis(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      response.json(await deps.getCodeAnalysisForRepository(repository._id, parsePagination(request.query)))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async function getRepositoryDocumentationAnalysis(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      response.json(await deps.getDocumentationAnalysisForRepository(repository._id, parsePagination(request.query)))
+    } catch (error) {
+      next(error)
+    }
+  }
+
   async function getRepositoryContributors(request, response, next) {
     try {
       const repository = await requireOwnedRepository(request, response)
@@ -163,6 +185,8 @@ export function createReadController(deps = defaultReader) {
     getRepositoryCommits,
     getRepositoryDependencies,
     getRepositoryDocumentation,
+    getRepositoryCodeAnalysis,
+    getRepositoryDocumentationAnalysis,
     getRepositoryContributors,
     getRepositoryManifest,
   }
@@ -176,6 +200,8 @@ export const {
   getRepositoryCommits,
   getRepositoryDependencies,
   getRepositoryDocumentation,
+  getRepositoryCodeAnalysis,
+  getRepositoryDocumentationAnalysis,
   getRepositoryContributors,
   getRepositoryManifest,
 } = createReadController()

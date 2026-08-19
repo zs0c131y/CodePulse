@@ -225,6 +225,7 @@ export async function ensureIndexes() {
   const driftFindings = await getDriftFindingsCollection()
   await driftFindings.createIndex({ repository_id: 1, finding_key: 1 }, { unique: true })
   await driftFindings.createIndex({ repository_id: 1, severity: 1 })
+  await driftFindings.createIndex({ repository_id: 1, drift_type: 1, review_status: 1 })
 
   const recommendations = await getRecommendationsCollection()
   await recommendations.createIndex({ repository_id: 1, recommendation_key: 1 }, { unique: true })

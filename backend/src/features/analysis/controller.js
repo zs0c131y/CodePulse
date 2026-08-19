@@ -3,10 +3,13 @@ import { findRepositoryForUser } from '../repositories/services/repositoryQuerie
 import {
   getRepositoryScore,
   getRepositoryTechnicalDebt,
+  getRepositoryKnowledgeDebt,
   getRepositoryKnowledgeDrift,
+  updateRepositoryDriftReview,
   getRepositoryRecommendations,
   serializeAnalysisScores,
   serializeTechnicalDebt,
+  serializeKnowledgeDebt,
   serializeKnowledgeDrift,
   serializeRecommendations,
 } from './services/analysisStore.js'
@@ -15,10 +18,13 @@ const defaultReader = {
   findRepositoryForUser,
   getRepositoryScore,
   getRepositoryTechnicalDebt,
+  getRepositoryKnowledgeDebt,
   getRepositoryKnowledgeDrift,
+  updateRepositoryDriftReview,
   getRepositoryRecommendations,
   serializeAnalysisScores,
   serializeTechnicalDebt,
+  serializeKnowledgeDebt,
   serializeKnowledgeDrift,
   serializeRecommendations,
 }
@@ -109,6 +115,21 @@ export function createAnalysisController(deps = defaultReader) {
     }
   }
 
+  async function getRepositoryKnowledgeDebtReport(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+      const debt = await deps.getRepositoryKnowledgeDebt(repository._id)
+      if (!debt?.score) {
+        response.status(404).json({ message: 'Knowledge debt metrics are not available for this repository yet.' })
+        return
+      }
+      response.json(deps.serializeKnowledgeDebt(debt.score, debt.metrics))
+    } catch (error) {
+      next(error)
+    }
+  }
+
   async function getRepositoryDrift(request, response, next) {
     try {
       const repository = await requireOwnedRepository(request, response)
@@ -144,12 +165,35 @@ export function createAnalysisController(deps = defaultReader) {
     }
   }
 
+  async function reviewRepositoryDriftFinding(request, response, next) {
+    try {
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+      const findingId = parseRepositoryId(request.params.findingId)
+      const reviewStatus = String(request.body?.reviewStatus || '').toLowerCase()
+      if (!findingId || !['confirmed', 'dismissed'].includes(reviewStatus)) {
+        response.status(400).json({ message: 'A semantic finding id and review status of confirmed or dismissed are required.' })
+        return
+      }
+      const finding = await deps.updateRepositoryDriftReview(repository._id, findingId, reviewStatus)
+      if (!finding) {
+        response.status(404).json({ message: 'Semantic drift finding not found.' })
+        return
+      }
+      response.json({ finding: { id: finding._id.toString(), reviewStatus: finding.review_status, reviewedAt: toIso(finding.reviewed_at) } })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   return {
     getRepositoryScores,
     getRepositoryDebt,
     getRepositoryStatus,
+    getRepositoryKnowledgeDebtReport,
     getRepositoryDrift,
     getRepositoryRecommendationList,
+    reviewRepositoryDriftFinding,
     requireOwnedRepository,
   }
 }
@@ -158,6 +202,8 @@ export const {
   getRepositoryScores,
   getRepositoryDebt,
   getRepositoryStatus,
+  getRepositoryKnowledgeDebtReport,
   getRepositoryDrift,
   getRepositoryRecommendationList,
+  reviewRepositoryDriftFinding,
 } = createAnalysisController()

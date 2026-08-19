@@ -39,8 +39,20 @@ export async function getRepositoryDebt(accessToken, repositoryId) {
   return apiFetch(`/api/repositories/${repositoryId}/debt`, { accessToken })
 }
 
+export function getRepositoryKnowledgeDebt(accessToken, repositoryId) {
+  return apiFetch(`/api/repositories/${repositoryId}/knowledge-debt`, { accessToken })
+}
+
 export async function getRepositoryDrift(accessToken, repositoryId) {
   return apiFetch(`/api/repositories/${repositoryId}/drift`, { accessToken })
+}
+
+export function reviewRepositoryDriftFinding(accessToken, repositoryId, findingId, reviewStatus) {
+  return apiFetch(`/api/repositories/${repositoryId}/drift/${findingId}/review`, {
+    accessToken,
+    method: 'PATCH',
+    body: { reviewStatus },
+  })
 }
 
 export async function getRepositoryRecommendations(accessToken, repositoryId) {
@@ -73,6 +85,14 @@ export function getRepositoryDependencies(accessToken, repositoryId, limit = 200
 
 export function getRepositoryDocumentation(accessToken, repositoryId, limit = 100) {
   return getRepositoryPage(accessToken, repositoryId, 'documentation', limit)
+}
+
+export function getRepositoryCodeAnalysis(accessToken, repositoryId, limit = 200) {
+  return apiFetch(`/api/repositories/${repositoryId}/code-analysis?limit=${limit}`, { accessToken })
+}
+
+export function getRepositoryDocumentationAnalysis(accessToken, repositoryId, limit = 100) {
+  return apiFetch(`/api/repositories/${repositoryId}/documentation-analysis?limit=${limit}`, { accessToken })
 }
 
 export async function getRepositoryContributors(accessToken, repositoryId) {

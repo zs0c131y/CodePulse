@@ -5,14 +5,25 @@ This document details the configuration, workflows, and prompts for the **AI Exp
 > **Current implementation boundary:** the backend provides deterministic,
 > evidence-based recommendations from stored Technical Debt, Knowledge Debt,
 > drift, and risk findings by default — that pipeline never depends on an AI
-> provider. On top of the LLM transport described below (`generateWithGemma()`),
-> an **opt-in** AI Explainability layer is implemented using Prompt Blueprints
-> 2 and 3. It is only invoked when a caller explicitly requests generation —
-> never during a scan — and repository source is never sent; only the
-> smallest relevant stored evidence (module debt metrics, drift findings,
-> scores) is assembled into the prompt. Blueprint 1 (semantic doc-drift
-> analysis) remains unimplemented — it needs an AST/documentation embedding
-> pipeline that does not exist yet ([pending.md, item 1](../pending.md)).
+> provider. Two separate AI capabilities are layered on top of it, each with
+> its own provider and consent model:
+>
+> 1. **Semantic drift detection** (`backend/src/features/analysis/services/semanticDriftAnalyzer.js`,
+>    `semanticEmbeddingClient.js`) — an opt-in, Sentence-Transformers-compatible
+>    embedding enrichment with optional Qdrant indexing. It is disabled
+>    without configuration and requires explicit provider consent before a
+>    hosted provider receives compact code outlines or documentation
+>    sections. This is what feeds Prompt Blueprint 1 (documentation drift
+>    analysis and update suggestions) with real findings; the blueprint
+>    prompt itself is not yet used to generate text — see
+>    [pending.md](../pending.md) for the remaining gap.
+> 2. **AI Explainability layer** (this document, Prompt Blueprints 2 & 3) —
+>    on top of the LLM transport described below (`generateWithGemma()`), an
+>    **opt-in** layer that turns stored risk/debt/drift evidence into
+>    human-readable explanations. It is only invoked when a caller explicitly
+>    requests generation — never during a scan — and repository source is
+>    never sent; only the smallest relevant stored evidence (module debt
+>    metrics, drift findings, scores) is assembled into the prompt.
 >
 > **API surface** (`backend/src/features/analysis/aiController.js`,
 > `backend/src/features/analysis/services/aiExplainabilityService.js`):
@@ -98,7 +109,7 @@ closes that gap for risk explanations and executive summaries, combining a
 blueprint's `[SYSTEM PROMPT]`/`[USER PROMPT]` into one string before calling
 `generateWithGemma()`. Blueprint 1's context assembly (AST slices, drift
 findings compiled into prompt variables for semantic doc-drift analysis)
-remains unimplemented, tracked in [pending.md, item 1](../pending.md).
+remains unimplemented, tracked in [pending.md](../pending.md).
 
 ---
 

@@ -65,6 +65,12 @@ function knowledgeMetricRecord(repositoryId, module, now) {
     module_path: module.path,
     documented: module.documented,
     missing_reason: module.missingReason,
+    api_routes: module.apiRoutes ?? 0,
+    documented_api_routes: module.documentedApiRoutes ?? 0,
+    undocumented_api_routes: module.undocumentedApiRoutes ?? 0,
+    explainability_score: module.explainabilityScore ?? 0,
+    complexity: module.complexity ?? null,
+    complexity_penalty: module.complexityPenalty ?? 0,
     created_at: now,
     updated_at: now,
   }
@@ -82,6 +88,9 @@ function driftFindingRecord(repositoryId, finding, now) {
     severity: finding.severity,
     evidence: finding.evidence,
     age_days: finding.ageDays,
+    semantic: finding.semantic || null,
+    review_status: null,
+    reviewed_at: null,
     created_at: now,
     updated_at: now,
   }
@@ -127,7 +136,7 @@ export async function persistAnalysisResultsWithCollections({ repositoryId, resu
     collections.repositoryScores,
     repositoryId,
     {
-      analysis_version: 1,
+      analysis_version: 2,
       health_score: scores.healthScore,
       health_trend: scores.healthTrend,
       technical_debt: {
@@ -290,6 +299,47 @@ export function serializeTechnicalDebt(scoreRecord, metricRecords) {
   }
 }
 
+function serializeKnowledgeMetric(record) {
+  return {
+    path: record.module_path,
+    documented: Boolean(record.documented),
+    missingReason: record.missing_reason || null,
+    apiRoutes: record.api_routes ?? 0,
+    documentedApiRoutes: record.documented_api_routes ?? 0,
+    undocumentedApiRoutes: record.undocumented_api_routes ?? 0,
+    explainabilityScore: record.explainability_score ?? 0,
+    complexity: record.complexity ?? null,
+    complexityPenalty: record.complexity_penalty ?? 0,
+  }
+}
+
+export function serializeKnowledgeDebt(scoreRecord, metricRecords) {
+  if (!scoreRecord) return null
+  const knowledgeDebt = scoreRecord.knowledge_debt || {}
+  const metrics = knowledgeDebt.metrics || {}
+  return {
+    metrics: {
+      knowledgeDebtScore: knowledgeDebt.score ?? 0,
+      documentationCoverage: knowledgeDebt.documentation_coverage ?? 0,
+      onboardingDifficultyScore: knowledgeDebt.onboarding_difficulty_score ?? 0,
+      hasArchitectureDocumentation: Boolean(metrics.hasArchitectureDocumentation),
+      hasSetupDocumentation: Boolean(metrics.hasSetupDocumentation),
+      totalModules: metrics.totalModules ?? 0,
+      undocumentedModules: metrics.undocumentedModules ?? 0,
+      totalApiRoutes: metrics.totalApiRoutes ?? 0,
+      documentedApiRoutes: metrics.documentedApiRoutes ?? 0,
+      undocumentedApiRoutes: metrics.undocumentedApiRoutes ?? 0,
+      apiDocumentationCoverage: metrics.apiDocumentationCoverage ?? 100,
+      averageModuleExplainability: metrics.averageModuleExplainability ?? 100,
+      unexplainedModules: metrics.unexplainedModules ?? 0,
+    },
+    modules: (metricRecords || [])
+      .map(serializeKnowledgeMetric)
+      .sort((left, right) => left.explainabilityScore - right.explainabilityScore || left.path.localeCompare(right.path)),
+    generatedAt: toIso(scoreRecord.analyzed_at || scoreRecord.updated_at),
+  }
+}
+
 function ageLabel(value) {
   const days = Number(value)
   if (!Number.isFinite(days)) return 'Unknown'
@@ -315,10 +365,15 @@ export function serializeKnowledgeDrift(scoreRecord, findingRecords) {
         severity: record.severity || 'Low',
         evidence: record.evidence || 'No evidence recorded.',
         age: ageLabel(record.age_days),
+        semantic: record.semantic || null,
+        reviewStatus: record.review_status || null,
+        reviewedAt: toIso(record.reviewed_at),
       }))
       .sort((left, right) => driftSeverityRank(right.severity) - driftSeverityRank(left.severity) || left.filePath.localeCompare(right.filePath)),
     coverage: [
       { label: 'Module documentation', percent: knowledgeMetrics.documentationCoverage ?? 100 },
+      { label: 'API documentation', percent: knowledgeMetrics.apiDocumentationCoverage ?? 100 },
+      { label: 'Module explainability', percent: knowledgeMetrics.averageModuleExplainability ?? 100 },
       { label: 'Setup guidance', percent: knowledgeMetrics.hasSetupDocumentation ? 100 : 0 },
       { label: 'Architecture docs', percent: knowledgeMetrics.hasArchitectureDocumentation ? 100 : 0 },
     ],

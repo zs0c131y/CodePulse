@@ -19,36 +19,43 @@ infrastructure, or a deliberate product decision.
 
 ## 1. Semantic Knowledge Drift Detection
 
-**Status:** Pending
+**Status:** Implemented as an opt-in embedding enrichment; feeding its
+findings into an AI-generated explanation (Prompt Blueprint 1) is the only
+remaining gap.
 
-Structural drift is implemented: undocumented modules, stale module
-documentation, and documentation references to deleted source paths are
-detected (`backend/src/features/analysis/services/knowledgeDriftAnalyzer.js`,
-which documents itself as "intentionally structural rather than
-semantic/embedding based"). It cannot yet determine that documentation says
-"JWT" while the implementation now uses OAuth, because that requires semantic
-comparison.
+detected (`backend/src/features/analysis/services/knowledgeDriftAnalyzer.js`).
+Semantic comparison is also implemented as an opt-in enrichment
+(`semanticDriftAnalyzer.js`, `semanticEmbeddingClient.js`,
+`codeOutlineExtractor.js`): it creates compact code outlines from scanned
+source files, compares them to matching documentation sections through a
+Sentence-Transformers-compatible embedding endpoint, and records
+low-similarity results as review leads (`type: 'semantic_mismatch'`) carrying
+the model, threshold, similarity score, confidence, and the compared
+code/documentation excerpts — this is what now lets CodePulse flag
+"documentation says JWT, code uses OAuth"-style mismatches instead of only
+structural gaps. Optional Qdrant persistence of the embedding vectors is
+non-blocking (a persistence failure never drops the findings).
 
-Add a documentation/code-description pipeline. It should create concise,
-versioned summaries from AST outlines and markdown sections, generate
-embeddings with a chosen local or hosted model, and compare only relevant
-module/document pairs. A vector store such as Qdrant may be used when the
-repository is too large for direct comparison.
-
-Semantic results must be conservative: a low similarity score is a lead, not
-proof of incorrect documentation. Each finding should retain the compared
-sections, model/version, confidence, and an explanation of why a human review
-is required. Repository content should only leave the deployment boundary when
-the user has explicitly enabled a hosted provider.
+The enrichment is disabled unless `SEMANTIC_DRIFT_ENABLED=true`. A local
+embedding endpoint (`SEMANTIC_EMBEDDING_URL`) can be enabled directly; a
+hosted provider additionally requires `SEMANTIC_DRIFT_ALLOW_HOSTED=true`
+before code outlines or documentation sections leave the deployment boundary.
+Semantic findings can be confirmed or dismissed in the dashboard
+(`PATCH /api/repositories/:id/drift/:findingId/review`) and retain that
+review state until the next scan replaces the repository snapshot.
+AST-derived source outlines (rather than the current heuristic outline
+extraction) remain a follow-up improvement.
 
 **Acceptance criteria:** CodePulse can flag a documented interface or behavior
-that conflicts with the current code outline, show the supporting code/doc
-sections, and allow a user to mark the result confirmed or dismissed.
+that conflicts with the current code outline (done), show the supporting
+code/doc sections (done), and allow a user to mark the result confirmed or
+dismissed (done).
 
-This also unblocks **Prompt Blueprint 1** (documentation drift explanation and
-update suggestions) in [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) — the AI
-Explainability layer already implements Blueprints 2 and 3 (see item 6
-below), but Blueprint 1 has no semantic findings to explain yet.
+**Remaining gap:** semantic findings are not yet fed into **Prompt Blueprint
+1** (documentation drift explanation and update suggestions) in
+[docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) — the AI Explainability layer
+implements Blueprints 2 and 3 (see item 6 below) and can now be pointed at
+real semantic findings, but nothing calls Blueprint 1 yet.
 
 ## 2. Test Coverage and Bug-Proneness Signals
 
@@ -152,8 +159,9 @@ repository lifecycle end to end (not yet run).
 ## 6. External LLM/RAG Explainability Layer
 
 **Status:** Implemented for risk explanations and executive summaries
-(Prompt Blueprints 2 & 3); documentation-update suggestions (Blueprint 1,
-semantic drift) remain pending — see item 1.
+(Prompt Blueprints 2 & 3); documentation-update suggestions (Blueprint 1)
+remain pending — the semantic drift findings that would feed it are now
+implemented (see item 1), but nothing generates Blueprint 1 text from them yet.
 
 Current recommendations are deterministic and grounded in stored evidence and
 remain fully functional without an AI provider. On top of that, an opt-in AI

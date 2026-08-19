@@ -55,3 +55,26 @@ test('reports complete module coverage when no production modules exist', () => 
   assert.equal(result.score, 0)
   assert.deepEqual(result.moduleMetrics, [])
 })
+
+test('measures API documentation coverage and module explainability from code outlines', () => {
+  const result = analyzeKnowledgeDebt({
+    files: [codeFile('src/auth/routes.js')],
+    documentation: [{ doc_path: 'docs/auth.md', documentation_type: 'guide', content: '# Auth API\nGET /login' }],
+  }, {
+    codeOutlines: [{
+      path: 'src/auth/routes.js',
+      modulePath: 'src/auth',
+      summary: 'Authentication routes.',
+      routes: [{ method: 'GET', path: '/login' }, { method: 'POST', path: '/logout' }],
+    }],
+    technicalDebt: { modules: [{ path: 'src/auth/routes.js', complexity: 18 }] },
+  })
+
+  assert.equal(result.metrics.totalApiRoutes, 2)
+  assert.equal(result.metrics.documentedApiRoutes, 1)
+  assert.equal(result.metrics.undocumentedApiRoutes, 1)
+  assert.equal(result.metrics.apiDocumentationCoverage, 50)
+  assert.equal(result.moduleMetrics[0].complexity, 18)
+  assert.ok(result.moduleMetrics[0].complexityPenalty > 0)
+  assert.equal(result.moduleMetrics[0].undocumentedApiRoutes, 1)
+})

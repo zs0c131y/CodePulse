@@ -73,3 +73,20 @@ test('gives each missing source reference a stable unique key, including root fi
   assert.equal(deadReferences.length, 3)
   assert.equal(new Set(deadReferences.map(item => item.key)).size, 3)
 })
+
+test('finds source API routes that are absent from documentation', () => {
+  const analysis = { files: [codeFile('src/auth/routes.js')], documentation: [] }
+  const knowledgeDebt = analyzeKnowledgeDebt(analysis, {
+    codeOutlines: [{
+      path: 'src/auth/routes.js',
+      modulePath: 'src/auth',
+      summary: 'Auth routes.',
+      routes: [{ method: 'POST', path: '/oauth/callback' }],
+    }],
+  })
+  const result = analyzeKnowledgeDrift(analysis, knowledgeDebt)
+  const finding = result.findings.find(item => item.type === 'undocumented_api')
+
+  assert.equal(finding.modulePath, 'src/auth')
+  assert.match(finding.evidence, /POST \/oauth\/callback/)
+})

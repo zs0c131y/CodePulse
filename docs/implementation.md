@@ -167,8 +167,9 @@ Finds mismatches between documentation and code.
 
 * Implemented in [knowledgeDriftAnalyzer.js](../backend/src/features/analysis/services/knowledgeDriftAnalyzer.js).
   It produces reproducible structural findings from stored repository facts:
-  undocumented source modules, documentation older than its associated module,
-  and backticked source paths that no longer exist.
+  undocumented source modules and HTTP endpoints, documentation older than its
+  associated module, and backticked source paths that no longer exist. Optional
+  embedding comparison adds conservative semantic review leads.
 * Findings store affected paths, severity, age evidence where available, and
   are replaced on each completed scan.
 
@@ -219,9 +220,8 @@ Measures missing or outdated engineering knowledge.
   setup completeness, and module understandability.
 * Scores should link back to concrete missing or outdated documentation.
 * Implemented in [knowledgeDebtAnalyzer.js](../backend/src/features/analysis/services/knowledgeDebtAnalyzer.js).
-  It scores source-directory coverage and stores document/absence evidence per
-  module, along with architecture and setup-document checks used by the
-  onboarding difficulty score.
+  It scores source-directory and API-route coverage, architecture/setup
+  evidence, and module explainability for the onboarding difficulty score.
 
 ---
 

@@ -113,9 +113,10 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
   * **Outdated Documentation**: The code has changed recently, but documentation was updated months ago.
   * **Incorrect Documentation**: Documentation describes features or variables that do not match the codebase.
   * **Dead Documentation**: Document exists for a module that has been deleted or fully refactored.
-* **Output**: Reproducible structural Knowledge Drift Report (stored in
-  `drift_findings`). Semantic/code-signature comparison remains a future
-  enhancement.
+* **Output**: Reproducible Knowledge Drift Report (stored in
+  `drift_findings`). It includes structural findings, undocumented detected
+  HTTP endpoints, and optional embedding-based semantic review leads. Semantic
+  findings retain model/similarity evidence and can be confirmed or dismissed.
 
 ### Vertical 3 — Technical Debt Analysis
 
@@ -153,8 +154,10 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
     module-named documentation; a root README covers only root code, not every
     nested source directory.
   * Knowledge Debt and onboarding difficulty combine the coverage gap with
-    detected setup and architecture documentation. Module evidence is stored
-    in `knowledge_debt_metrics`.
+    detected setup and architecture documentation, API documentation coverage,
+    per-module explainability, and a bounded metadata-complexity penalty.
+    Module evidence is stored in
+    `knowledge_debt_metrics`.
 
 ### Vertical 5 — Risk Intelligence Engine
 
