@@ -4,6 +4,7 @@ import {
   listRepositoriesForUserWithCollections,
   findRepositoryForUserWithCollections,
   deleteRepositoryForUserWithCollections,
+  setRepositoryScanScheduleWithCollections,
   listRepoFilesWithCollections,
   listCommitsForRepositoryWithCollections,
   listAllCommitsForRepositoryWithCollections,
@@ -79,6 +80,12 @@ class FakeCollection {
     const before = this.records.length
     this.records = this.records.filter(record => !this.matches(record, filter))
     return { deletedCount: before - this.records.length }
+  }
+
+  async updateOne(filter, update) {
+    const record = this.records.find(item => this.matches(item, filter))
+    if (record && update.$set) Object.assign(record, update.$set)
+    return { matchedCount: record ? 1 : 0 }
   }
 
   async deleteMany(filter) {
@@ -166,6 +173,27 @@ test('findRepositoryForUserWithCollections enforces ownership', async () => {
 
   const notOwned = await findRepositoryForUserWithCollections('user-2', 'repo-1', collections)
   assert.equal(notOwned, null)
+})
+
+test('setRepositoryScanScheduleWithCollections sets and clears a recurring schedule, and enforces ownership', async () => {
+  const collections = createCollections()
+  const now = new Date('2026-08-19T12:00:00.000Z')
+
+  const notOwned = await setRepositoryScanScheduleWithCollections('user-2', 'repo-1', 24, collections, { now })
+  assert.equal(notOwned, null)
+
+  const scheduled = await setRepositoryScanScheduleWithCollections('user-1', 'repo-1', 24, collections, { now })
+  assert.equal(scheduled.scanIntervalHours, 24)
+  assert.equal(scheduled.nextScanAt, '2026-08-20T12:00:00.000Z')
+  const stored = collections.repositories.records.find(record => record._id === 'repo-1')
+  assert.equal(stored.scan_interval_hours, 24)
+  assert.equal(stored.next_scan_at.toISOString(), '2026-08-20T12:00:00.000Z')
+
+  const cleared = await setRepositoryScanScheduleWithCollections('user-1', 'repo-1', null, collections, { now })
+  assert.equal(cleared.scanIntervalHours, null)
+  assert.equal(cleared.nextScanAt, null)
+  assert.equal(stored.scan_interval_hours, null)
+  assert.equal(stored.next_scan_at, null)
 })
 
 test('deleteRepositoryForUserWithCollections cascades child records and reports not-found', async () => {

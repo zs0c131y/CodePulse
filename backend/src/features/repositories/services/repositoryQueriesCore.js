@@ -79,6 +79,8 @@ export function serializeRepository(repository) {
     totalCommits: repository.total_commits ?? 0,
     totalDependencies: repository.total_dependencies ?? 0,
     totalDocumentation: repository.total_documentation ?? 0,
+    scanIntervalHours: repository.scan_interval_hours ?? null,
+    nextScanAt: toIso(repository.next_scan_at),
     createdAt: toIso(repository.created_at),
     updatedAt: toIso(repository.updated_at),
   }
@@ -157,6 +159,31 @@ export async function listRepositoriesForUserWithCollections(userId, collections
 
 export async function findRepositoryForUserWithCollections(userId, repositoryId, collections) {
   return collections.repositories.findOne({ _id: repositoryId, user_id: userId })
+}
+
+/**
+ * Sets or clears a repository's recurring scan schedule. `intervalHours` of
+ * `null` disables scheduling; any other value is assumed pre-validated by the
+ * caller and used to compute the next due time from `now`. Scheduling is
+ * separate from the manual analyze flow — it only marks a repository as due;
+ * `scanScheduler.js` is what actually enqueues a scan when `next_scan_at` is
+ * reached.
+ */
+export async function setRepositoryScanScheduleWithCollections(userId, repositoryId, intervalHours, collections, options = {}) {
+  const repository = await findRepositoryForUserWithCollections(userId, repositoryId, collections)
+  if (!repository) return null
+
+  const now = options.now || new Date()
+  const patch = intervalHours === null
+    ? { scan_interval_hours: null, next_scan_at: null, updated_at: now }
+    : {
+        scan_interval_hours: intervalHours,
+        next_scan_at: new Date(now.getTime() + intervalHours * 60 * 60 * 1000),
+        updated_at: now,
+      }
+
+  await collections.repositories.updateOne({ _id: repository._id }, { $set: patch })
+  return serializeRepository({ ...repository, ...patch })
 }
 
 export async function deleteRepositoryForUserWithCollections(userId, repositoryId, collections) {

@@ -730,12 +730,17 @@ Lists the signed-in user's repositories, most recently updated first.
       "totalCommits": 100,
       "totalDependencies": 43,
       "totalDocumentation": 5,
+      "scanIntervalHours": 24,
+      "nextScanAt": "2026-07-22T09:15:00.000Z",
       "createdAt": "2026-07-01T07:30:00.000Z",
       "updatedAt": "2026-07-21T09:15:00.000Z"
     }
   ]
 }
 ```
+
+`scanIntervalHours`/`nextScanAt` are `null` when the repository has no
+recurring schedule.
 
 ### `GET /api/repositories/:repositoryId`
 
@@ -752,6 +757,26 @@ its `repo_files`, `commits`, `dependencies`, `documentation`,
 Previously generated report snapshots intentionally remain available to their
 owner and through any active share link.
 Returns `404` when the repository does not exist or belongs to another user.
+
+### `PATCH /api/repositories/:repositoryId/schedule`
+
+Sets or clears a repository's recurring scan schedule. Body:
+`{ "intervalHours": 24 }` — an integer between `MIN_SCAN_INTERVAL_HOURS`
+(default `1`) and `MAX_SCAN_INTERVAL_HOURS` (default `720`, 30 days) — or
+`{ "intervalHours": null }` to disable it. Returns `200` with
+`{ "repository": { ... } }` (the same shape as `GET /api/repositories/:repositoryId`).
+`400` for an out-of-range or non-integer `intervalHours`; `404` when the
+repository does not exist or belongs to another user.
+
+A background scheduler (`backend/src/features/repositories/services/scanScheduler.js`,
+started from `backend/index.js` when `SCAN_SCHEDULER_ENABLED` is not `false`)
+polls every `SCAN_SCHEDULER_INTERVAL_MS` (default 5 minutes, capped at
+`SCAN_SCHEDULER_BATCH_SIZE` repositories per tick, default 20) for
+repositories whose `nextScanAt` has passed and enqueues them onto the same
+worker-thread `analysisQueue.js` a manual `POST /api/repositories/analyze`
+uses — scheduled scans never block HTTP requests and share the same
+concurrency caps. `nextScanAt` advances on every tick regardless of outcome,
+so a failing scheduled scan retries at its normal interval, not immediately.
 
 ### `GET /api/repositories/:repositoryId/files`
 

@@ -100,7 +100,7 @@ module risk alongside the existing bug-fix frequency signal.
 
 ## 3. Historical Score Trends and Scan Scheduling
 
-**Status:** Partially implemented — trend storage done, scheduling pending
+**Status:** Implemented
 
 Historical score storage is implemented: every scan appends an immutable
 `repository_score_history` record
@@ -110,19 +110,30 @@ replace-on-rescan snapshot, and `getRepositoryScore` reads the trend back
 sorted by `analyzed_at`. The dashboard's health/risk trend arrays are
 populated from real history, not empty placeholders.
 
-Scan scheduling is not implemented. Repository scans run in isolated worker
-threads (`backend/src/features/repositories/services/repositoryAnalysisWorker.js`,
-`analysisQueue.js`, bounded by `ANALYSIS_MAX_CONCURRENCY` and a
-per-worker `maxOldGenerationSizeMb` memory cap) for concurrency and isolation,
-but nothing re-triggers a scan on a schedule — every scan is still initiated
-by a single API call. Add a job queue or scheduler for recurring scans, with
-retries, cancellation, progress updates, and a clear policy for GitHub API and
-clone failures. Score comparison should only compare compatible analysis
-versions so a new algorithm does not appear as a false regression.
+Scan scheduling is implemented (`backend/src/features/repositories/services/scanScheduler.js`).
+A repository's owner sets a recurring interval via
+`PATCH /api/repositories/:repositoryId/schedule` (`{ intervalHours }`, an
+integer between `MIN_SCAN_INTERVAL_HOURS` (default 1) and
+`MAX_SCAN_INTERVAL_HOURS` (default 720/30 days), or `null` to disable it) —
+surfaced in the dashboard as an "Auto re-scan" control next to the repository
+console. A background timer (`startScanScheduler()`, started from
+`backend/index.js` when `SCAN_SCHEDULER_ENABLED`, ticking every
+`SCAN_SCHEDULER_INTERVAL_MS`, default 5 minutes) polls for repositories whose
+`next_scan_at` has passed and are not already `queued`/`running`, enqueues
+them through the same worker-thread `analysisQueue.js` used by manual scans
+(so scheduled scans never block HTTP requests and share the same concurrency
+caps), and advances `next_scan_at` regardless of outcome — that is the
+scheduler's retry policy: a repository whose scheduled scan fails (dead URL,
+GitHub API error, clone failure) is retried at its next normal interval
+rather than immediately, so one bad repository can never spin the queue.
+Clearing the schedule (`intervalHours: null`) is how a not-yet-started
+scheduled scan is cancelled; an in-flight worker cannot be cancelled
+mid-scan, matching the existing manual-scan limitation.
 
 **Acceptance criteria:** a repository can be scanned repeatedly on a schedule
-without a manual trigger, and safely runs scheduled/background scans without
-blocking HTTP requests.
+without a manual trigger (done), and safely runs scheduled/background scans
+without blocking HTTP requests (done — the scheduler only enqueues onto the
+existing bounded worker-thread queue).
 
 ## 4. Evaluation Dataset and Quality Benchmarking
 

@@ -170,6 +170,10 @@ export async function ensureIndexes() {
   const repositories = await getRepositoriesCollection()
   await repositories.createIndex({ user_id: 1, updated_at: -1, _id: -1 })
   await repositories.createIndex({ user_id: 1, repo_url: 1 }, { unique: true })
+  await repositories.createIndex(
+    { next_scan_at: 1 },
+    { partialFilterExpression: { scan_interval_hours: { $ne: null } } },
+  )
 
   const repoFiles = await getRepoFilesCollection()
   await repoFiles.createIndex({ repository_id: 1, file_path: 1, _id: 1 })

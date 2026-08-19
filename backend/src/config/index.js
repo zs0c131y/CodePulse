@@ -133,6 +133,14 @@ export const ANALYSIS_LEASE_TTL_MS = readPositiveIntegerEnv('ANALYSIS_LEASE_TTL_
 export const ANALYSIS_LEASE_HEARTBEAT_MS = readPositiveIntegerEnv('ANALYSIS_LEASE_HEARTBEAT_MS', 30 * 1000)
 export const REPORT_SHARE_TTL_DAYS = readPositiveIntegerEnv('REPORT_SHARE_TTL_DAYS', 7)
 
+// --- Recurring scan scheduling ---
+
+export const SCAN_SCHEDULER_ENABLED = process.env.SCAN_SCHEDULER_ENABLED !== 'false'
+export const SCAN_SCHEDULER_INTERVAL_MS = readPositiveIntegerEnv('SCAN_SCHEDULER_INTERVAL_MS', 5 * 60 * 1000)
+export const SCAN_SCHEDULER_BATCH_SIZE = readPositiveIntegerEnv('SCAN_SCHEDULER_BATCH_SIZE', 20)
+export const MIN_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MIN_SCAN_INTERVAL_HOURS', 1)
+export const MAX_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MAX_SCAN_INTERVAL_HOURS', 24 * 30)
+
 // --- Optional semantic knowledge-drift analysis ---
 //
 // The embedding endpoint is intentionally unset by default. A local

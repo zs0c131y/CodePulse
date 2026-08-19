@@ -17,6 +17,7 @@ import {
   listRepositoriesForUserWithCollections,
   findRepositoryForUserWithCollections,
   deleteRepositoryForUserWithCollections,
+  setRepositoryScanScheduleWithCollections,
   listRepoFilesWithCollections,
   listCommitsForRepositoryWithCollections,
   listAllCommitsForRepositoryWithCollections,
@@ -87,6 +88,11 @@ export async function deleteRepositoryForUser(userId, repositoryId) {
       documentationFacts,
     },
   )
+}
+
+export async function setRepositoryScanSchedule(userId, repositoryId, intervalHours) {
+  const collections = await getRepositoryCollections()
+  return setRepositoryScanScheduleWithCollections(normalizeMongoId(userId), normalizeMongoId(repositoryId), intervalHours, collections)
 }
 
 export async function listRepoFilesForRepository(repositoryId, options) {

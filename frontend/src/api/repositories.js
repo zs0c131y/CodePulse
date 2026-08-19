@@ -30,6 +30,16 @@ export async function getRepositoryStatus(accessToken, repositoryId) {
   return apiFetch(`/api/repositories/${repositoryId}/status`, { accessToken })
 }
 
+/** `intervalHours: null` disables the recurring schedule. */
+export async function updateRepositorySchedule(accessToken, repositoryId, intervalHours) {
+  const data = await apiFetch(`/api/repositories/${repositoryId}/schedule`, {
+    accessToken,
+    method: 'PATCH',
+    body: { intervalHours },
+  })
+  return data.repository || null
+}
+
 export async function getRepositoryScores(accessToken, repositoryId) {
   const data = await apiFetch(`/api/repositories/${repositoryId}/scores`, { accessToken })
   return data.scores || null

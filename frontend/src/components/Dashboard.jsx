@@ -39,6 +39,7 @@ import {
   reviewRepositoryDriftFinding,
   getRepositoryScores,
   getRepositoryStatus,
+  updateRepositorySchedule,
   listRepositories,
 } from '../api/repositories'
 import { listConnectedRepositories } from '../api/integrations'
@@ -503,6 +504,8 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const [connectedRepos, setConnectedRepos] = useState([])
   const [repositoryPickerValue, setRepositoryPickerValue] = useState('')
   const [reviewingDriftId, setReviewingDriftId] = useState(null)
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [scheduleError, setScheduleError] = useState('')
 
   // The repositories the dropdown can offer in live mode: the API list when it
   // is available, otherwise the repository scanned in this session (the read
@@ -818,6 +821,21 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       setScanError(error instanceof Error ? error.message : 'Could not save the semantic drift review.')
     } finally {
       setReviewingDriftId(null)
+    }
+  }
+
+  async function handleScheduleChange(value) {
+    if (demoMode || !accessToken || !selectedRepoId) return
+    const intervalHours = value ? Number(value) : null
+    setScheduleSaving(true)
+    setScheduleError('')
+    try {
+      await updateRepositorySchedule(accessToken, selectedRepoId, intervalHours)
+      setDataVersion(version => version + 1)
+    } catch (error) {
+      setScheduleError(error instanceof Error ? error.message : 'Could not update the scan schedule.')
+    } finally {
+      setScheduleSaving(false)
     }
   }
 
@@ -1137,6 +1155,35 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               <Users size={14} />
               <span className="truncate">Signed in as {user.email}</span>
             </span>
+            {liveMode && hasLiveRepository && (
+              <span className="inline-flex items-center gap-1.5">
+                <RefreshCw size={14} />
+                <label className="inline-flex items-center gap-1.5">
+                  Auto re-scan
+                  <select
+                    value={selectedRepo?.scanIntervalHours || ''}
+                    onChange={event => handleScheduleChange(event.target.value)}
+                    disabled={scheduleSaving}
+                    aria-label="Recurring scan interval"
+                    className="rounded-[var(--r-xs)] border border-[var(--line-2)] bg-[var(--surface-1)] px-1.5 py-0.5 text-[0.8125rem] text-[var(--ink-2)] disabled:opacity-50"
+                  >
+                    <option value="">Off</option>
+                    <option value="6">Every 6 hours</option>
+                    <option value="24">Every day</option>
+                    <option value="168">Every week</option>
+                    <option value="720">Every 30 days</option>
+                  </select>
+                </label>
+                {selectedRepo?.nextScanAt && (
+                  <span className="tnum font-mono text-xs text-[var(--ink-4)]">
+                    next {new Date(selectedRepo.nextScanAt).toLocaleString()}
+                  </span>
+                )}
+              </span>
+            )}
+            {scheduleError && (
+              <span className="inline-flex items-center gap-1.5 text-[var(--sev-critical-ink)]">{scheduleError}</span>
+            )}
           </div>
         </section>
 

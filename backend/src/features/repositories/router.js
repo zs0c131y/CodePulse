@@ -5,6 +5,7 @@ import {
   listRepositories,
   getRepository,
   deleteRepository,
+  updateRepositorySchedule,
   getRepositoryFiles,
   getRepositoryCommits,
   getRepositoryDependencies,
@@ -21,6 +22,7 @@ router.post('/api/repositories/analyze', requireAccessToken, analyzeRepository)
 router.get('/api/repositories', requireAccessToken, listRepositories)
 router.get('/api/repositories/:repositoryId', requireAccessToken, getRepository)
 router.delete('/api/repositories/:repositoryId', requireAccessToken, deleteRepository)
+router.patch('/api/repositories/:repositoryId/schedule', requireAccessToken, updateRepositorySchedule)
 router.get('/api/repositories/:repositoryId/files', requireAccessToken, getRepositoryFiles)
 router.get('/api/repositories/:repositoryId/commits', requireAccessToken, getRepositoryCommits)
 router.get('/api/repositories/:repositoryId/dependencies', requireAccessToken, getRepositoryDependencies)

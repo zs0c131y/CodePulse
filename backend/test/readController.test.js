@@ -105,6 +105,62 @@ test('deleteRepository returns 409 while a repository scan is active', async () 
   assert.equal(response.statusCode, 409)
 })
 
+test('updateRepositorySchedule rejects a malformed repository id', async () => {
+  const { updateRepositorySchedule } = createReadController({})
+  const request = { user: { _id: 'user-1' }, params: { repositoryId: 'not-an-object-id' }, body: { intervalHours: 24 } }
+  const response = createResponse()
+
+  await updateRepositorySchedule(request, response, () => assert.fail('next should not be called'))
+
+  assert.equal(response.statusCode, 400)
+})
+
+test('updateRepositorySchedule rejects intervalHours outside the configured bounds', async () => {
+  const { updateRepositorySchedule } = createReadController({})
+  const request = { user: { _id: 'user-1' }, params: { repositoryId: '507f1f77bcf86cd799439011' }, body: { intervalHours: 0 } }
+  const response = createResponse()
+
+  await updateRepositorySchedule(request, response, () => assert.fail('next should not be called'))
+
+  assert.equal(response.statusCode, 400)
+})
+
+test('updateRepositorySchedule returns 404 when the repository is not owned', async () => {
+  const deps = { async setRepositoryScanSchedule() { return null } }
+  const { updateRepositorySchedule } = createReadController(deps)
+  const request = { user: { _id: 'user-1' }, params: { repositoryId: '507f1f77bcf86cd799439011' }, body: { intervalHours: 24 } }
+  const response = createResponse()
+
+  await updateRepositorySchedule(request, response, () => assert.fail('next should not be called'))
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('updateRepositorySchedule sets a schedule and treats null as disabling it', async () => {
+  let capturedIntervalHours
+  const deps = {
+    async setRepositoryScanSchedule(_userId, _repositoryId, intervalHours) {
+      capturedIntervalHours = intervalHours
+      return { id: 'repo-1', scanIntervalHours: intervalHours, nextScanAt: intervalHours ? '2026-08-20T00:00:00.000Z' : null }
+    },
+  }
+  const { updateRepositorySchedule } = createReadController(deps)
+  const requestBase = { user: { _id: 'user-1' }, params: { repositoryId: '507f1f77bcf86cd799439011' } }
+
+  const setResponse = createResponse()
+  await updateRepositorySchedule({ ...requestBase, body: { intervalHours: 24 } }, setResponse, () => assert.fail())
+  assert.equal(capturedIntervalHours, 24)
+  assert.deepEqual(setResponse.body, { repository: { id: 'repo-1', scanIntervalHours: 24, nextScanAt: '2026-08-20T00:00:00.000Z' } })
+
+  const clearResponse = createResponse()
+  await updateRepositorySchedule({ ...requestBase, body: { intervalHours: null } }, clearResponse, () => assert.fail())
+  assert.equal(capturedIntervalHours, null)
+
+  const omittedResponse = createResponse()
+  await updateRepositorySchedule({ ...requestBase, body: {} }, omittedResponse, () => assert.fail())
+  assert.equal(capturedIntervalHours, null)
+})
+
 test('getRepositoryFiles passes ownership check and pagination through to the reader', async () => {
   let receivedArgs
   const deps = {
