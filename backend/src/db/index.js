@@ -131,6 +131,11 @@ export async function getReportsCollection() {
   return db.collection('reports')
 }
 
+export async function getAiExplanationsCollection() {
+  const db = await getDatabase()
+  return db.collection('ai_explanations')
+}
+
 export async function ensureIndexes() {
   const users = await getUsersCollection()
   await users.createIndex({ email: 1 }, { unique: true })
@@ -236,6 +241,8 @@ export async function ensureIndexes() {
     },
   )
 
+  const aiExplanations = await getAiExplanationsCollection()
+  await aiExplanations.createIndex({ repository_id: 1, kind: 1, key: 1, created_at: -1 })
 }
 
 export async function pingDatabase() {

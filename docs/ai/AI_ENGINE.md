@@ -2,12 +2,46 @@
 
 This document details the configuration, workflows, and prompts for the **AI Explainability Engine** (Vertical 6) in the CodePulse platform.
 
-> **Current implementation boundary:** the live backend currently provides
-> deterministic, evidence-based recommendations from stored Technical Debt,
-> Knowledge Debt, drift, and risk findings. No LLM, embedding model, Qdrant
-> instance, or RAG service is configured, and repository contents are not sent
-> to an external AI provider. The architecture and prompt blueprints below are
-> the planned optional extension point for that future integration.
+> **Current implementation boundary:** the backend provides deterministic,
+> evidence-based recommendations from stored Technical Debt, Knowledge Debt,
+> drift, and risk findings by default — that pipeline never depends on an AI
+> provider. On top of it, an **opt-in** AI Explainability layer is implemented
+> against a self-hosted Gemma model (Ollama-compatible `/api/chat`, reachable
+> through Cloudflare Access) using Prompt Blueprints 2 and 3 below. It is only
+> invoked when a caller explicitly requests generation — never during a scan —
+> and repository source is never sent; only the smallest relevant stored
+> evidence (module debt metrics, drift findings, scores) is included in the
+> prompt. Blueprint 1 (semantic doc-drift analysis) remains unimplemented — it
+> needs an AST/documentation embedding pipeline that does not exist yet
+> ([pending.md, item 3](../pending.md)).
+>
+> **Configuration:** set `GEMMA_API_URL` and `GEMMA_MODEL` (optionally
+> `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` for a Cloudflare Access
+> service token) in the backend environment. When either `GEMMA_API_URL` or
+> `GEMMA_MODEL` is unset, `GET /api/repositories/:id/ai/status` reports
+> `{ configured: false }` and generation endpoints return `503` — the
+> deterministic scores and recommendations are unaffected either way.
+>
+> **API surface** (`backend/src/features/analysis/aiController.js`,
+> `backend/src/features/analysis/services/aiExplainabilityService.js`):
+> - `GET  /api/repositories/:repositoryId/ai/status`
+> - `POST /api/repositories/:repositoryId/ai/risk-explanation` `{ modulePath }`
+>   — generates and persists Blueprint 2 output for one module.
+> - `GET  /api/repositories/:repositoryId/ai/risk-explanation?modulePath=...`
+>   — reads back the latest persisted explanation without regenerating.
+> - `POST /api/repositories/:repositoryId/ai/executive-summary`
+>   — generates and persists Blueprint 3 output for the repository.
+> - `GET  /api/repositories/:repositoryId/ai/executive-summary`
+>   — reads back the latest persisted summary without regenerating.
+>
+> Every generated explanation is persisted to the `ai_explanations` collection
+> with its prompt version and source model, so it stays traceable to the
+> deterministic evidence it was built from. A provider failure (timeout,
+> non-2xx, malformed output) returns `502` and never partially persists — the
+> deterministic recommendations remain the source of truth. The frontend panel
+> (`frontend/src/components/dashboard/AiExplainabilityPanel.jsx`) surfaces this
+> as an on-demand "Explain with AI" / "Generate" action on the Risk & AI tab
+> and degrades to an explanatory empty state when AI is not configured.
 
 ---
 

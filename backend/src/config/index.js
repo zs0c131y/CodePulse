@@ -85,7 +85,7 @@ configureLocalDns(MONGO_URI)
 
 // --- Public URLs (frontend/backend, used for redirects and OAuth callbacks) ---
 
-export const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')
+export const FRONTEND_URL = (process.env.AUTH_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')
 export const BACKEND_URL = (process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/+$/, '')
 
 function readPositiveIntegerEnv(name, fallback) {
@@ -147,3 +147,11 @@ export const VERIFICATION_EMAIL = process.env.VERIFICATION_EMAIL || null
 export const PASSWORD_RESET_EMAIL = process.env.PASSWORD_RESET_EMAIL || null
 export const AUTH_EMAIL_WEBHOOK_URL = process.env.AUTH_EMAIL_WEBHOOK_URL || null
 export const AUTH_EMAIL_WEBHOOK_TOKEN = process.env.AUTH_EMAIL_WEBHOOK_TOKEN || null
+
+// --- AI Explainability Engine (Gemma, opt-in — null when not configured) ---
+
+export const GEMMA_API_URL = (process.env.GEMMA_API_URL || '').replace(/\/+$/, '') || null
+export const GEMMA_MODEL = process.env.GEMMA_MODEL || null
+export const GEMMA_ACCESS_CLIENT_ID = process.env.CF_ACCESS_CLIENT_ID || null
+export const GEMMA_ACCESS_CLIENT_SECRET = process.env.CF_ACCESS_CLIENT_SECRET || null
+export const AI_REQUEST_TIMEOUT_MS = readPositiveIntegerEnv('AI_REQUEST_TIMEOUT_MS', 30 * 1000)

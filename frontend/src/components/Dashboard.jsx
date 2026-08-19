@@ -61,6 +61,7 @@ import DriftPanel from './dashboard/DriftPanel'
 import MetricStrip from './dashboard/MetricStrip'
 import PipelinePanel from './dashboard/PipelinePanel'
 import RecommendationPanel from './dashboard/RecommendationPanel'
+import AiExplainabilityPanel from './dashboard/AiExplainabilityPanel'
 import RepositoryIntelligencePanel from './dashboard/RepositoryIntelligencePanel'
 import RiskHeatmapPanel from './dashboard/RiskHeatmapPanel'
 import RiskTrendPanel from './dashboard/RiskTrendPanel'
@@ -381,7 +382,7 @@ function OverviewContent({ view, liveMode }) {
   )
 }
 
-function MainContent({ activeTab, view, liveMode }) {
+function MainContent({ activeTab, view, liveMode, accessToken, repositoryId }) {
   if (activeTab === 'Repository Intelligence') {
     return (
       <RepositoryIntelligencePanel
@@ -446,6 +447,15 @@ function MainContent({ activeTab, view, liveMode }) {
         </div>
         <RiskHeatmapPanel items={view.debtItems} description="Prioritized module risk combining the available debt evidence." />
         <RecommendationPanel items={view.recommendations} emptyTitle={view.recommendationsEmptyTitle} emptyDescription={view.recommendationsEmptyDescription} />
+        {liveMode && repositoryId && (
+          <AiExplainabilityPanel
+            accessToken={accessToken}
+            repositoryId={repositoryId}
+            topRiskModules={view.debtItems
+              .filter(item => ['High', 'Critical'].includes(item.risk))
+              .map(item => ({ path: item.module, risk: item.risk }))}
+          />
+        )}
       </div>
     )
   }
@@ -1126,7 +1136,13 @@ export default function Dashboard({ user, accessToken, onLogout }) {
           />
         ) : (
           <div id="dashboard-tab-panel" role="tabpanel" tabIndex={0}>
-            <MainContent activeTab={activeTab} view={view} liveMode={liveMode} />
+            <MainContent
+              activeTab={activeTab}
+              view={view}
+              liveMode={liveMode}
+              accessToken={accessToken}
+              repositoryId={selectedRepo?.id || ''}
+            />
           </div>
         )}
       </main>

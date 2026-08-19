@@ -3,70 +3,31 @@
 This file records the work that remains after the currently implemented
 repository-analysis pipeline. The application already ingests repositories,
 extracts structure/documentation/commits/dependencies, calculates Technical
-Debt and Knowledge Debt, detects structural documentation drift, ranks risk,
-creates deterministic recommendations, and exposes those results through the
-dashboard APIs.
+Debt and Knowledge Debt (including real per-function/class AST complexity,
+duplicate-block detection, dependency-chain depth, bug-proneness, and
+contributor concentration), detects structural documentation drift, ranks
+risk, creates deterministic recommendations, generates opt-in AI explanations
+and executive summaries, stores historical score trends, and exposes all of
+it through the dashboard and reports APIs.
 
-The items below are not defects in that workflow. They are the advanced
-capabilities described in the original development plan that require new data
-sources, additional analysis infrastructure, or a deliberate product decision.
+This file previously understated what had shipped — several items below were
+marked "Pending" after the underlying engine had already been built. Each
+entry now reflects a direct read of the current code, not the original
+development plan's assumptions. The items that remain are the advanced
+capabilities that genuinely require new data sources, additional analysis
+infrastructure, or a deliberate product decision.
 
-## 1. AST-Based Static Program Analysis
-
-**Status:** Pending
-
-The current Technical Debt engine uses an explicit metadata heuristic: file
-size plus resolved internal dependency fan-in and fan-out. It is fast,
-reproducible from the persisted scan facts, and deliberately labelled as a
-heuristic. It is not true cyclomatic complexity.
-
-Implement language-aware parsing, initially for JavaScript/TypeScript and
-Python, using Tree-sitter or an equivalent AST parser. The parser should
-extract functions, methods, classes, decision points, nesting depth, and line
-counts. From this information, CodePulse can calculate per-function and
-per-class cyclomatic complexity rather than assigning one approximate score to
-an entire file.
-
-The work includes defining safe parser limits for large files, handling parse
-errors without failing a repository scan, persisting a compact source-outline
-instead of full source where possible, and rolling function-level findings up
-to module and repository scores. The dashboard should then explain whether a
-module is risky because of a particular method, class, or file.
-
-**Acceptance criteria:** a scanned JS/TS or Python module reports the exact
-functions/classes that exceed documented thresholds; malformed source produces
-a non-fatal “analysis unavailable” signal; existing metadata scoring remains a
-fallback for unsupported languages.
-
-## 2. Code Duplication, Function/Class Size, and Dependency-Chain Metrics
-
-**Status:** Pending
-
-The Technical Debt response currently returns `duplicationPercent: null` so it
-does not imply that duplication was measured. Add a token-, AST-, or
-fingerprint-based duplicate-block detector that ignores comments and formatting
-where practical. It should distinguish intentional boilerplate from meaningful
-copy/paste candidates and identify the duplicate locations.
-
-The same static-analysis stage should calculate long-function, large-class,
-and deep-import/dependency-chain signals. Deep chains are important because a
-small change near the bottom can affect many higher-level modules even when no
-cycle exists. These metrics need thresholds, weighting rules, and evidence
-messages that are visible to users.
-
-**Acceptance criteria:** the debt API identifies duplicate groups and their
-paths, reports function/class size violations, and exposes the longest resolved
-internal dependency chain without treating unresolved package imports as
-internal architecture.
-
-## 3. Semantic Knowledge Drift Detection
+## 1. Semantic Knowledge Drift Detection
 
 **Status:** Pending
 
 Structural drift is implemented: undocumented modules, stale module
 documentation, and documentation references to deleted source paths are
-detected. It cannot yet determine that documentation says “JWT” while the
-implementation now uses OAuth, because that requires semantic comparison.
+detected (`backend/src/features/analysis/services/knowledgeDriftAnalyzer.js`,
+which documents itself as "intentionally structural rather than
+semantic/embedding based"). It cannot yet determine that documentation says
+"JWT" while the implementation now uses OAuth, because that requires semantic
+comparison.
 
 Add a documentation/code-description pipeline. It should create concise,
 versioned summaries from AST outlines and markdown sections, generate
@@ -84,117 +45,76 @@ the user has explicitly enabled a hosted provider.
 that conflicts with the current code outline, show the supporting code/doc
 sections, and allow a user to mark the result confirmed or dismissed.
 
-## 4. Test Coverage and Bug-Proneness Signals
+This also unblocks **Prompt Blueprint 1** (documentation drift explanation and
+update suggestions) in [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) — the AI
+Explainability layer already implements Blueprints 2 and 3 (see item 6
+below), but Blueprint 1 has no semantic findings to explain yet.
 
-**Status:** Pending
+## 2. Test Coverage and Bug-Proneness Signals
 
-The development plan calls for low test coverage and bug-prone files as
-repository-health inputs. The current scan classifies test files but does not
-run a project’s test suite, parse coverage reports, or classify commit intent.
+**Status:** Partially implemented — bug-proneness done, coverage ingestion
+pending
 
-Add optional, sandboxed adapters for common coverage formats such as LCOV,
-Cobertura, and Python coverage XML. They should read existing CI artifacts or
-run only explicitly approved commands, never execute arbitrary repository code
-by default. Map coverage files to production modules and clearly distinguish
-“no coverage report available” from “zero coverage.”
+Bug-proneness is implemented: `technicalDebtAnalyzer.js` classifies commits as
+likely fixes using a configurable message pattern
+(`bugFixCommitPattern`), tracks `bugFixCount`/`bugFixPercent` per module, and
+surfaces "bug-fix hotspot" evidence once a module has at least 2 captured
+fixes making up 50%+ of its sampled changes — a weak, transparently-labelled
+signal rather than a claim of an objectively defective file.
 
-For bug-proneness, identify likely fix commits using configurable message
-patterns and optionally linked issue/PR metadata. Treat the resulting measure
-as a weak risk signal with transparent confidence, rather than claiming that a
-file is objectively defective.
+Test coverage ingestion is not implemented. There is no LCOV, Cobertura, or
+Python coverage-XML parsing anywhere in the backend, and no adapter that reads
+existing CI coverage artifacts. Add optional, sandboxed adapters for those
+formats; read existing CI artifacts or run only explicitly approved commands,
+never execute arbitrary repository code by default. Map coverage files to
+production modules and clearly distinguish "no coverage report available"
+from "zero coverage."
 
-**Acceptance criteria:** test coverage and bug-fix frequency are optional
-inputs, are absent rather than fabricated when unavailable, and contribute
-explainable evidence to module risk.
+**Acceptance criteria:** test coverage is an optional input, absent rather
+than fabricated when unavailable, and contributes explainable evidence to
+module risk alongside the existing bug-fix frequency signal.
 
-## 5. Contributor Concentration and Ownership Risk
+## 3. Historical Score Trends and Scan Scheduling
 
-**Status:** Pending
+**Status:** Partially implemented — trend storage done, scheduling pending
 
-Commit history already provides a top author for a file, but risk scoring does
-not yet measure whether one person owns most changes to a critical module.
-Implement a contributor-concentration metric from the captured commit sample:
-for example, the leading author’s percentage of changes and the number of
-active contributors per module.
+Historical score storage is implemented: every scan appends an immutable
+`repository_score_history` record
+(`backend/src/features/analysis/services/analysisStoreCore.js`,
+`scoreHistoryRecord`/`persistAnalysisResultsWithCollections`), not a
+replace-on-rescan snapshot, and `getRepositoryScore` reads the trend back
+sorted by `analyzed_at`. The dashboard's health/risk trend arrays are
+populated from real history, not empty placeholders.
 
-This must account for shallow clone history. If the sampled history is too
-short, label the result as unavailable rather than reporting a misleading
-key-person risk. Privacy considerations also matter: users should be able to
-choose whether author names are shown or aggregated.
+Scan scheduling is not implemented. Repository scans run in isolated worker
+threads (`backend/src/features/repositories/services/repositoryAnalysisWorker.js`,
+`analysisQueue.js`, bounded by `ANALYSIS_MAX_CONCURRENCY` and a
+per-worker `maxOldGenerationSizeMb` memory cap) for concurrency and isolation,
+but nothing re-triggers a scan on a schedule — every scan is still initiated
+by a single API call. Add a job queue or scheduler for recurring scans, with
+retries, cancellation, progress updates, and a clear policy for GitHub API and
+clone failures. Score comparison should only compare compatible analysis
+versions so a new algorithm does not appear as a false regression.
 
-**Acceptance criteria:** high-risk modules can explain a supported
-concentration warning, the calculation identifies its commit sample size, and
-incomplete history never produces a definitive ownership conclusion.
+**Acceptance criteria:** a repository can be scanned repeatedly on a schedule
+without a manual trigger, and safely runs scheduled/background scans without
+blocking HTTP requests.
 
-## 6. Historical Scores, Trends, and Scan Scheduling
-
-**Status:** Pending
-
-Current scoring stores one replace-on-rescan snapshot per repository. The UI
-therefore returns empty health/risk trend arrays. Add immutable historical
-score snapshots, scan metadata, and retention rules so users can see whether
-health, drift, and risk improved or regressed over time.
-
-Introduce a job queue or scheduler for recurring scans. The repository status
-endpoint already supports lifecycle states, but production scheduling needs
-queued jobs, retries, cancellation, progress updates, and a clear policy for
-GitHub API and clone failures. Score comparison should only compare compatible
-analysis versions so a new algorithm does not appear as a false regression.
-
-**Acceptance criteria:** a repository can be scanned repeatedly, display
-timestamped trends, and safely run scheduled/background scans without blocking
-HTTP requests.
-
-## 7. External LLM/RAG Explainability Layer
-
-**Status:** Pending; requires product, privacy, and provider decisions
-
-Current recommendations are deterministic and grounded in stored evidence.
-This is intentionally useful without an AI provider. The original plan also
-describes an optional LLM layer that can turn the same evidence into richer
-module explanations, documentation-update suggestions, and executive
-summaries.
-
-Before implementation, choose the provider model (hosted OpenAI/Llama/Qwen or
-self-hosted), retention policy, cost controls, user consent flow, and whether
-source code may be transmitted. Build a context assembler that sends only the
-smallest relevant AST outlines, drift evidence, and documentation excerpts.
-Validate structured model output against a schema, keep prompt/model versions,
-and always show the underlying deterministic evidence alongside generated text.
-
-**Acceptance criteria:** AI generation is opt-in, bounded by token/cost limits,
-traceable to stored evidence, safe when the provider fails, and never replaces
-the deterministic score calculation.
-
-## 8. Durable Reports and Share Links
-
-**Status:** Pending
-
-The frontend supports browser print/PDF export, but there is no backend report
-artifact, storage lifecycle, or shareable URL. Implement a report service that
-captures a specific repository score snapshot, findings, recommendations, and
-generation timestamp. It should render a stable HTML/PDF document using a
-server-side renderer or a controlled browser worker.
-
-If sharing is required, create expiring, revocable links scoped to a frozen
-report version. Do not expose a live repository through a guessed URL. Include
-authorization checks, retention/deletion rules, and an export audit trail.
-
-**Acceptance criteria:** a user can generate a report tied to a known scan,
-download it later, and optionally share a time-limited read-only artifact.
-
-## 9. Evaluation Dataset and Quality Benchmarking
+## 4. Evaluation Dataset and Quality Benchmarking
 
 **Status:** Pending
 
 The plan requires evaluation on varied repositories and comparison against
-manual inspection/SonarQube-style findings. Create a curated test corpus of
-small public or purpose-built repositories covering cycles, large modules,
-stale docs, dead documentation links, missing docs, duplicate code, and known
-complexity cases.
+manual inspection/SonarQube-style findings. No labelled test corpus,
+precision/recall scoring, or benchmark comparison exists anywhere in the
+repository today — the existing `backend/test/*.test.js` suite validates unit
+and integration behavior, not analysis quality against ground truth.
 
-For drift detection, maintain labelled expected findings and measure precision,
-recall, and F1. For debt/risk, record expected rankings or compare with trusted
+Create a curated test corpus of small public or purpose-built repositories
+covering cycles, large modules, stale docs, dead documentation links, missing
+docs, duplicate code, and known complexity cases. For drift detection,
+maintain labelled expected findings and measure precision, recall, and F1.
+For debt/risk, record expected rankings or compare with trusted
 static-analysis outputs while documenting that different tools use different
 definitions. Run these checks in CI to prevent a scoring-rule change from
 silently degrading quality.
@@ -203,24 +123,85 @@ silently degrading quality.
 labelled drift cases, regression tests cover scoring thresholds, and benchmark
 results are versioned with the analysis algorithm.
 
-## 10. Production Hardening and Scale Validation
+## 5. Production Hardening and Scale Validation
 
-**Status:** Pending
+**Status:** Partially implemented
 
-Repository cloning and analysis are resource-intensive. Before production use,
-move scans to isolated workers with CPU, memory, disk, timeout, and network
-limits. Add observability for scan duration, failures, queue depth, API rate
-limits, database growth, and provider cost (if AI is enabled).
+Implemented: repository scans run in isolated `worker_threads`
+(`repositoryAnalysisWorker.js`) with a configured old-generation memory cap
+and bounded concurrency (`ANALYSIS_MAX_CONCURRENCY`,
+`ANALYSIS_MAX_ACTIVE_PER_USER`, a bounded queue via
+`ANALYSIS_MAX_QUEUE_SIZE`); an HTTP rate limiter is wired into
+`backend/src/app.js`; repository size, file count, dependency edges, and
+documentation totals all have configured caps
+(`REPOSITORY_MAX_SIZE_KB`, `REPOSITORY_MAX_FILES`,
+`REPOSITORY_MAX_DEPENDENCY_EDGES`, etc.).
 
-Test against large and diverse repositories while maintaining safe caps on file
-count, dependency parsing, and source size. Validate authentication,
-authorization, token encryption, and deletion cascades under concurrent scans.
-This work ensures the current single-request workflow remains reliable as
-repository size and user count grow.
+Not implemented: CPU/disk/network resource limits on the worker itself (only
+memory is capped), and no observability layer — there is no Prometheus,
+StatsD, or metrics endpoint exporting scan duration, failure rate, queue
+depth, API rate-limit consumption, database growth, or AI provider cost. No
+load or security testing has been run against large or diverse repositories
+under concurrent scans.
 
-**Acceptance criteria:** scans cannot exhaust the web server, operational
-metrics identify failed or slow jobs, and load/security testing covers the
-repository lifecycle end to end.
+**Acceptance criteria:** scans cannot exhaust the web server (bounded
+concurrency and memory caps address this), operational metrics identify
+failed or slow jobs (not yet built), and load/security testing covers the
+repository lifecycle end to end (not yet run).
+
+## 6. External LLM/RAG Explainability Layer
+
+**Status:** Implemented for risk explanations and executive summaries
+(Prompt Blueprints 2 & 3); documentation-update suggestions (Blueprint 1,
+semantic drift) remain pending — see item 1.
+
+Current recommendations are deterministic and grounded in stored evidence and
+remain fully functional without an AI provider. On top of that, an opt-in AI
+Explainability layer calls a self-hosted Gemma model (Ollama-compatible
+`/api/chat`, behind Cloudflare Access) to turn the same stored evidence into
+richer module risk explanations and executive summaries. See
+[docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) for configuration, the API surface,
+and the implementation boundary.
+
+**Acceptance criteria:** AI generation is opt-in (implemented — every
+generation is a caller-initiated POST, never triggered by a scan), bounded by
+a request timeout (implemented via `AI_REQUEST_TIMEOUT_MS`), traceable to
+stored evidence (implemented — every explanation is persisted with its prompt
+version, source model, and generation timestamp in `ai_explanations`), safe
+when the provider fails (implemented — provider errors return `502` and never
+partially persist a record), and never replaces the deterministic score
+calculation (implemented — the technical/knowledge debt, drift, and risk
+scores are computed and stored independently of AI availability).
+
+## Implemented (kept here only as a record of prior "Pending" mislabeling)
+
+The following were previously listed as "Pending" in this file. They are
+implemented; no further work is tracked for them unless a regression is
+found.
+
+* **AST-based static program analysis** — `backend/src/features/repositories/services/astParser.js`
+  uses `@babel/parser` (JS/TS/JSX) and `@lezer/python` to extract real
+  per-function/per-class decision points and roll them up into complexity
+  scores (`complexityMethod: 'source-heuristic'`). Malformed source falls
+  back to the metadata heuristic (`'metadata-heuristic'`) rather than failing
+  the scan; unsupported languages use the same fallback.
+* **Code duplication detection** — `backend/src/features/repositories/services/codeAnalyzer.js`
+  (`applyDuplicationMetrics`) hashes 6-line source blocks (SHA-256) to find
+  real duplicate blocks and reports `duplicationPercent` per file; it is not
+  a `null` stub.
+* **Function/class size and dependency-chain-depth metrics** — `technicalDebtAnalyzer.js`
+  tracks `longFunctionCount` per module and computes real dependency-chain
+  depth from the resolved internal dependency graph, surfaced as
+  `dependencyDepth`/`longestDependencyChain`.
+* **Contributor concentration and ownership risk** — `technicalDebtAnalyzer.js`
+  computes `contributorConcentrationPercent` per module and only reports a
+  concentration warning once the sampled commit history has at least 3
+  changes, avoiding a misleading conclusion from a shallow clone.
+* **Durable reports and share links** — `backend/src/features/reports/*` persists
+  immutable report snapshots, supports enabling/disabling share links, and
+  enforces real TTL expiry (`share_expires_at` checked against the current
+  time in `reportStoreCore.js`, driven by `REPORT_SHARE_TTL_DAYS`) — not just
+  a configured constant that goes unused.
 
 ## Explicit Non-Tasks
 

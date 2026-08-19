@@ -9,6 +9,7 @@ import {
 import { buildFrontendLink } from './urls.js'
 
 const SMTP2GO_API_URL = 'https://api.smtp2go.com/v3/email/send'
+const EMAIL_FROM_NAME = 'CodePulse Team'
 
 export function buildAppLink(hashPath, token) {
   return buildFrontendLink(hashPath, token)
@@ -174,7 +175,7 @@ async function deliverSmtp2goAuthLink(kind, email, link, config) {
       'X-Smtp2go-Api-Key': config.apiKey,
     },
     body: JSON.stringify({
-      sender: config.sender,
+      sender: `${EMAIL_FROM_NAME} <${config.sender}>`,
       to: [email],
       subject,
       text_body: textBody,

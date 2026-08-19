@@ -105,8 +105,9 @@ The backend uses Express and MongoDB. Runtime configuration is read from:
 Authentication also reads:
 
 * `JWT_SECRET`: required in production for signed access tokens.
-* `FRONTEND_URL`: public frontend URL used to build verification/reset links
-  and OAuth redirect targets (`http://localhost:5173` local fallback).
+* `AUTH_APP_URL`: public frontend URL used to build verification/reset email
+  links and OAuth redirect targets (`http://localhost:5173` local fallback).
+  `FRONTEND_URL` is accepted as a fallback alias if `AUTH_APP_URL` is unset.
 * `BACKEND_URL`: public backend URL used to build OAuth callback URLs
   (`http://localhost:3000` local fallback). See
   [backend/src/utils/urls.js](../../backend/src/utils/urls.js) for the derived
@@ -115,7 +116,7 @@ Authentication also reads:
   emails through `POST https://api.smtp2go.com/v3/email/send`.
 * `VERIFICATION_EMAIL`: verified SMTP2GO sender address used for email
   verification messages. SMTP2GO requires the sender domain or address to be
-  verified. Emails are sent with the display name `CodePulse Account Team`.
+  verified. Emails are sent with the display name `CodePulse Team`.
 * `PASSWORD_RESET_EMAIL`: optional verified SMTP2GO sender address used for
   password reset messages. If omitted, password reset emails use
   `VERIFICATION_EMAIL`.
@@ -130,6 +131,25 @@ Authentication also reads:
   disabled (`503`) when unset.
 * `GITLAB_ID` / `GITLAB_SECRET`: GitLab OAuth Application credentials. GitLab
   login is disabled (`503`) when unset.
+
+The AI Explainability Engine (see [docs/ai/AI_ENGINE.md](../ai/AI_ENGINE.md))
+reads:
+
+* `GEMMA_API_URL`: base URL of the self-hosted Gemma model's Ollama-compatible
+  API (e.g. `https://gemma.example.dev`). The backend calls
+  `POST {GEMMA_API_URL}/api/chat`.
+* `GEMMA_MODEL`: model name passed to the chat endpoint (e.g. `gemma4:e2b`).
+* `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`: optional Cloudflare
+  Access service token headers, sent as `CF-Access-Client-Id` /
+  `CF-Access-Client-Secret` when the Gemma endpoint sits behind Cloudflare
+  Access.
+* `AI_REQUEST_TIMEOUT_MS`: request timeout in milliseconds for calls to
+  Gemma. Defaults to `30000`.
+
+AI generation endpoints report `503` when `GEMMA_API_URL` or `GEMMA_MODEL` is
+unset (`GET /api/repositories/:id/ai/status` reports `{ configured: false }`
+in that case); the deterministic scores, technical/knowledge debt, drift, and
+recommendation endpoints never depend on this configuration.
 
 Repository Intelligence also reads:
 
@@ -1059,6 +1079,60 @@ Response:
   ]
 }
 ```
+
+## AI Explainability API (opt-in)
+
+Requires `Authorization: Bearer <accessToken>` and enforces repository
+ownership like the endpoints above. See
+[docs/ai/AI_ENGINE.md](../ai/AI_ENGINE.md) for prompt blueprints and the
+provider contract.
+
+### `GET /api/repositories/:repositoryId/ai/status`
+
+`{ "configured": true }` when `GEMMA_API_URL` and `GEMMA_MODEL` are both set;
+`false` otherwise. The frontend uses this to decide whether to show AI actions.
+
+### `POST /api/repositories/:repositoryId/ai/risk-explanation`
+
+Body: `{ "modulePath": "src/billing/invoice.js" }`. Generates a risk
+explanation and refactor action plan for one module from its persisted
+Technical Debt metrics, and persists the result. Returns `201` with
+`{ "explanation": { ... } }`. `404` when the module has no stored debt
+metrics; `503` when AI is not configured; `502` when the model call fails.
+
+### `GET /api/repositories/:repositoryId/ai/risk-explanation?modulePath=...`
+
+Reads back the most recently generated explanation for a module without
+calling the model. `404` when none has been generated yet.
+
+### `POST /api/repositories/:repositoryId/ai/executive-summary`
+
+Generates a leadership-readable 3-paragraph summary from the repository's
+scores, top risk modules, and top drift findings, and persists the result.
+Returns `201` with `{ "explanation": { ... } }`. `409` when the repository has
+no completed analysis; `503` when AI is not configured; `502` when the model
+call fails.
+
+### `GET /api/repositories/:repositoryId/ai/executive-summary`
+
+Reads back the most recently generated executive summary without calling the
+model. `404` when none has been generated yet.
+
+An `explanation` object always has the shape:
+
+```json
+{
+  "id": "explanation-id",
+  "kind": "risk",
+  "key": "src/billing/invoice.js",
+  "model": "gemma4:e2b",
+  "promptVersion": 1,
+  "output": { "...": "explanation- or summary-shaped payload" },
+  "generatedAt": "2026-08-19T00:00:00.000Z"
+}
+```
+
+---
 
 ### `GET /api/auth/usage`
 
