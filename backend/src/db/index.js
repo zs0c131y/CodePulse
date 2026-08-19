@@ -170,9 +170,14 @@ export async function ensureIndexes() {
   const repositories = await getRepositoriesCollection()
   await repositories.createIndex({ user_id: 1, updated_at: -1, _id: -1 })
   await repositories.createIndex({ user_id: 1, repo_url: 1 }, { unique: true })
+  // MongoDB partial indexes only allow a small operator set ($eq, $exists,
+  // $gt, $gte, $lt, $lte, $type, top-level $and) — $ne desugars to $not,
+  // which is explicitly rejected. scan_interval_hours is always a positive
+  // integer when a recurring schedule is active, so $gt: 0 is both a valid
+  // partial-index expression and semantically equivalent to "is scheduled".
   await repositories.createIndex(
     { next_scan_at: 1 },
-    { partialFilterExpression: { scan_interval_hours: { $ne: null } } },
+    { partialFilterExpression: { scan_interval_hours: { $gt: 0 } } },
   )
 
   const repoFiles = await getRepoFilesCollection()
