@@ -182,14 +182,15 @@ self-hosted Gemma model. See item 1 for Blueprint 1's details.
 Current recommendations are deterministic and grounded in stored evidence and
 remain fully functional without an AI provider. On top of that, an opt-in AI
 Explainability layer calls a self-hosted Gemma model (Ollama-compatible
-`/api/chat`, behind Cloudflare Access) to turn the same stored evidence into
-richer module risk explanations and executive summaries. See
+`/api/generate` via `backend/src/utils/gemma.js`, behind Cloudflare Access)
+to turn the same stored evidence into drift explanations, module risk
+explanations, and executive summaries. See
 [docs/ai/AI_ENGINE.md](ai/AI_ENGINE.md) for configuration, the API surface,
 and the implementation boundary.
 
 **Acceptance criteria:** AI generation is opt-in (implemented — every
 generation is a caller-initiated POST, never triggered by a scan), bounded by
-a request timeout (implemented via `AI_REQUEST_TIMEOUT_MS`), traceable to
+a request timeout (implemented via `GEMMA_REQUEST_TIMEOUT_MS`), traceable to
 stored evidence (implemented — every explanation is persisted with its prompt
 version, source model, and generation timestamp in `ai_explanations`), safe
 when the provider fails (implemented — provider errors return `502` and never
