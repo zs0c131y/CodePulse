@@ -5,22 +5,14 @@ This document details the configuration, workflows, and prompts for the **AI Exp
 > **Current implementation boundary:** the backend provides deterministic,
 > evidence-based recommendations from stored Technical Debt, Knowledge Debt,
 > drift, and risk findings by default — that pipeline never depends on an AI
-> provider. On top of it, an **opt-in** AI Explainability layer is implemented
-> against a self-hosted Gemma model (Ollama-compatible `/api/chat`, reachable
-> through Cloudflare Access) using Prompt Blueprints 2 and 3 below. It is only
-> invoked when a caller explicitly requests generation — never during a scan —
-> and repository source is never sent; only the smallest relevant stored
-> evidence (module debt metrics, drift findings, scores) is included in the
-> prompt. Blueprint 1 (semantic doc-drift analysis) remains unimplemented — it
-> needs an AST/documentation embedding pipeline that does not exist yet
-> ([pending.md, item 3](../pending.md)).
->
-> **Configuration:** set `GEMMA_API_URL` and `GEMMA_MODEL` (optionally
-> `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` for a Cloudflare Access
-> service token) in the backend environment. When either `GEMMA_API_URL` or
-> `GEMMA_MODEL` is unset, `GET /api/repositories/:id/ai/status` reports
-> `{ configured: false }` and generation endpoints return `503` — the
-> deterministic scores and recommendations are unaffected either way.
+> provider. On top of the LLM transport described below (`generateWithGemma()`),
+> an **opt-in** AI Explainability layer is implemented using Prompt Blueprints
+> 2 and 3. It is only invoked when a caller explicitly requests generation —
+> never during a scan — and repository source is never sent; only the
+> smallest relevant stored evidence (module debt metrics, drift findings,
+> scores) is assembled into the prompt. Blueprint 1 (semantic doc-drift
+> analysis) remains unimplemented — it needs an AST/documentation embedding
+> pipeline that does not exist yet ([pending.md, item 1](../pending.md)).
 >
 > **API surface** (`backend/src/features/analysis/aiController.js`,
 > `backend/src/features/analysis/services/aiExplainabilityService.js`):
@@ -37,11 +29,76 @@ This document details the configuration, workflows, and prompts for the **AI Exp
 > Every generated explanation is persisted to the `ai_explanations` collection
 > with its prompt version and source model, so it stays traceable to the
 > deterministic evidence it was built from. A provider failure (timeout,
-> non-2xx, malformed output) returns `502` and never partially persists — the
-> deterministic recommendations remain the source of truth. The frontend panel
+> non-2xx, malformed output, or the home server being offline) returns `502`
+> and never partially persists — the deterministic recommendations remain the
+> source of truth. The frontend panel
 > (`frontend/src/components/dashboard/AiExplainabilityPanel.jsx`) surfaces this
-> as an on-demand "Explain with AI" / "Generate" action on the Risk & AI tab
-> and degrades to an explanatory empty state when AI is not configured.
+> as an on-demand "Explain with AI" / "Generate" action on the Risk & AI tab.
+
+---
+
+## 🔌 Current LLM Integration
+
+A self-hosted **Gemma 4** (`gemma4:e2b`, via [Ollama](https://ollama.com)) runs
+on a home server (`dauntless`), reachable from the backend through a
+Cloudflare Tunnel + Access service token — not a managed cloud AI API.
+
+```text
+  backend/src/utils/gemma.js (generateWithGemma)
+        │  CF-Access-Client-Id / CF-Access-Client-Secret
+        ▼
+  https://gemma.ardend.dev  (Cloudflare Tunnel + Access, public hostname)
+        ▼
+  dauntless:11434  (Ollama, self-hosted, home network)
+        ▼
+  gemma4:e2b
+```
+
+**Wire format** — Ollama's native `/api/generate` API, unmodified:
+
+```
+POST https://gemma.ardend.dev/api/generate
+Headers: CF-Access-Client-Id, CF-Access-Client-Secret, Content-Type: application/json
+Body:    { "model": "gemma4:e2b", "prompt": "<text>", "stream": false }
+Response: { "response": "<generated text>", ... }
+```
+
+**From backend code**, call `generateWithGemma(prompt)` — it fills in the
+URL, Access headers, and a request timeout (`GEMMA_REQUEST_TIMEOUT_MS`,
+default 60s) so a caller only needs to catch and surface the error to the
+user when the home server is offline:
+
+```js
+import { generateWithGemma } from '../../utils/gemma.js'
+
+const text = await generateWithGemma(prompt)
+```
+
+Config (`backend/src/config/index.js`): `GEMMA_API_URL`, `GEMMA_MODEL`,
+`GEMMA_REQUEST_TIMEOUT_MS`, `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`.
+`GEMMA_API_URL` and `GEMMA_MODEL` default to the `dauntless` deployment above,
+so they are effectively always "configured"; `isAiExplainabilityConfigured()`
+in `aiExplainabilityService.js` is a safety net for a deployment that
+explicitly overrides them, not the primary way availability is signaled — a
+home server that's powered off is a `502` at call time, not a `503`.
+
+**Availability caveat:** this is a home server, not a managed cloud service —
+it can be offline (power/network/reboot). `generateWithGemma()` throws rather
+than hangs when that happens; callers must catch it and return a clear
+"AI service unavailable" response rather than let it bubble up as a 500. The
+AI Explainability layer's `callGemma()` wrapper (in
+`aiExplainabilityService.js`) does exactly this: it turns any
+`generateWithGemma()` failure into an `AiProviderError`, which the controller
+maps to `502`.
+
+**Context-assembly gap:** `generateWithGemma()` itself is still a raw
+prompt-in/text-out function — it does not assemble context. The AI
+Explainability layer (Prompt Blueprints 2 & 3, described above) is what
+closes that gap for risk explanations and executive summaries, combining a
+blueprint's `[SYSTEM PROMPT]`/`[USER PROMPT]` into one string before calling
+`generateWithGemma()`. Blueprint 1's context assembly (AST slices, drift
+findings compiled into prompt variables for semantic doc-drift analysis)
+remains unimplemented, tracked in [pending.md, item 1](../pending.md).
 
 ---
 

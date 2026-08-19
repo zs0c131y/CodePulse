@@ -148,10 +148,10 @@ export const PASSWORD_RESET_EMAIL = process.env.PASSWORD_RESET_EMAIL || null
 export const AUTH_EMAIL_WEBHOOK_URL = process.env.AUTH_EMAIL_WEBHOOK_URL || null
 export const AUTH_EMAIL_WEBHOOK_TOKEN = process.env.AUTH_EMAIL_WEBHOOK_TOKEN || null
 
-// --- AI Explainability Engine (Gemma, opt-in — null when not configured) ---
+// --- Gemma inference (self-hosted Ollama, reached via Cloudflare Tunnel) ---
 
-export const GEMMA_API_URL = (process.env.GEMMA_API_URL || '').replace(/\/+$/, '') || null
-export const GEMMA_MODEL = process.env.GEMMA_MODEL || null
-export const GEMMA_ACCESS_CLIENT_ID = process.env.CF_ACCESS_CLIENT_ID || null
-export const GEMMA_ACCESS_CLIENT_SECRET = process.env.CF_ACCESS_CLIENT_SECRET || null
-export const AI_REQUEST_TIMEOUT_MS = readPositiveIntegerEnv('AI_REQUEST_TIMEOUT_MS', 30 * 1000)
+export const GEMMA_API_URL = (process.env.GEMMA_API_URL || 'https://gemma.ardend.dev').replace(/\/+$/, '')
+export const GEMMA_MODEL = process.env.GEMMA_MODEL || 'gemma4:e2b'
+export const GEMMA_REQUEST_TIMEOUT_MS = readPositiveIntegerEnv('GEMMA_REQUEST_TIMEOUT_MS', 60 * 1000)
+export const CF_ACCESS_CLIENT_ID = process.env.CF_ACCESS_CLIENT_ID || null
+export const CF_ACCESS_CLIENT_SECRET = process.env.CF_ACCESS_CLIENT_SECRET || null

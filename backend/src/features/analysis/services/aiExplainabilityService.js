@@ -1,10 +1,5 @@
-import {
-  GEMMA_API_URL,
-  GEMMA_MODEL,
-  GEMMA_ACCESS_CLIENT_ID,
-  GEMMA_ACCESS_CLIENT_SECRET,
-  AI_REQUEST_TIMEOUT_MS,
-} from '../../../config/index.js'
+import { GEMMA_API_URL, GEMMA_MODEL } from '../../../config/index.js'
+import { generateWithGemma } from '../../../utils/gemma.js'
 import { getAiExplanationsCollection, getTechnicalDebtMetricsCollection } from '../../../db/index.js'
 import {
   getRepositoryScore,
@@ -38,70 +33,33 @@ export function isAiExplainabilityConfigured() {
   return Boolean(GEMMA_API_URL && GEMMA_MODEL)
 }
 
-function buildHeaders() {
-  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' }
-  if (GEMMA_ACCESS_CLIENT_ID) headers['CF-Access-Client-Id'] = GEMMA_ACCESS_CLIENT_ID
-  if (GEMMA_ACCESS_CLIENT_SECRET) headers['CF-Access-Client-Secret'] = GEMMA_ACCESS_CLIENT_SECRET
-  return headers
-}
-
 /**
- * Calls the self-hosted Gemma model behind an Ollama-compatible /api/chat
- * endpoint. Repository content is never sent — only the smallest relevant
- * evidence assembled by the prompt builders below.
+ * Calls the self-hosted Gemma model through the shared `generateWithGemma()`
+ * transport (backend/src/utils/gemma.js — Ollama's /api/generate, Cloudflare
+ * Access headers, request timeout). This module only builds the prompt
+ * string and normalizes transport failures into AiProviderError; repository
+ * content is never sent, only the smallest relevant evidence assembled by
+ * the prompt builders below.
  */
 export async function callGemma({ system, user }) {
   if (!isAiExplainabilityConfigured()) {
     throw new AiNotConfiguredError()
   }
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS)
+  const prompt = `${system}\n\n${user}`
 
-  let response
+  let text
   try {
-    response = await fetch(`${GEMMA_API_URL}/api/chat`, {
-      method: 'POST',
-      headers: buildHeaders(),
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: GEMMA_MODEL,
-        stream: false,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        options: { temperature: 0.2 },
-      }),
-    })
+    text = await generateWithGemma(prompt)
   } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new AiProviderError('The AI explanation request timed out.')
-    }
-    throw new AiProviderError(`Unable to reach the AI explanation service: ${error.message}`)
-  } finally {
-    clearTimeout(timer)
+    throw new AiProviderError(error.message)
   }
 
-  const text = await response.text()
-  let payload = {}
-  try {
-    payload = text ? JSON.parse(text) : {}
-  } catch {
-    throw new AiProviderError('The AI explanation service returned an unreadable response.')
-  }
-
-  if (!response.ok) {
-    const detail = payload?.error ? ` ${payload.error}` : ''
-    throw new AiProviderError(`AI explanation service failed with status ${response.status}.${detail}`)
-  }
-
-  const content = payload?.message?.content
-  if (typeof content !== 'string' || !content.trim()) {
+  if (typeof text !== 'string' || !text.trim()) {
     throw new AiProviderError('The AI explanation service returned an empty response.')
   }
 
-  return content.trim()
+  return text.trim()
 }
 
 function formatEvidenceList(reasons) {
