@@ -1,5 +1,6 @@
 import { GEMMA_API_URL, GEMMA_MODEL } from '../../../config/index.js'
 import { generateWithGemma } from '../../../utils/gemma.js'
+import { aiRequestsTotal, aiRequestDurationSeconds } from '../../../observability/metrics.js'
 import {
   getAiExplanationsCollection,
   getTechnicalDebtMetricsCollection,
@@ -51,17 +52,28 @@ export async function callGemma({ system, user }) {
   }
 
   const prompt = `${system}\n\n${user}`
+  const startedAt = process.hrtime.bigint()
+  const recordDuration = () => {
+    aiRequestDurationSeconds.observe({}, Number(process.hrtime.bigint() - startedAt) / 1e9)
+  }
 
   let text
   try {
     text = await generateWithGemma(prompt)
   } catch (error) {
+    recordDuration()
+    aiRequestsTotal.inc({ outcome: 'failure' })
     throw new AiProviderError(error.message)
   }
 
   if (typeof text !== 'string' || !text.trim()) {
+    recordDuration()
+    aiRequestsTotal.inc({ outcome: 'failure' })
     throw new AiProviderError('The AI explanation service returned an empty response.')
   }
+
+  recordDuration()
+  aiRequestsTotal.inc({ outcome: 'success' })
 
   return text.trim()
 }

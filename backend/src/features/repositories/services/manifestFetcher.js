@@ -1,4 +1,5 @@
 import { parsePackageJsonManifest, parseRequirementsTxtManifest } from './manifestParser.js'
+import { MANIFEST_FETCH_TIMEOUT_MS } from '../../../config/index.js'
 
 const knownManifestFiles = [
   { path: 'package.json', parse: parsePackageJsonManifest },
@@ -20,7 +21,7 @@ export async function fetchRepositoryManifests({ repoFullName, defaultBranch, fe
     let response
 
     try {
-      response = await fetchImpl(url)
+      response = await fetchImpl(url, { signal: AbortSignal.timeout(MANIFEST_FETCH_TIMEOUT_MS) })
     } catch {
       continue
     }

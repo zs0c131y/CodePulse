@@ -3,6 +3,7 @@ import { parseGitHubRepositoryUrl } from './gitClient.js'
 import { queueRepositoryAnalysis } from './repositoryStore.js'
 import { enqueueRepositoryAnalysis } from './analysisQueue.js'
 import { SCAN_SCHEDULER_INTERVAL_MS, SCAN_SCHEDULER_BATCH_SIZE } from '../../../config/index.js'
+import { scheduledScansTotal } from '../../../observability/metrics.js'
 
 const ACTIVE_ANALYSIS_STATUSES = ['queued', 'running']
 
@@ -52,6 +53,7 @@ export async function runScheduledScans(options = {}) {
       if (!repository) {
         logError(`Scheduled scan skipped: repository ${record._id} has an unparseable repo_url (${record.repo_url}).`)
         skipped += 1
+        scheduledScansTotal.inc({ outcome: 'unparseable_url' })
         continue
       }
 
@@ -69,14 +71,17 @@ export async function runScheduledScans(options = {}) {
           commitLimit: record.commit_limit || 100,
         })
         started += 1
+        scheduledScansTotal.inc({ outcome: 'started' })
       } else {
         // Already active from a manual trigger; the next scheduled tick
         // will try again.
         skipped += 1
+        scheduledScansTotal.inc({ outcome: 'skipped' })
       }
     } catch (error) {
       logError(`Scheduled scan failed to start for repository ${record._id}.`, error)
       skipped += 1
+      scheduledScansTotal.inc({ outcome: 'error' })
     } finally {
       await repositories.updateOne({ _id: record._id }, { $set: { next_scan_at: nextScanAt } })
     }

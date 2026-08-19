@@ -1335,6 +1335,36 @@ OAuth requests include repository-read scopes (`repo` on GitHub and
 `read_api` on GitLab). The provider calls never send access tokens to the
 frontend.
 
+## 📈 Observability API
+
+### `GET /api/metrics`
+
+Prometheus text-exposition format (`backend/src/observability/metrics.js`, a
+small dependency-free registry — Counter/Gauge/Histogram). No
+`Authorization: Bearer` requirement by default; if `METRICS_TOKEN` is set in
+the environment, requests must present it as `Authorization: Bearer <token>`
+or an `X-Metrics-Token` header, or the endpoint returns `401`. Reports:
+
+* `codepulse_scans_total{status="completed|failed|crashed|timeout|lease_lost"}`
+  and `codepulse_scan_duration_seconds` — recorded in the main process from a
+  `postMessage` the worker thread sends back on exit, since metrics recorded
+  inside a `worker_threads` worker live in that worker's own isolated module
+  state and would otherwise vanish when it exits.
+* `codepulse_scheduled_scans_total{outcome="started|skipped|error|unparseable_url"}`
+  — from `scanScheduler.js`.
+* `codepulse_ai_requests_total{outcome="success|failure"}` and
+  `codepulse_ai_request_duration_seconds` — from the AI Explainability
+  layer's calls to Gemma.
+* `codepulse_http_requests_total{status_class="2xx|3xx|4xx|5xx"}` and
+  `codepulse_rate_limited_requests_total` — no path or user label on either,
+  to avoid unbounded label cardinality from attacker-controlled input.
+* `codepulse_analysis_queue_active_workers` /
+  `codepulse_analysis_queue_pending_jobs` /
+  `codepulse_analysis_queue_scheduled_jobs` — read from the existing
+  `getAnalysisQueueSnapshot()` at scrape time.
+* `codepulse_db_collection_documents{collection="repositories|users|reports"}`
+  — `estimatedDocumentCount()` at scrape time (fast; does not scan).
+
 ## ⚙️ Current Analysis Boundaries
 
 The implemented engines operate on repository facts gathered during a scan.
@@ -1345,6 +1375,9 @@ self-hosted Gemma model — see [docs/ai/AI_ENGINE.md](../ai/AI_ENGINE.md)) are
 all implemented. Semantic documentation drift is available as an opt-in
 embedding enrichment with explicit provider consent (see
 [docs/pending.md](../pending.md) for what it does and does not yet cover).
-Test coverage/bug-proneness ingestion, recurring scan scheduling, an
-evaluation/benchmarking harness, and full production observability remain
-open — see [docs/pending.md](../pending.md) for the current list.
+Test coverage/bug-proneness ingestion, recurring scan scheduling, the
+evaluation/benchmarking harness, and a Prometheus metrics endpoint are all
+implemented too. What remains open is narrower: OS-level CPU/network
+resource isolation for scan workers and load/security testing under
+concurrent scans — see [docs/pending.md](../pending.md) for the current
+list.

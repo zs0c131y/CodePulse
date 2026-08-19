@@ -4,9 +4,11 @@ import {
   ANALYSIS_MAX_CONCURRENCY,
   ANALYSIS_MAX_QUEUE_SIZE,
   ANALYSIS_WORKER_MAX_OLD_GENERATION_MB,
+  ANALYSIS_MAX_SCAN_DURATION_MS,
 } from '../../../config/index.js'
 import { getRepositoriesCollection } from '../../../db/index.js'
 import { markRepositoryAnalysisFailed } from './repositoryStore.js'
+import { scansTotal, scanDurationSeconds } from '../../../observability/metrics.js'
 
 const pending = []
 const scheduledKeys = new Set()
@@ -45,8 +47,10 @@ async function recordWorkerFailure(job, error) {
 function startWorker(job) {
   activeWorkers += 1
   const key = jobKey(job)
+  const startedAt = process.hrtime.bigint()
   let acknowledged = false
   let workerError = null
+  let timedOut = false
   const worker = new Worker(new URL('./repositoryAnalysisWorker.js', import.meta.url), {
     workerData: serializableJob(job),
     resourceLimits: {
@@ -54,18 +58,38 @@ function startWorker(job) {
     },
   })
 
+  // A hung scan (stalled network, stuck clone) would otherwise hold a
+  // worker slot forever. terminate() triggers the normal 'exit' handling
+  // below — acknowledged stays false, so it is recorded as a failure the
+  // same way a crash is, just with a clearer error message.
+  const timeoutTimer = setTimeout(() => {
+    timedOut = true
+    worker.terminate().catch(() => {})
+  }, ANALYSIS_MAX_SCAN_DURATION_MS)
+  timeoutTimer.unref?.()
+
   worker.once('message', message => {
     acknowledged = Boolean(message?.settled)
     if (message?.completed) completedJobs += 1
+    if (Number.isFinite(message?.durationSeconds)) {
+      scanDurationSeconds.observe({}, message.durationSeconds)
+    }
+    scansTotal.inc({ status: message?.completed ? 'completed' : 'lease_lost' })
   })
   worker.once('error', error => {
     workerError = error
   })
   worker.once('exit', async code => {
+    clearTimeout(timeoutTimer)
+
     if (!acknowledged) {
+      scanDurationSeconds.observe({}, Number(process.hrtime.bigint() - startedAt) / 1e9)
+      scansTotal.inc({ status: timedOut ? 'timeout' : 'crashed' })
       await recordWorkerFailure(
         job,
-        workerError || new Error(`Analysis worker exited with code ${code}.`),
+        timedOut
+          ? new Error(`Analysis worker exceeded the maximum scan duration (${ANALYSIS_MAX_SCAN_DURATION_MS}ms) and was terminated.`)
+          : workerError || new Error(`Analysis worker exited with code ${code}.`),
       )
     }
 

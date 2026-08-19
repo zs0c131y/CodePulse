@@ -5,12 +5,14 @@ import { IS_PRODUCTION } from './config/index.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
 import { cors } from './middleware/cors.js'
 import { createRateLimiter } from './middleware/rateLimiter.js'
+import { httpRequestsTotal } from './observability/metrics.js'
 import healthRouter from './features/health/router.js'
 import authRouter from './features/auth/router.js'
 import repositoriesRouter from './features/repositories/router.js'
 import integrationsRouter from './features/integrations/router.js'
 import analysisRouter from './features/analysis/router.js'
 import reportsRouter from './features/reports/router.js'
+import observabilityRouter from './features/observability/router.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -26,6 +28,12 @@ app.use(securityHeaders)
 app.use(cors)
 app.use(express.json({ limit: '1mb' }))
 app.use(createRateLimiter({ windowMs: 15 * 60 * 1000, max: 300 }))
+app.use((request, response, next) => {
+  response.on('finish', () => {
+    httpRequestsTotal.inc({ status_class: `${Math.floor(response.statusCode / 100)}xx` })
+  })
+  next()
+})
 
 app.use(healthRouter)
 app.use(authRouter)
@@ -33,6 +41,7 @@ app.use(analysisRouter)
 app.use(repositoriesRouter)
 app.use(integrationsRouter)
 app.use(reportsRouter)
+app.use(observabilityRouter)
 
 // Serve the built frontend in production only. Local development uses the
 // Vite dev server instead (see `npm run dev`), which is never built to disk.

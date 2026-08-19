@@ -137,22 +137,33 @@ existing bounded worker-thread queue).
 
 ## 4. Evaluation Dataset and Quality Benchmarking
 
-**Status:** Pending
+**Status:** Implemented
 
-The plan requires evaluation on varied repositories and comparison against
-manual inspection/SonarQube-style findings. No labelled test corpus,
-precision/recall scoring, or benchmark comparison exists anywhere in the
-repository today — the existing `backend/test/*.test.js` suite validates unit
-and integration behavior, not analysis quality against ground truth.
+A small, purpose-built fixture repository
+(`backend/test/fixtures/evaluationCorpus.js`) with a closed, hand-labelled
+set of expected findings is built via real `git` commands (not a mocked
+analysis input) and run through the actual deterministic pipeline —
+`analyzeTechnicalDebt`, `analyzeKnowledgeDebt`, `analyzeKnowledgeDrift`, the
+same functions a live scan calls. It deliberately contains a circular
+dependency, an oversized file, a high-cyclomatic-complexity function,
+duplicated code, a stale module, an undocumented module, a dead
+documentation reference, a bug-fix hotspot, and a low-test-coverage file
+(via a committed `lcov.info`) — the categories docs/pending.md originally
+asked for (cycles, large modules, stale modules, dead documentation links,
+missing docs, duplicate code, known complexity cases), plus bug-proneness
+and coverage since those signals now exist too (see item 2).
+`backend/test/evaluationBenchmark.test.js` computes precision/recall/F1 for
+every signal against the labelled ground truth, asserts a debt-score
+ranking regression (the deliberately worse modules must outrank a plain
+undocumented baseline), and prints a report on every run, tagged with
+`CODE_ANALYSIS_VERSION` for traceability. It runs as part of `npm test`, so
+CI fails the same way any other regression would if a scoring-rule change
+silently stops detecting (or starts over-reporting) one of these categories.
 
-Create a curated test corpus of small public or purpose-built repositories
-covering cycles, large modules, stale docs, dead documentation links, missing
-docs, duplicate code, and known complexity cases. For drift detection,
-maintain labelled expected findings and measure precision, recall, and F1.
-For debt/risk, record expected rankings or compare with trusted
-static-analysis outputs while documenting that different tools use different
-definitions. Run these checks in CI to prevent a scoring-rule change from
-silently degrading quality.
+This is a regression benchmark against a documented, versioned ground truth,
+not an accuracy claim against an external tool — no SonarQube-equivalent
+integration exists, and the harness says so in its own file header rather
+than implying a comparison that isn't there.
 
 **Acceptance criteria:** automated evaluation reports precision/recall for
 labelled drift cases, regression tests cover scoring thresholds, and benchmark
@@ -160,29 +171,63 @@ results are versioned with the analysis algorithm.
 
 ## 5. Production Hardening and Scale Validation
 
-**Status:** Partially implemented
+**Status:** Partially implemented — observability and wall-clock/network
+limits are now in place; true OS-level CPU/disk isolation and load/security
+testing remain open.
 
-Implemented: repository scans run in isolated `worker_threads`
-(`repositoryAnalysisWorker.js`) with a configured old-generation memory cap
-and bounded concurrency (`ANALYSIS_MAX_CONCURRENCY`,
-`ANALYSIS_MAX_ACTIVE_PER_USER`, a bounded queue via
-`ANALYSIS_MAX_QUEUE_SIZE`); an HTTP rate limiter is wired into
-`backend/src/app.js`; repository size, file count, dependency edges, and
-documentation totals all have configured caps
-(`REPOSITORY_MAX_SIZE_KB`, `REPOSITORY_MAX_FILES`,
-`REPOSITORY_MAX_DEPENDENCY_EDGES`, etc.).
+Implemented:
 
-Not implemented: CPU/disk/network resource limits on the worker itself (only
-memory is capped), and no observability layer — there is no Prometheus,
-StatsD, or metrics endpoint exporting scan duration, failure rate, queue
-depth, API rate-limit consumption, database growth, or AI provider cost. No
+* **Bounded concurrency and memory.** Repository scans run in isolated
+  `worker_threads` (`repositoryAnalysisWorker.js`) with a configured
+  old-generation memory cap and bounded concurrency
+  (`ANALYSIS_MAX_CONCURRENCY`, `ANALYSIS_MAX_ACTIVE_PER_USER`, a bounded
+  queue via `ANALYSIS_MAX_QUEUE_SIZE`); repository size, file count,
+  dependency edges, and documentation totals all have configured caps
+  (`REPOSITORY_MAX_SIZE_KB`, `REPOSITORY_MAX_FILES`,
+  `REPOSITORY_MAX_DEPENDENCY_EDGES`, etc.) — this is how disk usage per scan
+  stays bounded even without an explicit OS-level disk quota.
+* **Wall-clock scan timeout.** `analysisQueue.js` now terminates any worker
+  that exceeds `ANALYSIS_MAX_SCAN_DURATION_MS` (default 20 minutes) and
+  records it as a normal failure — a stalled clone or a hung network call
+  can no longer hold a worker slot indefinitely.
+* **Network timeout on outbound manifest fetches.** `manifestFetcher.js`'s
+  calls to `raw.githubusercontent.com` now carry an
+  `AbortSignal.timeout(MANIFEST_FETCH_TIMEOUT_MS)` (default 10s), matching
+  the timeout already present on the GitHub repository-metadata call and the
+  git clone itself.
+* **An HTTP rate limiter** is wired into `backend/src/app.js`.
+* **Observability.** A hand-rolled, dependency-free Prometheus text-format
+  registry (`backend/src/observability/metrics.js`) is exposed at
+  `GET /api/metrics` (optionally gated by `METRICS_TOKEN`, since scan
+  volume/failure data can hint at what an attacker is probing). It reports:
+  scan count and duration by outcome (`codepulse_scans_total`,
+  `codepulse_scan_duration_seconds` — recorded in the *main* thread from a
+  `postMessage` the worker sends back, since `worker_threads` do not share
+  module state and metrics recorded inside the worker would otherwise be
+  silently discarded when it exits); scheduled-scan outcomes
+  (`codepulse_scheduled_scans_total`); AI Explainability call count/duration
+  (`codepulse_ai_requests_total`, `codepulse_ai_request_duration_seconds`);
+  HTTP requests by status class and rate-limit rejections
+  (`codepulse_http_requests_total`, `codepulse_rate_limited_requests_total`);
+  analysis queue depth (`codepulse_analysis_queue_*`, sourced from the
+  existing `getAnalysisQueueSnapshot()`); and approximate database growth
+  per collection (`codepulse_db_collection_documents`).
+
+Not implemented: true OS-level CPU/network resource limits on the worker
+(Node's `worker_threads` API bounds memory, not CPU time or network
+bandwidth — that needs a container/cgroup limit at the deployment layer,
+outside this application's reach) and AI provider cost tracking beyond
+request count/duration (no per-token or dollar-cost accounting, since the
+self-hosted Gemma deployment has no metered billing API to read from). No
 load or security testing has been run against large or diverse repositories
 under concurrent scans.
 
 **Acceptance criteria:** scans cannot exhaust the web server (bounded
-concurrency and memory caps address this), operational metrics identify
-failed or slow jobs (not yet built), and load/security testing covers the
-repository lifecycle end to end (not yet run).
+concurrency, memory caps, and the new wall-clock timeout address this),
+operational metrics identify failed or slow jobs (done — `/api/metrics`),
+and load/security testing covers the repository lifecycle end to end (not
+yet run — this remains a testing exercise for someone with a real deployment
+to execute, not something further code changes alone satisfy).
 
 ## 6. External LLM/RAG Explainability Layer
 

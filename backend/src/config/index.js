@@ -141,6 +141,16 @@ export const SCAN_SCHEDULER_BATCH_SIZE = readPositiveIntegerEnv('SCAN_SCHEDULER_
 export const MIN_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MIN_SCAN_INTERVAL_HOURS', 1)
 export const MAX_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MAX_SCAN_INTERVAL_HOURS', 24 * 30)
 
+// --- Observability & hardening ---
+//
+// METRICS_TOKEN is optional but recommended in production: scan volume and
+// failure-rate data can hint at what an attacker is probing, so /api/metrics
+// requires this shared secret when it is set. Left unset, the endpoint stays
+// open (matches typical local/dev and same-network Prometheus setups).
+export const METRICS_TOKEN = process.env.METRICS_TOKEN || null
+export const ANALYSIS_MAX_SCAN_DURATION_MS = readPositiveIntegerEnv('ANALYSIS_MAX_SCAN_DURATION_MS', 20 * 60 * 1000)
+export const MANIFEST_FETCH_TIMEOUT_MS = readPositiveIntegerEnv('MANIFEST_FETCH_TIMEOUT_MS', 10 * 1000)
+
 // --- Optional semantic knowledge-drift analysis ---
 //
 // The embedding endpoint is intentionally unset by default. A local

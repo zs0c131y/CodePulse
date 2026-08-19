@@ -1,3 +1,5 @@
+import { rateLimitedRequestsTotal } from '../observability/metrics.js'
+
 export function createRateLimiter({ windowMs, max, key = request => request.ip, maxBuckets = 10_000 }) {
   const hits = new Map()
 
@@ -24,6 +26,9 @@ export function createRateLimiter({ windowMs, max, key = request => request.ip, 
     response.setHeader('X-RateLimit-Reset', String(Math.ceil(bucket.resetAt / 1000)))
 
     if (bucket.count > max) {
+      // No path/user label here: it's attacker-influenced input and would
+      // give this counter unbounded cardinality.
+      rateLimitedRequestsTotal.inc({})
       response.status(429).json({ message: 'Too many requests. Try again later.' })
       return
     }
