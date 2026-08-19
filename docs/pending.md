@@ -171,9 +171,10 @@ results are versioned with the analysis algorithm.
 
 ## 5. Production Hardening and Scale Validation
 
-**Status:** Partially implemented — observability and wall-clock/network
-limits are now in place; true OS-level CPU/disk isolation and load/security
-testing remain open.
+**Status:** Partially implemented — observability, wall-clock/network limits,
+a Railway container-level resource cap, and a load-testing tool are now in
+place; actually running that tool against a live deployment, and Fly-side
+container limits, remain open (see below).
 
 Implemented:
 
@@ -213,21 +214,41 @@ Implemented:
   existing `getAnalysisQueueSnapshot()`); and approximate database growth
   per collection (`codepulse_db_collection_documents`).
 
-Not implemented: true OS-level CPU/network resource limits on the worker
-(Node's `worker_threads` API bounds memory, not CPU time or network
-bandwidth — that needs a container/cgroup limit at the deployment layer,
-outside this application's reach) and AI provider cost tracking beyond
-request count/duration (no per-token or dollar-cost accounting, since the
-self-hosted Gemma deployment has no metered billing API to read from). No
-load or security testing has been run against large or diverse repositories
-under concurrent scans.
+* **Container-level CPU/memory/disk cap (Railway).** `railway.json`
+  (`deploy.limitOverride.containers`) caps the deployed container at 2 vCPU /
+  2 GB RAM / 4 GB disk — verified against Railway's actual `railway.json`
+  schema (`cpu` in vCPUs, `memoryBytes`/`diskBytes` in bytes) before writing
+  it, and deliberately conservative relative to the Hobby plan's per-replica
+  ceiling (8 vCPU/8 GB) so it acts as a runaway-usage guard, not a throttle
+  on normal operation. Node's `worker_threads` API only bounds memory
+  (`ANALYSIS_WORKER_MAX_OLD_GENERATION_MB`), not CPU time or network
+  bandwidth for an individual worker — this is the actual mechanism that
+  bounds the whole process (main thread + all workers together), since true
+  per-worker CPU isolation needs an OS/cgroup primitive `worker_threads`
+  doesn't expose. Fly (`fly.toml`) already had an equivalent VM-level cap
+  (`memory = "512mb"`, `size = "shared-cpu-2x"`) before this work.
+* **A load-testing tool.** `backend/scripts/loadTest.mjs` (`npm run
+  load-test`, no new dependency) drives sustained concurrent HTTP load
+  against any endpoint and reports requests/sec, status-code breakdown, and
+  latency percentiles (p50/p95/p99). Defaults to `localhost`; targeting
+  anything else requires an explicit `--url` and prints a warning first,
+  since it will genuinely overwhelm whatever it's pointed at. Verified
+  against a throwaway local server, not just syntax-checked.
+
+Not implemented: AI provider cost tracking beyond request count/duration (no
+per-token or dollar-cost accounting, since the self-hosted Gemma deployment
+has no metered billing API to read from). Nobody has actually run
+`loadTest.mjs` against a real deployment yet — the tool now exists, but
+executing a load/security test and interpreting its results against
+production is a decision and an action for whoever owns that deployment, not
+something a further code change can do on its own.
 
 **Acceptance criteria:** scans cannot exhaust the web server (bounded
 concurrency, memory caps, and the new wall-clock timeout address this),
 operational metrics identify failed or slow jobs (done — `/api/metrics`),
-and load/security testing covers the repository lifecycle end to end (not
-yet run — this remains a testing exercise for someone with a real deployment
-to execute, not something further code changes alone satisfy).
+and load/security testing covers the repository lifecycle end to end (the
+tool to run this exists now; running it against a live deployment and acting
+on the results is still open).
 
 ## 6. External LLM/RAG Explainability Layer
 

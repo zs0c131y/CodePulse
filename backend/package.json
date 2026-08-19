@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "load-test": "node scripts/loadTest.mjs"
   },
   "keywords": [],
   "author": "",
