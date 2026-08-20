@@ -100,6 +100,8 @@ export const demoDebtModules = [
     churn: '84%',
     duplication: '18%',
     risk: 'Critical',
+    debtScore: 91,
+    reasons: ['Complexity is well above the repository baseline.', 'The file changes frequently and participates in a dependency cycle.'],
   },
   {
     module: 'src/auth/sessionStore.ts',
@@ -108,6 +110,8 @@ export const demoDebtModules = [
     churn: '61%',
     duplication: '9%',
     risk: 'High',
+    debtScore: 76,
+    reasons: ['Recent changes are concentrated in this file.', 'Ownership is concentrated among too few contributors.'],
   },
   {
     module: 'src/docs/markdownParser.ts',
@@ -116,6 +120,8 @@ export const demoDebtModules = [
     churn: '44%',
     duplication: '12%',
     risk: 'High',
+    debtScore: 69,
+    reasons: ['Complexity and duplicated logic increase the cost of safe changes.'],
   },
   {
     module: 'src/api/reportRoutes.ts',
@@ -124,6 +130,8 @@ export const demoDebtModules = [
     churn: '38%',
     duplication: '6%',
     risk: 'Medium',
+    debtScore: 52,
+    reasons: ['The combined complexity and recent change rate are elevated.'],
   },
 ]
 
@@ -193,6 +201,7 @@ export const demoCoverage = [
 
 export const demoRecommendations = [
   {
+    category: 'Maintainability',
     title: 'Split InvoicePipeline into orchestration and calculation units',
     impact: 'High',
     effort: '2-3 days',
@@ -201,6 +210,7 @@ export const demoRecommendations = [
     steps: ['Extract pure invoice calculator', 'Move retry policy into queue worker', 'Add contract tests for tax boundaries'],
   },
   {
+    category: 'Documentation',
     title: 'Refresh authentication documentation',
     impact: 'Medium',
     effort: '4 hours',
@@ -209,6 +219,7 @@ export const demoRecommendations = [
     steps: ['Update sequence diagram', 'Document session lifecycle', 'Add reset link expiry notes'],
   },
   {
+    category: 'Ownership',
     title: 'Assign secondary owners to billing hotspots',
     impact: 'High',
     effort: '1 sprint',

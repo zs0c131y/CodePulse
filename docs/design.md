@@ -110,11 +110,11 @@ Density is exposed as `data-density` via `--pad-card` / `--pad-row`.
 ### 3.3 App shell
 
 - **Top bar** ([AppChrome.jsx](../frontend/src/components/AppChrome.jsx),
-  sticky, `.scrim`, 56px): brand + workspace navigation (Dashboard, Profile,
+  sticky, opaque `--surface-1`, 56px): brand + workspace navigation (Dashboard, Profile,
   Settings) left; screen-specific actions, theme toggle, avatar, sign-out
   right. Shared by every authenticated screen.
-- **Section tabs** (dashboard, sticky under the top bar): text tabs with a
-  2px contrast underline for the active section; repository identity +
+- **Section tabs** (dashboard, sticky under the top bar on opaque
+  `--surface-1`): text tabs with a 2px contrast underline for the active section; repository identity +
   analysis-status badge on the right.
 - **Repository console**: the dashboard's control room — a terminal-framed
   panel (overline labels, live pulse dot while a scan is queued/running)

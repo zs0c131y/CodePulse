@@ -31,10 +31,8 @@ function errorMessage(error, fallback) {
 }
 
 function formatSnapshotLabel(report) {
-  const repository = report.repository?.fullName || report.repository?.name || 'Repository'
   const date = new Date(report.generatedAt)
-  const generated = Number.isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleString()
-  return `${repository} · ${generated}`
+  return Number.isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleString()
 }
 
 function buildShareUrl(token) {
@@ -284,7 +282,18 @@ export default function ReportsPage({ user, accessToken, onLogout }) {
     value: repository.id,
     label: repository.fullName || repository.name,
   }))
-  const reportOptions = reports.map(item => ({ value: item.id, label: formatSnapshotLabel(item) }))
+  const reportOptions = [...reports]
+    .sort((left, right) => {
+      const leftRepository = left.repository?.fullName || left.repository?.name || 'Repository'
+      const rightRepository = right.repository?.fullName || right.repository?.name || 'Repository'
+      return leftRepository.localeCompare(rightRepository)
+        || new Date(right.generatedAt).getTime() - new Date(left.generatedAt).getTime()
+    })
+    .map(item => ({
+      value: item.id,
+      label: formatSnapshotLabel(item),
+      group: item.repository?.fullName || item.repository?.name || 'Repository',
+    }))
 
   return (
     <div className="density-surface report-page min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-1)]">
@@ -298,12 +307,12 @@ export default function ReportsPage({ user, accessToken, onLogout }) {
           </Link>
 
           <header className="mt-6">
-            <p className="overline text-[var(--accent-ink)]">Durable repository reports</p>
+            <p className="overline text-[var(--accent-ink)]">Repository reports</p>
             <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-1)] sm:text-3xl">
-              Evidence frozen for review.
+              Review and share a point-in-time report.
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--ink-3)]">
-              Generate immutable snapshots, revisit earlier analyses, and control a revocable public link without changing the stored evidence.
+              Save the current analysis, return to earlier reports, and share a link you can turn off at any time. Saved report data never changes in the background.
             </p>
           </header>
 
@@ -315,8 +324,8 @@ export default function ReportsPage({ user, accessToken, onLogout }) {
                     <FilePlus2 size={16} aria-hidden="true" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-sm font-semibold text-[var(--ink-1)]">Generate a snapshot</h2>
-                    <p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">Uses the latest completed analysis. Existing snapshots stay unchanged.</p>
+                    <h2 className="text-sm font-semibold text-[var(--ink-1)]">Create a report</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">Uses the latest completed analysis without changing earlier reports.</p>
                   </div>
                 </div>
                 <div className="mt-4">
@@ -337,7 +346,7 @@ export default function ReportsPage({ user, accessToken, onLogout }) {
                   className="mt-3 w-full"
                 >
                   {action === 'create' ? <Loader2 className="motion-safe-loop animate-spin" /> : <FilePlus2 />}
-                  {action === 'create' ? 'Generating snapshot…' : 'Generate snapshot'}
+                  {action === 'create' ? 'Creating report…' : 'Create report'}
                 </Button>
               </div>
 
@@ -347,8 +356,8 @@ export default function ReportsPage({ user, accessToken, onLogout }) {
                     <FileText size={16} aria-hidden="true" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-sm font-semibold text-[var(--ink-1)]">Review a saved snapshot</h2>
-                    <p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">Saved evidence remains available even after a repository is removed.</p>
+                    <h2 className="text-sm font-semibold text-[var(--ink-1)]">Open a saved report</h2>
+                    <p className="mt-1 text-xs leading-5 text-[var(--ink-3)]">Reports are grouped by repository so earlier snapshots are easier to find.</p>
                   </div>
                 </div>
                 <div className="mt-4">

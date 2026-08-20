@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { Fragment, useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -89,7 +89,9 @@ function Select({
           className,
         )}
       >
-        <span className="min-w-0 flex-1 truncate">{selected?.label || placeholder}</span>
+        <span className="min-w-0 flex-1 truncate">
+          {selected ? [selected.group, selected.label].filter(Boolean).join(' · ') : placeholder}
+        </span>
         <ChevronDown
           size={15}
           className={cn(
@@ -113,25 +115,32 @@ function Select({
           {options.map((option, index) => {
             const isSelected = option.value === value
             const isActive = index === activeIndex
+            const showGroup = option.group && option.group !== options[index - 1]?.group
             return (
-              <button
-                key={option.value}
-                id={`${listboxId}-option-${index}`}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => choose(option)}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-[var(--r-sm)] px-2.5 py-2 text-left text-sm transition-colors duration-[var(--d-1)]',
-                  isActive ? 'bg-[var(--surface-wash)]' : 'hover:bg-[var(--surface-wash)]',
+              <Fragment key={option.value}>
+                {showGroup && (
+                  <div role="presentation" className="px-2.5 pb-1 pt-2 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)] first:pt-1">
+                    {option.group}
+                  </div>
                 )}
-              >
-                <span className="min-w-0 flex-1 truncate font-medium text-[var(--ink-1)]">
-                  {option.label}
-                </span>
-                {isSelected && <Check size={15} className="shrink-0 text-[var(--accent-ink)]" aria-hidden="true" />}
-              </button>
+                <button
+                  id={`${listboxId}-option-${index}`}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => choose(option)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-[var(--r-sm)] px-2.5 py-2 text-left text-sm transition-colors duration-[var(--d-1)]',
+                    isActive ? 'bg-[var(--surface-wash)]' : 'hover:bg-[var(--surface-wash)]',
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate font-medium text-[var(--ink-1)]">
+                    {option.label}
+                  </span>
+                  {isSelected && <Check size={15} className="shrink-0 text-[var(--accent-ink)]" aria-hidden="true" />}
+                </button>
+              </Fragment>
             )
           })}
         </div>,

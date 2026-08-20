@@ -6,6 +6,7 @@ import {
   serializeAnalysisScores,
   serializeTechnicalDebt,
   serializeKnowledgeDrift,
+  serializeRecommendations,
 } from '../src/features/analysis/services/analysisStoreCore.js'
 
 class FakeCollection {
@@ -110,4 +111,23 @@ test('upserts repository scores and replaces module metric snapshots on a rescan
   assert.equal(scorePayload.risk.trend.length, 2)
   assert.equal(debtPayload.modules[0].path, 'src/current.js')
   assert.equal(driftPayload.findings[0].filePath, 'src')
+})
+
+test('recommendation serialization exposes categories and keeps old records groupable', () => {
+  const payload = serializeRecommendations([
+    {
+      recommendation_key: 'module:src/current.js',
+      category: 'Change stability',
+      title: 'Stabilize current.js',
+      order: 0,
+    },
+    {
+      recommendation_key: 'drift:docs/readme.md',
+      title: 'Refresh the README',
+      order: 1,
+    },
+  ])
+
+  assert.equal(payload[0].category, 'Change stability')
+  assert.equal(payload[1].category, 'Documentation')
 })

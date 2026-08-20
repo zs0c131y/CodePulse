@@ -324,6 +324,8 @@ function mapDebtModules(debt) {
     churn: `${Math.round(Number(module.churnPercent) || 0)}%`,
     duplication: `${Math.round(Number(module.duplicationPercent) || 0)}%`,
     risk: module.risk || 'Low',
+    debtScore: Math.round(Number(module.debtScore) || 0),
+    reasons: Array.isArray(module.reasons) ? module.reasons : [],
   }))
 }
 
@@ -343,6 +345,7 @@ function mapDriftFindings(drift) {
 function mapRecommendations(recommendations) {
   return (recommendations || []).map(item => ({
     id: item.id,
+    category: item.category || 'Maintainability',
     title: item.title || 'Recommendation',
     impact: item.impact || 'Medium',
     effort: item.effort || '—',
@@ -469,7 +472,7 @@ function MainContent({ activeTab, view, liveMode, accessToken, repositoryId, onR
             repositoryId={repositoryId}
             topRiskModules={view.debtItems
               .filter(item => ['High', 'Critical'].includes(item.risk))
-              .map(item => ({ path: item.module, risk: item.risk }))}
+              .map(item => ({ path: item.module, risk: item.risk, reasons: item.reasons }))}
           />
         )}
       </div>
@@ -979,7 +982,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       />
 
       {/* -- Section tabs + repository identity ------------------------------ */}
-      <div className="scrim sticky top-14 z-30 border-b border-[var(--line-1)]">
+      <div className="sticky top-14 z-30 border-b border-[var(--line-1)] bg-[var(--surface-1)]">
         <div className="flex h-12 items-center justify-between gap-3 px-4 sm:px-6 2xl:px-8">
           <nav className="flex h-full items-center gap-0.5 overflow-x-auto" role="tablist" aria-label="Dashboard sections">
             {navItems.map(item => {

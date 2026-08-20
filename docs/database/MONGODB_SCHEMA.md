@@ -447,6 +447,9 @@ Required fields:
 
 Optional fields:
 
+* `category` (`enum`): User-facing group: `Dependency health`,
+  `Documentation`, `Change stability`, or `Maintainability`. It remains
+  optional so records created before categories were introduced stay valid.
 * `effort`, `reason` (`string`): Effort band and evidence-based explanation.
 * `steps` (`array<string>`): Ordered remediation steps.
 * `order` (`int`): Current display priority.

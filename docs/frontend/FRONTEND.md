@@ -128,9 +128,9 @@ frontend/
 │   │   │   ├── DriftPanel.jsx       # Knowledge drift findings queue
 │   │   │   ├── MetricStrip.jsx      # KPI strip: borderless cells, hairline dividers
 │   │   │   ├── PipelinePanel.jsx    # Analysis pipeline status list
-│   │   │   ├── RecommendationPanel.jsx # AI recommendation cards
+│   │   │   ├── RecommendationPanel.jsx # Categorized/filterable recommendation cards
 │   │   │   ├── RepositoryIntelligencePanel.jsx # Files, imports, activity, docs, manifests
-│   │   │   ├── RiskHeatmapPanel.jsx # Responsive module-risk heatmap
+│   │   │   ├── RiskHeatmapPanel.jsx # Risk-level groups with file trigger evidence
 │   │   │   ├── RiskTrendPanel.jsx   # recharts risk-trend area chart + table toggle
 │   │   │   ├── shared.jsx           # Tooltip, Sparkline, EmptyPanel components
 │   │   │   └── utils.js             # severity/status classes, clamp, formatRelativeTime
@@ -143,7 +143,7 @@ frontend/
 │   │   │   ├── input.jsx
 │   │   │   ├── provider-marks.jsx # Shared GitHub and GitLab brand marks
 │   │   │   ├── pulse-mark.jsx   # The CodePulse mark (product + journal variants)
-│   │   │   ├── select.jsx       # Keyboard-accessible custom select menu
+│   │   │   ├── select.jsx       # Keyboard-accessible custom select with optional groups
 │   │   │   └── theme-toggle.jsx # Shared light/dark mode control
 │   │   ├── AppChrome.jsx        # Shared authenticated top bar
 │   │   ├── AuthPage.jsx
@@ -275,9 +275,13 @@ Five dashboard tabs:
 * **Knowledge Drift & Debt**: Drift findings queue, confirm/dismiss controls
   for semantic review leads, coverage bars, and Knowledge Debt module evidence
   from `GET /api/repositories/:id/drift` and `/knowledge-debt`.
-* **Risk & AI Recommendations**: Risk trend, pipeline state, and AI
-  recommendation cards from `GET /api/repositories/:id/recommendations`, plus
-  the same module heatmap when debt findings are available.
+* **Risk & AI Recommendations**: Risk trend, pipeline state, and categorized
+  recommendation cards from `GET /api/repositories/:id/recommendations`.
+  Recommendations can be filtered by change category. The module heatmap groups
+  files by Critical, High, Medium, and Low risk; expanding a group reveals the
+  file metrics and the stored reasons that triggered each flag. The optional AI
+  panel uses one high-risk file selector instead of rendering an unbounded set
+  of explanation cards.
 * **Repository Intelligence**: Searchable file inventory, dependency graph
   with an accessible table alternative, commit and contributor activity,
   documentation summaries, and detected manifests. Its six evidence requests
@@ -310,16 +314,21 @@ missing engines. The saved-snapshot picker requests the newest bounded page of
 up to 200 report metadata records; report evidence sections are fetched only
 after a snapshot is selected.
 
+Saved-report choices are grouped by repository. Inside a report, technical
+debt and drift evidence are grouped by severity, recommendations by category,
+and contributors by activity band. These groups are collapsed disclosures on
+screen to prevent an excessively long page; print styles reveal every group.
 The report is formatted for both screen review and A4 printing. **Print / Save
 as PDF** opens the browser print dialog; screen-only navigation and controls
 are removed by print styles. This is a frontend export surface, not a claim
 that the backend currently stores or distributes generated PDF artifacts.
 
 Authenticated screens share the [AppChrome.jsx](../../frontend/src/components/AppChrome.jsx)
-top bar (brand, workspace navigation, screen actions, theme toggle, avatar,
-sign-out). The dashboard notification action opens the Notifications section
-of Settings. The dashboard adds a keyboard-navigable sticky underline tab
-strip (repository identity + analysis status on the right) and a terminal-framed
+opaque, solid-surface top bar (brand, workspace navigation, screen actions,
+theme toggle, avatar, sign-out). Public shared reports use the same opaque
+navigation surface. The dashboard notification action opens the Notifications
+section of Settings. The dashboard adds a keyboard-navigable, opaque sticky
+underline tab strip (repository identity + analysis status on the right) and a terminal-framed
 **repository console** holding the picker, scan controls, scan output, and meta row. KPIs
 render as borderless [MetricStrip.jsx](../../frontend/src/components/dashboard/MetricStrip.jsx)
 cells separated by hairlines. Dashboard grids use single-column layouts until

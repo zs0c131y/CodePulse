@@ -331,6 +331,8 @@ an external model.
 * `repository_id`: Parent repository reference.
 * `recommendation_key`: Stable per-scan recommendation identifier; unique with
   the repository.
+* `category`: User-facing remediation group (`Dependency health`,
+  `Documentation`, `Change stability`, or `Maintainability`).
 * `title`, `reason`, `steps`: Evidence-backed action and remediation steps.
 * `impact`: `Low`, `Medium`, `High`, or `Critical`.
 * `effort`: Human-readable estimated effort band.

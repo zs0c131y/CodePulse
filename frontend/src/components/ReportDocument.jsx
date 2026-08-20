@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   BookOpenCheck,
   CheckCircle2,
+  ChevronDown,
   GitBranch,
   ShieldCheck,
   Sparkles,
@@ -56,6 +57,38 @@ function ReportSection({ icon: Icon, eyebrow, title, description, children, avai
   )
 }
 
+const severityOrder = ['Critical', 'High', 'Medium', 'Low']
+
+function groupItems(items, getGroup, preferredOrder = []) {
+  const grouped = new Map()
+  items.forEach(item => {
+    const group = getGroup(item)
+    if (!grouped.has(group)) grouped.set(group, [])
+    grouped.get(group).push(item)
+  })
+
+  const order = new Map(preferredOrder.map((group, index) => [group, index]))
+  return [...grouped.entries()]
+    .map(([label, groupItems]) => ({ label, items: groupItems }))
+    .sort((left, right) => (
+      (order.get(left.label) ?? preferredOrder.length) - (order.get(right.label) ?? preferredOrder.length)
+      || left.label.localeCompare(right.label)
+    ))
+}
+
+function EvidenceGroup({ label, items, children }) {
+  return (
+    <details className="report-evidence-group group rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-2)]">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1 text-sm font-semibold text-[var(--ink-1)]">{label}</span>
+        <span className="text-xs text-[var(--ink-3)]">{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+        <ChevronDown size={16} className="text-[var(--ink-4)] transition-transform duration-[var(--d-2)] group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="border-t border-[var(--line-1)] p-3 sm:p-4">{children}</div>
+    </details>
+  )
+}
+
 export default function ReportDocument({ report }) {
   const repository = report.repository || {}
   const totals = repository.totals || {}
@@ -68,6 +101,19 @@ export default function ReportDocument({ report }) {
   const knowledgeDriftAvailable = knowledgeDrift?.status === 'included'
   const recommendationsAvailable = recommendations?.status === 'included'
   const contributorsAvailable = contributors?.status === 'included'
+  const technicalDebtGroups = groupItems(technicalDebt?.items || [], module => module.risk || 'Low', severityOrder)
+  const knowledgeDriftGroups = groupItems(knowledgeDrift?.items || [], finding => finding.severity || 'Low', severityOrder)
+  const recommendationGroups = groupItems(
+    recommendations?.items || [],
+    recommendation => recommendation.category
+      || (String(recommendation.id || '').startsWith('drift:') ? 'Documentation' : 'Maintainability'),
+  )
+  const contributorGroups = groupItems(contributors?.items || [], contributor => {
+    const commitCount = Number(contributor.commitCount) || 0
+    if (commitCount >= 10) return 'Core contributors · 10+ commits'
+    if (commitCount >= 3) return 'Active contributors · 3–9 commits'
+    return 'Occasional contributors · 1–2 commits'
+  }, ['Core contributors · 10+ commits', 'Active contributors · 3–9 commits', 'Occasional contributors · 1–2 commits'])
   const availability = [
     ['Repository summary', true],
     ['Health scores', Boolean(summary)],
@@ -145,27 +191,33 @@ export default function ReportDocument({ report }) {
         description={sectionDescription(technicalDebt, 'module')}
       >
         {(technicalDebt?.items || []).length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[38rem] text-left text-sm">
-              <thead>
-                <tr className="overline text-[var(--ink-3)]">
-                  <th className="pb-2">Module</th>
-                  <th className="pb-2">Risk</th>
-                  <th className="pb-2">Complexity</th>
-                  <th className="pb-2">Churn</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(technicalDebt?.items || []).map(module => (
-                  <tr key={module.path} className="border-t border-[var(--line-1)]">
-                    <td className="max-w-80 truncate py-3 font-mono text-xs text-[var(--ink-2)]">{module.path}</td>
-                    <td className="py-3"><SeverityBadge severity={module.risk || 'Low'} /></td>
-                    <td className="tnum py-3 text-[var(--ink-2)]">{module.complexity ?? '—'}</td>
-                    <td className="tnum py-3 text-[var(--ink-2)]">{formatPercent(module.churnPercent)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {technicalDebtGroups.map(group => (
+              <EvidenceGroup key={group.label} label={`${group.label} risk`} items={group.items}>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[38rem] text-left text-sm">
+                    <thead>
+                      <tr className="overline text-[var(--ink-3)]">
+                        <th className="pb-2">Module</th>
+                        <th className="pb-2">Risk</th>
+                        <th className="pb-2">Complexity</th>
+                        <th className="pb-2">Churn</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.items.map(module => (
+                        <tr key={module.path} className="border-t border-[var(--line-1)]">
+                          <td className="max-w-80 truncate py-3 font-mono text-xs text-[var(--ink-2)]">{module.path}</td>
+                          <td className="py-3"><SeverityBadge severity={module.risk || 'Low'} /></td>
+                          <td className="tnum py-3 text-[var(--ink-2)]">{module.complexity ?? '—'}</td>
+                          <td className="tnum py-3 text-[var(--ink-2)]">{formatPercent(module.churnPercent)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </EvidenceGroup>
+            ))}
           </div>
         ) : <p className="text-sm text-[var(--ink-3)]">No module-level debt findings were captured in this snapshot.</p>}
       </ReportSection>
@@ -178,20 +230,26 @@ export default function ReportDocument({ report }) {
         description={sectionDescription(knowledgeDrift, 'finding')}
       >
         {(knowledgeDrift?.items || []).length > 0 ? (
-          <ul className="space-y-3">
-            {(knowledgeDrift?.items || []).map(finding => (
-              <li key={finding.id || `${finding.filePath}-${finding.title}`} className="panel-2 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-[var(--ink-1)]">{finding.title}</p>
-                    <p className="mt-1 font-mono text-xs text-[var(--ink-3)]">{finding.filePath}</p>
-                  </div>
-                  <SeverityBadge severity={finding.severity || 'Low'} />
-                </div>
-                {finding.evidence && <p className="mt-3 text-sm leading-6 text-[var(--ink-2)]">{finding.evidence}</p>}
-              </li>
+          <div className="space-y-2">
+            {knowledgeDriftGroups.map(group => (
+              <EvidenceGroup key={group.label} label={`${group.label} severity`} items={group.items}>
+                <ul className="space-y-3">
+                  {group.items.map(finding => (
+                    <li key={finding.id || `${finding.filePath}-${finding.title}`} className="panel-2 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-[var(--ink-1)]">{finding.title}</p>
+                          <p className="mt-1 font-mono text-xs text-[var(--ink-3)]">{finding.filePath}</p>
+                        </div>
+                        <SeverityBadge severity={finding.severity || 'Low'} />
+                      </div>
+                      {finding.evidence && <p className="mt-3 text-sm leading-6 text-[var(--ink-2)]">{finding.evidence}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </EvidenceGroup>
             ))}
-          </ul>
+          </div>
         ) : <p className="text-sm text-[var(--ink-3)]">No documentation drift findings were captured in this snapshot.</p>}
       </ReportSection>
 
@@ -203,19 +261,25 @@ export default function ReportDocument({ report }) {
         description={sectionDescription(recommendations, 'recommendation')}
       >
         {(recommendations?.items || []).length > 0 ? (
-          <ol className="space-y-3">
-            {(recommendations?.items || []).map((recommendation, index) => (
-              <li key={recommendation.id || `${recommendation.title}-${index}`} className="panel-2 p-4">
-                <div className="flex gap-3">
-                  <span className="tnum text-sm font-semibold text-[var(--accent-ink)]">{String(index + 1).padStart(2, '0')}</span>
-                  <div>
-                    <p className="font-medium text-[var(--ink-1)]">{recommendation.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-[var(--ink-2)]">{recommendation.reason}</p>
-                  </div>
-                </div>
-              </li>
+          <div className="space-y-2">
+            {recommendationGroups.map(group => (
+              <EvidenceGroup key={group.label} label={group.label} items={group.items}>
+                <ol className="space-y-3">
+                  {group.items.map((recommendation, index) => (
+                    <li key={recommendation.id || `${recommendation.title}-${index}`} className="panel-2 p-4">
+                      <div className="flex gap-3">
+                        <span className="tnum text-sm font-semibold text-[var(--accent-ink)]">{String(index + 1).padStart(2, '0')}</span>
+                        <div>
+                          <p className="font-medium text-[var(--ink-1)]">{recommendation.title}</p>
+                          <p className="mt-2 text-sm leading-6 text-[var(--ink-2)]">{recommendation.reason}</p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </EvidenceGroup>
             ))}
-          </ol>
+          </div>
         ) : <p className="text-sm text-[var(--ink-3)]">No recommendations were required when this snapshot was generated.</p>}
       </ReportSection>
 
@@ -227,15 +291,21 @@ export default function ReportDocument({ report }) {
         description={sectionDescription(contributors, 'contributor')}
       >
         {(contributors?.items || []).length > 0 ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(contributors?.items || []).map(contributor => (
-              <div key={contributor.email || contributor.name} className="panel-2 flex items-center gap-3 p-3.5">
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--surface-3)] text-xs font-semibold text-[var(--ink-2)]">
-                  {contributor.name?.[0] || '?'}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--ink-1)]">{contributor.name}</span>
-                <span className="tnum text-sm font-semibold text-[var(--ink-1)]">{contributor.commitCount ?? 0}</span>
-              </div>
+          <div className="space-y-2">
+            {contributorGroups.map(group => (
+              <EvidenceGroup key={group.label} label={group.label} items={group.items}>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {group.items.map(contributor => (
+                    <div key={contributor.email || contributor.name} className="panel-2 flex items-center gap-3 p-3.5">
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--surface-3)] text-xs font-semibold text-[var(--ink-2)]">
+                        {contributor.name?.[0] || '?'}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--ink-1)]">{contributor.name}</span>
+                      <span className="tnum text-sm font-semibold text-[var(--ink-1)]">{contributor.commitCount ?? 0}</span>
+                    </div>
+                  ))}
+                </div>
+              </EvidenceGroup>
             ))}
           </div>
         ) : <p className="text-sm text-[var(--ink-3)]">No contributor records were captured in this snapshot.</p>}

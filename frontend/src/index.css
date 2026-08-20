@@ -456,7 +456,7 @@
     background: var(--surface-2);
   }
 
-  /* The only sanctioned backdrop-filter surface: sticky bars and dialogs. */
+  /* The only sanctioned backdrop-filter surface: floating overlays and dialogs. */
   .scrim {
     background: var(--scrim);
     backdrop-filter: blur(12px) saturate(150%);
@@ -771,5 +771,13 @@
   .report-section,
   .report-cover {
     box-shadow: none !important;
+  }
+
+  .report-evidence-group > summary {
+    display: none !important;
+  }
+
+  .report-evidence-group > :not(summary) {
+    display: block !important;
   }
 }
