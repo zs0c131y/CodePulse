@@ -9,14 +9,12 @@ wiring for CodePulse.
 
 * **Framework**: React with Vite.
 * **Build Config**: [frontend/vite.config.js](../../frontend/vite.config.js).
-* **Styling**: The 2026 **dual design system** — full specification in
-  [docs/design.md](../design.md). One token architecture in
-  [frontend/src/index.css](../../frontend/src/index.css) powers two worlds:
-  **The Product** (app + auth: neutral zinc surfaces, hairline borders,
-  inverted-contrast primary actions, one blue interactive accent) and **The
-  Journal** (marketing: an editorial broadsheet scoped under `.mk` — warm
-  paper, ink rules, one hot orange, Archivo + Instrument Serif + Geist Mono).
-  Tokens are bridged into Tailwind through `@theme inline`. Local
+* **Styling**: The 2026 product design system — full specification in
+  [docs/design.md](../design.md). One theme-aware token architecture in
+  [frontend/src/index.css](../../frontend/src/index.css) powers the landing,
+  auth, and authenticated app: neutral zinc surfaces, hairline borders,
+  restrained radii, inverted-contrast primary actions, and one blue
+  interactive accent. Tokens are bridged into Tailwind through `@theme inline`. Local
   shadcn-style primitives are in
   [frontend/src/components/ui](../../frontend/src/components/ui), with class
   merging in [frontend/src/lib/utils.js](../../frontend/src/lib/utils.js).
@@ -24,8 +22,7 @@ wiring for CodePulse.
   **Rule: product components use semantic tokens only** — `var(--surface-1)`,
   `var(--ink-2)`, `var(--sev-high)`, `var(--series-1)`. Never a Tailwind colour
   literal (`text-white`, `bg-violet-600`), because a literal cannot follow the
-  theme and cannot be re-checked for contrast. Journal markup uses the fixed
-  `--mk-*` tokens instead. Token groups:
+  theme and cannot be re-checked for contrast. Token groups:
 
   | Group | Tokens | Meaning |
   | :--- | :--- | :--- |
@@ -41,10 +38,9 @@ wiring for CodePulse.
   | Elevation | `--shadow-e1..e4` | Borders first; shadows only for floating layers |
   | Motion | `--d-1..5`, `--ease-out/in/inout` | One easing family |
 
-* **Typography**: two type systems from one stylesheet in
-  [frontend/index.html](../../frontend/index.html) — **Geist + Geist Mono**
-  for the product (UI + data) and **Archivo + Instrument Serif** for the
-  Journal (display + accent).
+* **Typography**: **Geist + Geist Mono** from
+  [frontend/index.html](../../frontend/index.html) across marketing and product
+  surfaces. Geist Mono is reserved for code paths and compact data labels.
 * **Theming**: `data-theme="light" | "dark"` on `<html>`, stamped before first
   paint by an inline script in [frontend/index.html](../../frontend/index.html)
   reading `localStorage`, then re-synced from user settings in
@@ -53,8 +49,8 @@ wiring for CodePulse.
   authentication, dashboard, profile, and settings headers; it switches
   immediately, persists the device preference, and notifies the app so
   authenticated account state stays synchronized. System theme changes are
-  followed while the preference is `system`. The Journal landing has a fixed
-  paper palette and intentionally ships no toggle. Density is exposed the same
+  followed while the preference is `system`. The landing page exposes the
+  same toggle and follows the same preference. Density is exposed the same
   way as `data-density="comfortable" | "compact" | "spacious"` and visibly
   adjusts spacing across authenticated product surfaces.
 * **Charts**: recharts, themed through
@@ -81,8 +77,8 @@ wiring for CodePulse.
 Shared responsive utilities live in
 [frontend/src/index.css](../../frontend/src/index.css):
 
-* `cp-marketing` (72rem) is used by landing and auth screens. Marketing copy is
-  capped rather than allowed to grow with the viewport — past ~72rem a line of
+* `cp-marketing` (76rem) is used by landing and auth screens. Marketing copy is
+  capped rather than allowed to grow with the viewport — past ~76rem a line of
   prose becomes hard to scan.
 * `cp-app` (90rem) is used by authenticated workspace screens.
 * `cp-wide` (120rem) is for grid-heavy surfaces, and `cp-prose` (44rem) for
@@ -142,16 +138,16 @@ frontend/
 │   │   │   ├── floating-menu.js # Viewport positioning shared by custom menus
 │   │   │   ├── input.jsx
 │   │   │   ├── provider-marks.jsx # Shared GitHub and GitLab brand marks
-│   │   │   ├── pulse-mark.jsx   # The CodePulse mark (product + journal variants)
+│   │   │   ├── pulse-mark.jsx   # Theme-aware CodePulse ECG mark
 │   │   │   ├── select.jsx       # Keyboard-accessible custom select with optional groups
 │   │   │   └── theme-toggle.jsx # Shared light/dark mode control
 │   │   ├── AppChrome.jsx        # Shared authenticated top bar
 │   │   ├── AuthPage.jsx
 │   │   ├── AccountPage.jsx
 │   │   ├── Dashboard.jsx        # Dashboard shell + data orchestration
-│   │   ├── MarketingPage.jsx    # The Journal marketing broadsheet
+│   │   ├── MarketingPage.jsx    # Product-led marketing landing page
 │   │   ├── ReportsPage.jsx      # Print-ready persisted-evidence report
-│   │   └── Reveal.jsx           # Scroll-reveal wrapper (Journal)
+│   │   └── Reveal.jsx           # Reduced-motion-safe scroll reveal wrapper
 │   ├── demo/
 │   │   └── dashboardDemoData.js  # Demo-mode fallback data (never used in live mode)
 │   ├── lib/
@@ -172,14 +168,14 @@ frontend/
 ## 🏛️ Landing Page Flow
 
 The landing page is composed by
-[MarketingPage.jsx](../../frontend/src/components/MarketingPage.jsx) as an
-editorial broadsheet ("The Journal", spec: [docs/design.md](../design.md) §2):
-sticky ruled navigation, a giant Archivo/serif hero with an animated
-ECG-trace instrument preview clearly marked as illustrative, an ink marquee
-band, numbered ledger sections (`01 / Signals` with hover inversion,
-`02 / Workflow`, `03 / Evidence` on an inverted ink band), a final CTA, and a
-broadsheet footer. The palette is fixed paper — the Journal does not follow
-the app theme and ships no theme toggle.
+[MarketingPage.jsx](../../frontend/src/components/MarketingPage.jsx) as a
+product-led, theme-aware experience (spec: [docs/design.md](../design.md) §2).
+It has opaque responsive navigation, an outcome-led hero, an illustrative
+keyboard-accessible tabbed product preview, capability and workflow sections,
+an implementation-accurate trust section, final signup/sign-in actions, and a
+compact product footer. It uses the same semantic tokens and theme control as
+the app; no editorial palette, serif typography, grain, marquee, numbered
+ledger, fabricated statistics, or invented testimonial is included.
 
 ---
 

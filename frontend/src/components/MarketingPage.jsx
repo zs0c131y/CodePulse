@@ -1,144 +1,146 @@
 import { useState } from 'react'
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpenCheck,
+  BrainCircuit,
+  Check,
+  ChevronRight,
+  Code2,
+  GitBranch,
+  Menu,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import { Link } from '../lib/router'
-import { ArrowRight, ArrowUpRight, Menu, X } from 'lucide-react'
 import Reveal from './Reveal'
+import { SeverityBadge } from './dashboard/shared'
+import { Button } from './ui/button'
 import { PulseMark } from './ui/pulse-mark'
+import { ThemeToggle } from './ui/theme-toggle'
 
-/*
- * THE JOURNAL — the CodePulse marketing broadsheet.
- * Editorial brutalism: warm paper, ink rules, one hot orange, oversized
- * grotesk cut with italic serif, mono metadata, hard offset shadows.
- * This surface has a fixed palette (.mk scope) — it does not follow the
- * product theme. Spec: docs/design.md §2
- */
+const navigation = [
+  { label: 'Product', href: '#product' },
+  { label: 'How it works', href: '#workflow' },
+  { label: 'Trust', href: '#trust' },
+]
 
-const signals = [
+const capabilities = [
   {
-    index: '01',
-    title: 'The map',
-    tag: 'Structure + Dependencies',
-    text: 'Repository structure, dependency edges, and change activity fused into a single operating picture of the system you actually run.',
+    icon: GitBranch,
+    title: 'See the system clearly',
+    text: 'Map repository structure, internal dependencies, code activity, and ownership without stitching together separate tools.',
   },
   {
-    index: '02',
-    title: 'The drift',
-    tag: 'Knowledge Debt',
-    text: 'Documentation that no longer matches the implementation your team relies on — found, ranked, and assigned before it misleads someone.',
+    icon: BookOpenCheck,
+    title: 'Catch knowledge drift',
+    text: 'Find documentation that is missing, stale, or no longer aligned with the implementation your team depends on.',
   },
   {
-    index: '03',
-    title: 'The risk',
-    tag: 'Debt + Churn + Ownership',
-    text: 'Complexity, churn, duplication, and ownership pressure combined into one ranked queue, so the next engineering decision is obvious.',
+    icon: ShieldCheck,
+    title: 'Focus on the right risk',
+    text: 'Group files by comparable risk and inspect the exact complexity, churn, dependency, and ownership signals behind each flag.',
   },
   {
-    index: '04',
-    title: 'The evidence',
-    tag: 'AI Explainability',
-    text: 'Every recommendation ships with its reason, its impact, and a practical next step. No black-box scores, no unsourced advice.',
+    icon: BrainCircuit,
+    title: 'Turn findings into a plan',
+    text: 'Review evidence-backed changes by category, then request a plain-language AI explanation only when it adds value.',
   },
 ]
 
-const steps = [
+const workflow = [
   {
-    step: 'Step 01',
-    title: 'Connect.',
-    text: 'Link GitHub or GitLab and pick the repository you want to understand. Read-only, revoked any time.',
-    meta: 'OAuth — 60 seconds',
+    number: '01',
+    title: 'Connect a repository',
+    text: 'Choose a connected GitHub or GitLab repository, or start with a supported public repository URL.',
   },
   {
-    step: 'Step 02',
-    title: 'Measure.',
-    text: 'CodePulse builds a precise model of code, documentation, history, and dependencies — then scores what matters.',
-    meta: '4 engines — one run',
+    number: '02',
+    title: 'Build the evidence',
+    text: 'CodePulse analyzes structure, documentation, history, dependencies, coverage, and ownership signals in one run.',
   },
   {
-    step: 'Step 03',
-    title: 'Decide.',
-    text: 'Review evidence-backed risk signals and walk into the next planning meeting with an engineering case, not a hunch.',
-    meta: 'Shareable — traceable',
+    number: '03',
+    title: 'Prioritize the work',
+    text: 'Explore grouped risks, understand why files were flagged, and save a point-in-time report for the team.',
   },
 ]
 
-const marqueeItems = [
-  'Documentation drift',
-  'Technical debt',
-  'Knowledge debt',
-  'Risk intelligence',
-  'AI remediation',
-  'Ownership signals',
+const previewTabs = [
+  { id: 'risk', label: 'Risk overview', icon: ShieldCheck },
+  { id: 'drift', label: 'Knowledge drift', icon: BookOpenCheck },
+  { id: 'actions', label: 'Recommended changes', icon: Sparkles },
 ]
 
 function Brand() {
   return (
-    <Link to="/" className="flex items-center gap-2.5 text-[var(--mk-ink)]" aria-label="CodePulse home">
-      <PulseMark variant="journal" size={26} />
-      <span className="font-[family-name:var(--font-display)] text-lg font-black uppercase tracking-[-0.02em]">
-        CodePulse<sup className="ml-0.5 text-[0.6em] font-bold">®</sup>
-      </span>
+    <Link to="/" className="flex items-center gap-2.5 text-[var(--ink-1)]" aria-label="CodePulse home">
+      <PulseMark size={26} />
+      <span className="text-base font-semibold tracking-[-0.025em]">CodePulse</span>
     </Link>
   )
 }
 
-function Nav() {
+function LandingNav() {
   const [open, setOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-40 border-b-[1.5px] border-[var(--mk-line)] bg-[var(--mk-paper)]">
-      <div className="cp-marketing flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-40 border-b border-[var(--line-1)] bg-[var(--surface-1)]">
+      <div className="cp-marketing flex h-16 items-center justify-between gap-4">
         <Brand />
-        <nav className="hidden items-center gap-7 md:flex" aria-label="Main navigation">
-          {[
-            ['Signals', '#signals', '01'],
-            ['Workflow', '#workflow', '02'],
-            ['Evidence', '#evidence', '03'],
-          ].map(([label, href, index]) => (
-            <a key={href} href={href} className="mk-mono group text-[var(--mk-ink-2)] transition-colors hover:text-[var(--mk-ink)]">
-              <span className="mr-1.5 text-[var(--mk-accent-strong)]">{index}</span>
-              {label}
-              <span className="block h-px max-w-0 bg-[var(--mk-ink)] transition-all duration-300 group-hover:max-w-full" />
+
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
+          {navigation.map(item => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="rounded-[var(--r-md)] px-3 py-2 text-sm font-medium text-[var(--ink-3)] transition-colors duration-[var(--d-2)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]"
+            >
+              {item.label}
             </a>
           ))}
         </nav>
-        <div className="hidden items-center gap-5 md:flex">
-          <Link to="/signin" className="mk-mono text-[var(--mk-ink-2)] transition-colors hover:text-[var(--mk-ink)]">
-            Sign in
-          </Link>
-          <Link to="/signup" className="mk-btn mk-btn-sm">
-            Get started
-          </Link>
+
+        <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
+          <Button asChild variant="ghost" size="sm"><Link to="/signin">Sign in</Link></Button>
+          <Button asChild size="sm"><Link to="/signup">Get started</Link></Button>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(value => !value)}
-          className="grid h-10 w-10 place-items-center border-[1.5px] border-[var(--mk-line)] text-[var(--mk-ink)] md:hidden"
-          aria-label="Toggle navigation"
-        >
-          {open ? <X size={18} /> : <Menu size={18} />}
-        </button>
+
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10"
+            onClick={() => setOpen(value => !value)}
+            aria-label={open ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={open}
+            aria-controls="landing-mobile-navigation"
+          >
+            {open ? <X size={18} /> : <Menu size={18} />}
+          </Button>
+        </div>
       </div>
 
       {open && (
-        <nav className="border-t-[1.5px] border-[var(--mk-line)] bg-[var(--mk-paper)] md:hidden" aria-label="Mobile navigation">
-          <div className="cp-marketing grid gap-0 py-2">
-            {[
-              ['Signals', '#signals', '01'],
-              ['Workflow', '#workflow', '02'],
-              ['Evidence', '#evidence', '03'],
-            ].map(([label, href, index]) => (
+        <nav id="landing-mobile-navigation" className="border-t border-[var(--line-1)] bg-[var(--surface-1)] md:hidden" aria-label="Mobile navigation">
+          <div className="cp-marketing py-3">
+            {navigation.map(item => (
               <a
-                key={href}
-                href={href}
+                key={item.href}
+                href={item.href}
                 onClick={() => setOpen(false)}
-                className="flex items-baseline gap-3 border-b border-[var(--mk-line-soft)] py-4 font-[family-name:var(--font-display)] text-2xl font-extrabold uppercase text-[var(--mk-ink)]"
+                className="flex min-h-11 items-center justify-between rounded-[var(--r-md)] px-3 text-sm font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
               >
-                <span className="mk-mono text-[var(--mk-accent-strong)]">{index}</span>
-                {label}
+                {item.label}<ChevronRight size={15} aria-hidden="true" />
               </a>
             ))}
-            <div className="flex gap-3 py-4">
-              <Link to="/signin" className="mk-btn mk-btn-ghost flex-1">Sign in</Link>
-              <Link to="/signup" className="mk-btn flex-1">Get started</Link>
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--line-1)] pt-3">
+              <Button asChild variant="outline"><Link to="/signin">Sign in</Link></Button>
+              <Button asChild><Link to="/signup">Get started</Link></Button>
             </div>
           </div>
         </nav>
@@ -147,60 +149,151 @@ function Nav() {
   )
 }
 
-function EcgTrace() {
-  return (
-    <svg viewBox="0 0 560 160" className="h-32 w-full sm:h-40" role="img" aria-label="Live repository pulse trace (illustrative)">
-      {[40, 80, 120].map(y => (
-        <line key={y} x1="0" y1={y} x2="560" y2={y} stroke="var(--mk-line-soft)" strokeWidth="1" />
-      ))}
-      <path
-        className="mk-ecg"
-        d="M0 84 H52 l10-8 9 14 13-66 14 92 12-46 9 14 H210 l10-8 9 14 13-66 14 92 12-46 9 14 H370 l10-8 9 14 13-66 14 92 12-46 9 14 H560"
-        fill="none"
-        stroke="var(--mk-accent)"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function Instrument() {
-  const readouts = [
-    { label: 'Health score', value: '86', unit: '/100', width: '86%', tone: 'var(--mk-ink)' },
-    { label: 'Drift findings', value: '12', unit: 'open', width: '34%', tone: 'var(--mk-accent)' },
-    { label: 'High-risk modules', value: '04', unit: 'ranked', width: '52%', tone: 'var(--mk-ink)' },
+function RiskPreview() {
+  const risks = [
+    { path: 'src/billing/InvoicePipeline.ts', risk: 'Critical', score: 91, reason: 'High complexity · dependency cycle' },
+    { path: 'src/auth/sessionStore.ts', risk: 'High', score: 76, reason: 'High churn · concentrated ownership' },
+    { path: 'src/api/reportRoutes.ts', risk: 'Medium', score: 52, reason: 'Elevated complexity · recent changes' },
   ]
 
   return (
-    <div className="mk-card relative">
-      <div className="flex items-center justify-between border-b-[1.5px] border-[var(--mk-line)] px-4 py-3">
-        <p className="mk-mono text-[var(--mk-ink)]">Fig. 01 — Repository instrument</p>
-        <p className="mk-mono flex items-center gap-2 text-[var(--mk-accent-strong)]">
-          <span className="mk-blink inline-block h-2 w-2 rounded-full bg-[var(--mk-accent)]" />
-          Live
-        </p>
-      </div>
-      <div className="px-4 pt-4">
-        <EcgTrace />
-      </div>
-      <div className="grid grid-cols-1 gap-4 border-t-[1.5px] border-[var(--mk-line)] p-4 sm:grid-cols-3">
-        {readouts.map(item => (
-          <div key={item.label}>
-            <p className="mk-mono text-[var(--mk-ink-3)]">{item.label}</p>
-            <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-[-0.03em] text-[var(--mk-ink)]">
-              {item.value}
-              <span className="ml-1 font-[family-name:var(--font-mono)] text-xs font-medium tracking-normal text-[var(--mk-ink-3)]">{item.unit}</span>
-            </p>
-            <div className="mt-2 h-1.5 w-full bg-[var(--mk-paper-2)]">
-              <div className="h-full" style={{ width: item.width, background: item.tone }} />
+    <div className="space-y-2.5">
+      {risks.map(item => (
+        <div key={item.path} className="rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-1)] p-3.5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="break-all font-mono text-xs font-medium text-[var(--ink-1)]">{item.path}</p>
+              <p className="mt-1 text-xs text-[var(--ink-3)]">{item.reason}</p>
             </div>
+            <SeverityBadge severity={item.risk} />
           </div>
-        ))}
+          <div className="mt-3 flex items-center gap-3">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
+              <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${item.score}%` }} />
+            </div>
+            <span className="tnum w-8 text-right text-xs font-semibold text-[var(--ink-2)]">{item.score}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DriftPreview() {
+  const findings = [
+    ['Authentication guide needs an update', 'docs/api/authentication.md', 'High'],
+    ['Architecture overview is missing the risk engine', 'docs/architecture/system.md', 'Medium'],
+    ['Billing module has no ownership guidance', 'src/billing', 'Medium'],
+  ]
+
+  return (
+    <ul className="space-y-2.5">
+      {findings.map(([title, path, severity]) => (
+        <li key={title} className="flex items-start gap-3 rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-1)] p-3.5">
+          <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-[var(--r-sm)] bg-[var(--accent-wash)] text-[var(--accent-ink)]">
+            <BookOpenCheck size={14} aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[var(--ink-1)]">{title}</p>
+            <p className="mt-1 break-all font-mono text-xs text-[var(--ink-3)]">{path}</p>
+          </div>
+          <SeverityBadge severity={severity} />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function ActionsPreview() {
+  const actions = [
+    ['Dependency health', 'Break the dependency cycle around InvoicePipeline', '2–5 days'],
+    ['Documentation', 'Refresh the authentication lifecycle guide', '0.5–1 day'],
+    ['Change stability', 'Stabilize the high-churn session module', '1–3 days'],
+  ]
+
+  return (
+    <ul className="space-y-2.5">
+      {actions.map(([category, title, effort]) => (
+        <li key={title} className="rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-1)] p-3.5">
+          <div className="flex items-center gap-2 text-xs text-[var(--accent-ink)]">
+            <Sparkles size={13} aria-hidden="true" />
+            <span className="font-semibold">{category}</span>
+          </div>
+          <p className="mt-2 text-sm font-medium text-[var(--ink-1)]">{title}</p>
+          <p className="mt-1 text-xs text-[var(--ink-3)]">Estimated effort: {effort}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function ProductPreview() {
+  const [activeTab, setActiveTab] = useState(previewTabs[0].id)
+
+  function handleTabKeyDown(event, index) {
+    const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End']
+    if (!keys.includes(event.key)) return
+    event.preventDefault()
+
+    let nextIndex = index
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + previewTabs.length) % previewTabs.length
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % previewTabs.length
+    if (event.key === 'Home') nextIndex = 0
+    if (event.key === 'End') nextIndex = previewTabs.length - 1
+
+    setActiveTab(previewTabs[nextIndex].id)
+    event.currentTarget.parentElement?.querySelectorAll('[role="tab"]')[nextIndex]?.focus()
+  }
+
+  return (
+    <div className="landing-preview overflow-hidden rounded-[var(--r-xl)] border border-[var(--line-2)] bg-[var(--surface-1)] shadow-[var(--shadow-e4)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-1)] px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <PulseMark size={28} />
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-[var(--ink-1)]">acme/platform</p>
+            <p className="text-[0.6875rem] text-[var(--ink-3)]">Illustrative workspace preview</p>
+          </div>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--sev-nominal-line)] bg-[var(--sev-nominal-wash)] px-2.5 py-1 text-[0.6875rem] font-semibold text-[var(--sev-nominal-ink)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--sev-nominal)]" aria-hidden="true" /> Analysis complete
+        </span>
       </div>
-      <div className="border-t-[1.5px] border-[var(--mk-line)] px-4 py-2.5">
-        <p className="mk-mono text-[var(--mk-ink-3)]">acme/platform · main · scanned 12s ago · illustrative preview</p>
+
+      <div className="border-b border-[var(--line-1)] px-2 sm:px-3">
+        <div className="flex overflow-x-auto" role="tablist" aria-label="Product preview">
+          {previewTabs.map((tab, index) => {
+            const selected = activeTab === tab.id
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                id={`preview-tab-${tab.id}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`preview-panel-${tab.id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActiveTab(tab.id)}
+                onKeyDown={event => handleTabKeyDown(event, index)}
+                className={`relative flex h-12 shrink-0 items-center gap-2 px-3 text-xs font-medium transition-colors duration-[var(--d-2)] ${selected ? 'text-[var(--ink-1)] after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-[var(--accent)]' : 'text-[var(--ink-3)] hover:text-[var(--ink-1)]'}`}
+              >
+                <Icon size={14} aria-hidden="true" /> {tab.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div
+        id={`preview-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`preview-tab-${activeTab}`}
+        className="bg-[var(--surface-2)] p-3 sm:p-4"
+      >
+        {activeTab === 'risk' && <RiskPreview />}
+        {activeTab === 'drift' && <DriftPreview />}
+        {activeTab === 'actions' && <ActionsPreview />}
       </div>
     </div>
   )
@@ -208,103 +301,83 @@ function Instrument() {
 
 function Hero() {
   return (
-    <section className="cp-marketing grid gap-12 pb-16 pt-14 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-14 lg:pb-24">
-      <div>
-        <Reveal>
-          <p className="mk-mono flex flex-wrap items-center gap-x-3 gap-y-1 text-[var(--mk-ink-2)]">
-            <span className="text-[var(--mk-accent-strong)]">●</span>
-            Engineering intelligence
-            <span aria-hidden="true">/</span>
-            <span>Issue Nº 01 — 2026</span>
-          </p>
-        </Reveal>
-        <Reveal delay={80}>
-          <h1 className="mk-h mt-6 text-[clamp(3.5rem,9.5vw,8rem)]">
-            Your<br />codebase<br />
-            has a <span className="mk-serif text-[var(--mk-accent)]">pulse.</span>
-          </h1>
-        </Reveal>
+    <section className="landing-hero-bg overflow-hidden border-b border-[var(--line-1)]">
+      <div className="cp-marketing grid gap-12 pb-16 pt-16 sm:pb-20 sm:pt-20 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-16 lg:pb-28 lg:pt-24">
+        <div>
+          <Reveal>
+            <p className="inline-flex items-center gap-2 rounded-full border border-[var(--accent-line)] bg-[var(--accent-wash)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-ink)]">
+              <BarChart3 size={14} aria-hidden="true" /> Repository intelligence for engineering teams
+            </p>
+          </Reveal>
+          <Reveal delay={70}>
+            <h1 className="mt-6 max-w-2xl text-[clamp(2.75rem,6vw,4.25rem)] font-semibold leading-[1.02] tracking-[-0.055em] text-[var(--ink-1)]">
+              Know what makes your codebase harder to change.
+            </h1>
+          </Reveal>
+          <Reveal delay={140}>
+            <p className="mt-6 max-w-[62ch] text-base leading-7 text-[var(--ink-2)] sm:text-lg sm:leading-8">
+              CodePulse connects repository structure, change history, documentation, dependencies, and ownership into one clear view of maintainability risk—and shows the evidence behind every priority.
+            </p>
+          </Reveal>
+          <Reveal delay={210}>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="h-12 px-5">
+                <Link to="/signup">Analyze a repository <ArrowRight size={16} /></Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="h-12 px-5">
+                <a href="#product">Explore the product</a>
+              </Button>
+            </div>
+          </Reveal>
+          <Reveal delay={280}>
+            <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[var(--ink-3)]" aria-label="Product assurances">
+              {['GitHub and GitLab', 'Evidence-linked findings', 'AI only on request'].map(item => (
+                <li key={item} className="flex items-center gap-1.5"><Check size={13} className="text-[var(--sev-nominal-ink)]" aria-hidden="true" /> {item}</li>
+              ))}
+            </ul>
+          </Reveal>
+        </div>
+
         <Reveal delay={160}>
-          <p className="mt-7 max-w-xl text-lg leading-8 text-[var(--mk-ink-2)]">
-            CodePulse listens to the signals your repository already emits — drift, debt,
-            churn, ownership — and turns them into evidence your team can act on.
-          </p>
-        </Reveal>
-        <Reveal delay={240}>
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link to="/signup" className="mk-btn mk-btn-accent">
-              Start scanning <ArrowRight size={15} />
-            </Link>
-            <a href="#workflow" className="mk-btn mk-btn-ghost">
-              How it works
-            </a>
-          </div>
-        </Reveal>
-        <Reveal delay={320}>
-          <p className="mk-mono mt-8 flex flex-wrap gap-x-4 gap-y-2 text-[var(--mk-ink-3)]">
-            <span>GitHub + GitLab</span>
-            <span aria-hidden="true">/</span>
-            <span>Evidence-backed</span>
-            <span aria-hidden="true">/</span>
-            <span>No fabricated metrics</span>
-          </p>
+          <ProductPreview />
         </Reveal>
       </div>
-      <Reveal delay={200}>
-        <Instrument />
-      </Reveal>
     </section>
   )
 }
 
-function Marquee() {
-  const row = [...marqueeItems, ...marqueeItems]
+function Capabilities() {
   return (
-    <div className="overflow-hidden border-y-[1.5px] border-[var(--mk-line)] bg-[var(--mk-ink)] py-3.5" aria-hidden="true">
-      <div className="mk-marquee-track">
-        {[0, 1].map(half => (
-          <div key={half} className="flex shrink-0 items-center">
-            {row.map((item, index) => (
-              <span key={`${half}-${index}`} className="mk-mono flex items-center text-[var(--mk-paper)]">
-                <span className="px-6">{item}</span>
-                <span className="text-[var(--mk-accent)]">●</span>
-              </span>
-            ))}
+    <section id="product" className="scroll-mt-24 py-20 sm:py-24 lg:py-28">
+      <div className="cp-marketing">
+        <Reveal>
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--accent-ink)]">One view, connected evidence</p>
+            <h2 className="mt-3 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.08] tracking-[-0.04em] text-[var(--ink-1)]">
+              Move from scattered signals to a defensible engineering plan.
+            </h2>
+            <p className="mt-4 text-base leading-7 text-[var(--ink-3)]">
+              CodePulse keeps the path from metric to finding to recommendation visible, so teams can decide what deserves attention without relying on a black box.
+            </p>
           </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+        </Reveal>
 
-function Signals() {
-  return (
-    <section id="signals" className="cp-marketing scroll-mt-24 py-16 sm:py-24">
-      <Reveal>
-        <p className="mk-mono text-[var(--mk-accent-strong)]">01 / Signals</p>
-        <h2 className="mk-h mt-4 max-w-4xl text-[clamp(2.25rem,5.5vw,4.5rem)]">
-          It reads what your team <span className="mk-serif text-[var(--mk-accent)]">stopped</span> seeing.
-        </h2>
-      </Reveal>
-      <div className="mt-12 border-t-[1.5px] border-[var(--mk-line)]">
-        {signals.map((signal, index) => (
-          <Reveal key={signal.index} delay={index * 60}>
-            <article className="group grid gap-3 border-b-[1.5px] border-[var(--mk-line)] py-7 transition-colors duration-200 hover:bg-[var(--mk-ink)] sm:grid-cols-[5rem_1fr_auto] sm:items-baseline sm:gap-8 sm:px-4">
-              <p className="mk-mono text-[var(--mk-accent-strong)] transition-colors group-hover:text-[var(--mk-accent)]">{signal.index}</p>
-              <div>
-                <h3 className="font-[family-name:var(--font-display)] text-3xl font-extrabold uppercase tracking-[-0.02em] text-[var(--mk-ink)] transition-colors group-hover:text-[var(--mk-paper)] sm:text-4xl">
-                  {signal.title}
-                </h3>
-                <p className="mt-2 max-w-2xl leading-7 text-[var(--mk-ink-2)] transition-colors group-hover:text-[var(--mk-paper-2)]">
-                  {signal.text}
-                </p>
-              </div>
-              <p className="mk-mono whitespace-nowrap border-[1.5px] border-[var(--mk-line)] px-2.5 py-1.5 text-[var(--mk-ink-2)] transition-colors group-hover:border-[var(--mk-paper)] group-hover:text-[var(--mk-paper)]">
-                {signal.tag}
-              </p>
-            </article>
-          </Reveal>
-        ))}
+        <div className="mt-10 grid gap-4 md:grid-cols-2">
+          {capabilities.map((item, index) => {
+            const Icon = item.icon
+            return (
+              <Reveal key={item.title} delay={index * 60}>
+                <article className="panel panel-interactive h-full p-5 sm:p-6">
+                  <span className="grid h-10 w-10 place-items-center rounded-[var(--r-md)] border border-[var(--accent-line)] bg-[var(--accent-wash)] text-[var(--accent-ink)]">
+                    <Icon size={18} aria-hidden="true" />
+                  </span>
+                  <h3 className="mt-5 text-lg font-semibold tracking-[-0.02em] text-[var(--ink-1)]">{item.title}</h3>
+                  <p className="mt-2 max-w-[58ch] text-sm leading-6 text-[var(--ink-3)]">{item.text}</p>
+                </article>
+              </Reveal>
+            )
+          })}
+        </div>
       </div>
     </section>
   )
@@ -312,61 +385,78 @@ function Signals() {
 
 function Workflow() {
   return (
-    <section id="workflow" className="scroll-mt-24 border-y-[1.5px] border-[var(--mk-line)] bg-[var(--mk-paper-2)]">
-      <div className="cp-marketing py-16 sm:py-24">
+    <section id="workflow" className="scroll-mt-24 border-y border-[var(--line-1)] bg-[var(--surface-2)] py-20 sm:py-24 lg:py-28">
+      <div className="cp-marketing">
         <Reveal>
-          <p className="mk-mono text-[var(--mk-accent-strong)]">02 / Workflow</p>
-          <h2 className="mk-h mt-4 text-[clamp(2.25rem,5.5vw,4.5rem)]">
-            Three moves. <span className="mk-serif text-[var(--mk-accent)]">No</span> ceremony.
-          </h2>
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--accent-ink)]">How it works</p>
+            <h2 className="mt-3 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.08] tracking-[-0.04em] text-[var(--ink-1)]">
+              From repository to next action in three steps.
+            </h2>
+          </div>
         </Reveal>
-        <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-0">
-          {steps.map((item, index) => (
-            <Reveal key={item.step} delay={index * 90} className={index > 0 ? 'md:border-l-[1.5px] md:border-[var(--mk-line)] md:pl-10' : 'md:pr-10'}>
-              <p className="mk-mono text-[var(--mk-ink-3)]">{item.step}</p>
-              <h3 className="mk-serif mt-4 text-[clamp(2.5rem,4vw,3.75rem)] leading-none text-[var(--mk-ink)]">{item.title}</h3>
-              <p className="mt-4 leading-7 text-[var(--mk-ink-2)]">{item.text}</p>
-              <p className="mk-mono mt-6 text-[var(--mk-accent-strong)]">{item.meta}</p>
+
+        <ol className="mt-10 grid gap-4 lg:grid-cols-3">
+          {workflow.map((item, index) => (
+            <Reveal key={item.number} delay={index * 80}>
+              <li className="panel h-full p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-xs font-semibold text-[var(--accent-ink)]">{item.number}</span>
+                  {index < workflow.length - 1 && <ArrowRight size={15} className="hidden text-[var(--ink-4)] lg:block" aria-hidden="true" />}
+                </div>
+                <h3 className="mt-8 text-lg font-semibold tracking-[-0.02em] text-[var(--ink-1)]">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[var(--ink-3)]">{item.text}</p>
+              </li>
             </Reveal>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   )
 }
 
-function Evidence() {
-  const stats = [
-    ['04', 'analysis engines, one run'],
-    ['05', 'signal families measured'],
-    ['100%', 'of recommendations sourced'],
-    ['00', 'fabricated metrics, ever'],
+function Trust() {
+  const points = [
+    ['Deterministic evidence first', 'Risk scores and recommended changes remain available without an AI provider.'],
+    ['AI stays optional', 'Explanations run only when requested and use bounded stored evidence rather than raw repository source.'],
+    ['Reports stay stable', 'Saved reports preserve the evidence captured at generation time and are private until you create a share link.'],
   ]
 
   return (
-    <section id="evidence" className="scroll-mt-24 bg-[var(--mk-ink)] text-[var(--mk-paper)]">
-      <div className="cp-marketing py-16 sm:py-24">
+    <section id="trust" className="scroll-mt-24 py-20 sm:py-24 lg:py-28">
+      <div className="cp-marketing">
         <Reveal>
-          <p className="mk-mono text-[var(--mk-accent)]">03 / Evidence, not vibes</p>
-        </Reveal>
-        <div className="mt-10 grid gap-px border-[1.5px] border-[var(--mk-paper)] sm:grid-cols-2 lg:grid-cols-4" style={{ background: 'var(--mk-paper)' }}>
-          {stats.map(([value, label], index) => (
-            <Reveal key={label} delay={index * 60} className="bg-[var(--mk-ink)] p-6">
-              <p className="mk-serif text-[clamp(3rem,5vw,4.5rem)] leading-none text-[var(--mk-paper)]">{value}</p>
-              <p className="mk-mono mt-3 text-[var(--mk-paper-2)] opacity-70">{label}</p>
-            </Reveal>
-          ))}
-        </div>
-        <Reveal delay={120}>
-          <blockquote className="mt-16 max-w-4xl">
-            <p className="mk-serif text-[clamp(1.75rem,3.5vw,2.75rem)] leading-[1.2] text-[var(--mk-paper)]">
-              “The first tool that shows me <span className="text-[var(--mk-accent)]">why</span> the
-              codebase is tired — and proves it in front of my team.”
-            </p>
-            <footer className="mk-mono mt-6 text-[var(--mk-paper-2)] opacity-70">
-              — Engineering lead, beta cohort
-            </footer>
-          </blockquote>
+          <div className="overflow-hidden rounded-[var(--r-xl)] bg-[var(--contrast)] text-[var(--contrast-on)]">
+            <div className="grid gap-10 p-6 sm:p-9 lg:grid-cols-[0.85fr_1.15fr] lg:p-12">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-current/20 px-3 py-1.5 text-xs font-semibold">
+                  <ShieldCheck size={14} aria-hidden="true" /> Built for trustworthy decisions
+                </span>
+                <h2 className="mt-5 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.08] tracking-[-0.04em] text-[var(--contrast-on)]">
+                  Evidence you can inspect. AI you control.
+                </h2>
+                <p className="mt-4 max-w-[55ch] text-sm leading-6 text-[color:color-mix(in_srgb,var(--contrast-on)_72%,transparent)] sm:text-base sm:leading-7">
+                  CodePulse separates measured repository evidence from optional generated explanation, so your team always knows what a conclusion is based on.
+                </p>
+              </div>
+
+              <ul className="space-y-3">
+                {points.map(([title, text]) => (
+                  <li key={title} className="rounded-[var(--r-lg)] border border-current/15 bg-[color:color-mix(in_srgb,var(--contrast-on)_6%,transparent)] p-4">
+                    <div className="flex gap-3">
+                      <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--contrast-on)] text-[var(--contrast)]">
+                        <Check size={13} aria-hidden="true" />
+                      </span>
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--contrast-on)]">{title}</h3>
+                        <p className="mt-1 text-sm leading-6 text-[color:color-mix(in_srgb,var(--contrast-on)_70%,transparent)]">{text}</p>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>
@@ -375,63 +465,56 @@ function Evidence() {
 
 function FinalCta() {
   return (
-    <section className="cp-marketing py-20 text-center sm:py-28">
-      <Reveal>
-        <p className="mk-mono text-[var(--mk-accent-strong)]">04 / Begin</p>
-        <h2 className="mk-h mx-auto mt-5 max-w-5xl text-[clamp(3rem,9vw,7.5rem)]">
-          Start <span className="mk-serif text-[var(--mk-accent)]">listening.</span>
-        </h2>
-        <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-[var(--mk-ink-2)]">
-          Point CodePulse at a public repository and see its first health report in minutes.
-        </p>
-        <div className="mt-10 flex flex-col items-center gap-4">
-          <Link to="/signup" className="mk-btn mk-btn-accent mk-btn-lg">
-            Scan your first repository <ArrowUpRight size={16} />
-          </Link>
-          <p className="mk-mono text-[var(--mk-ink-3)]">Free while in beta — no card required</p>
-        </div>
-      </Reveal>
+    <section className="border-y border-[var(--line-1)] bg-[var(--accent-wash)] py-20 sm:py-24">
+      <div className="cp-marketing text-center">
+        <Reveal>
+          <Code2 size={28} className="mx-auto text-[var(--accent-ink)]" aria-hidden="true" />
+          <h2 className="mx-auto mt-5 max-w-3xl text-[clamp(2.25rem,5vw,3.5rem)] font-semibold leading-[1.06] tracking-[-0.045em] text-[var(--ink-1)]">
+            Make the next refactor easier to defend.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[var(--ink-3)]">
+            Start with a repository, review the evidence, and give your team a clearer reason for what should change next.
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <Button asChild size="lg" className="h-12 px-5"><Link to="/signup">Get started <ArrowRight size={16} /></Link></Button>
+            <Button asChild variant="outline" size="lg" className="h-12 bg-[var(--surface-1)] px-5"><Link to="/signin">Sign in</Link></Button>
+          </div>
+        </Reveal>
+      </div>
     </section>
   )
 }
 
-function Footer() {
+function LandingFooter() {
   return (
-    <footer className="border-t-[1.5px] border-[var(--mk-line)] bg-[var(--mk-ink)] text-[var(--mk-paper)]">
-      <div className="cp-marketing py-14">
-        <div className="flex flex-col justify-between gap-10 md:flex-row">
+    <footer className="bg-[var(--surface-1)]">
+      <div className="cp-marketing py-10">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="font-[family-name:var(--font-display)] text-[clamp(2.5rem,6vw,4.5rem)] font-black uppercase leading-none tracking-[-0.03em]">
-              CodePulse<sup className="text-[0.4em]">®</sup>
-            </p>
-            <p className="mk-mono mt-4 text-[var(--mk-paper-2)] opacity-70">
-              Engineering intelligence platform
+            <Brand />
+            <p className="mt-3 max-w-sm text-sm leading-6 text-[var(--ink-3)]">
+              Engineering intelligence for healthier, easier-to-change repositories.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-12">
+          <div className="grid grid-cols-2 gap-x-12 gap-y-4 text-sm">
             <div>
-              <p className="mk-mono mb-4 text-[var(--mk-accent)]">Product</p>
-              <ul className="space-y-2.5 text-sm">
-                {['Signals', 'Workflow', 'Evidence'].map(item => (
-                  <li key={item}>
-                    <a href={`#${item.toLowerCase()}`} className="text-[var(--mk-paper-2)] transition-colors hover:text-[var(--mk-paper)]">{item}</a>
-                  </li>
-                ))}
+              <p className="font-semibold text-[var(--ink-1)]">Product</p>
+              <ul className="mt-3 space-y-2 text-[var(--ink-3)]">
+                {navigation.map(item => <li key={item.href}><a className="hover:text-[var(--ink-1)]" href={item.href}>{item.label}</a></li>)}
               </ul>
             </div>
             <div>
-              <p className="mk-mono mb-4 text-[var(--mk-accent)]">Account</p>
-              <ul className="space-y-2.5 text-sm">
-                <li><Link to="/signin" className="text-[var(--mk-paper-2)] transition-colors hover:text-[var(--mk-paper)]">Sign in</Link></li>
-                <li><Link to="/signup" className="text-[var(--mk-paper-2)] transition-colors hover:text-[var(--mk-paper)]">Create account</Link></li>
-                <li><Link to="/reset-password" className="text-[var(--mk-paper-2)] transition-colors hover:text-[var(--mk-paper)]">Reset password</Link></li>
+              <p className="font-semibold text-[var(--ink-1)]">Account</p>
+              <ul className="mt-3 space-y-2 text-[var(--ink-3)]">
+                <li><Link className="hover:text-[var(--ink-1)]" to="/signin">Sign in</Link></li>
+                <li><Link className="hover:text-[var(--ink-1)]" to="/signup">Create account</Link></li>
+                <li><Link className="hover:text-[var(--ink-1)]" to="/reset-password">Reset password</Link></li>
               </ul>
             </div>
           </div>
         </div>
-        <div className="mk-mono mt-14 flex flex-col gap-2 border-t border-[var(--mk-paper-2)] pt-6 text-[var(--mk-paper-2)] opacity-70 sm:flex-row sm:justify-between">
-          <p>© 2026 CodePulse — Engineering intelligence</p>
-          <p>Set in Archivo & Instrument Serif</p>
+        <div className="mt-9 border-t border-[var(--line-1)] pt-5 text-xs text-[var(--ink-3)]">
+          © 2026 CodePulse. Repository intelligence with traceable evidence.
         </div>
       </div>
     </footer>
@@ -440,18 +523,16 @@ function Footer() {
 
 export default function MarketingPage() {
   return (
-    <div className="mk min-h-screen">
-      <div className="mk-grain" aria-hidden="true" />
-      <Nav />
+    <div className="landing min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-2)]">
+      <LandingNav />
       <main>
         <Hero />
-        <Marquee />
-        <Signals />
+        <Capabilities />
         <Workflow />
-        <Evidence />
+        <Trust />
         <FinalCta />
       </main>
-      <Footer />
+      <LandingFooter />
     </div>
   )
 }

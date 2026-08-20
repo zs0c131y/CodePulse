@@ -1,19 +1,11 @@
 @import "tailwindcss";
 
 /*
- * CodePulse — 2026 dual design system
+ * CodePulse — 2026 product design system
  * ===========================================================================
- * Two worlds, one token architecture:
- *
- * 1. THE PRODUCT (default tokens, theme-aware)
- *    A precision instrument: neutral zinc surfaces, hairline borders, small
- *    radii, high-contrast inverted primary actions, and one blue accent used
- *    only for interactive state. Quiet like a Vercel/Linear workspace.
- *
- * 2. THE JOURNAL (.mk scope, fixed palette)
- *    The marketing surface: an editorial broadsheet — warm paper, ink black,
- *    one hot orange, oversized grotesk headlines cut with italic serif,
- *    solid rules, hard offset shadows, mono metadata. Spec: docs/design.md
+ * One theme-aware token architecture for the landing page, authentication,
+ * and authenticated workspace: neutral zinc surfaces, hairline borders,
+ * restrained radii, inverted primary actions, and one blue interaction accent.
  * ===========================================================================
  */
 
@@ -236,32 +228,6 @@
 }
 
 /* ==========================================================================
-   THE JOURNAL — .mk scope. Fixed palette: the landing does not follow the
-   app theme. It is a printed broadsheet; paper stays paper.
-   ========================================================================== */
-
-.mk {
-  --mk-paper: #f3efe4;
-  --mk-paper-2: #eae5d3;
-  --mk-card: #faf7ec;
-  --mk-ink: #17130c;
-  --mk-ink-2: #55503f;
-  --mk-ink-3: #8b8471;
-  --mk-line: #17130c;
-  --mk-line-soft: rgba(23, 19, 12, 0.16);
-  --mk-accent: #ff4d00;
-  --mk-accent-strong: #c73e00;
-  --mk-accent-wash: rgba(255, 77, 0, 0.1);
-
-  background: var(--mk-paper);
-  color: var(--mk-ink-2);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-}
-
-
-
-/* ==========================================================================
    2. Tailwind bridge
    ========================================================================== */
 
@@ -310,11 +276,9 @@
   --color-series-5: var(--series-5);
   --color-series-6: var(--series-6);
 
-  /* Type systems: product (Geist) + journal (Archivo / Instrument Serif). */
+  /* One type system: Geist for prose/UI and Geist Mono for data. */
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display: "Archivo", "Geist", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
 
   --text-display-1: clamp(2.75rem, 6vw, 4.25rem);
   --text-display-1--line-height: 1.02;
@@ -365,7 +329,6 @@
 
   --animate-shimmer: shimmer 2s infinite linear;
   --animate-pulse-soft: pulse-soft 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-marquee: marquee 28s linear infinite;
 }
 
 /* ==========================================================================
@@ -380,25 +343,6 @@
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.65; transform: scale(0.94); }
-}
-
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
-/* The ECG trace draws itself, holds, then restarts — the product's namesake. */
-@keyframes ecg-draw {
-  0% { stroke-dashoffset: 1000; }
-  55% { stroke-dashoffset: 0; }
-  80% { stroke-dashoffset: 0; opacity: 1; }
-  92% { stroke-dashoffset: 0; opacity: 0; }
-  100% { stroke-dashoffset: 1000; opacity: 0; }
-}
-
-@keyframes ecg-dot {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 1; }
 }
 
 @keyframes cp-fade-in {
@@ -503,6 +447,15 @@
     background-size: 24px 24px;
   }
 
+  .landing-hero-bg {
+    background-color: var(--surface-canvas);
+    background-image:
+      radial-gradient(circle at 82% 18%, var(--accent-wash), transparent 30rem),
+      linear-gradient(to right, color-mix(in srgb, var(--line-1) 48%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--line-1) 48%, transparent) 1px, transparent 1px);
+    background-size: auto, 48px 48px, 48px 48px;
+  }
+
   /* -- Skeleton ---------------------------------------------------------- */
   .skeleton {
     background: linear-gradient(
@@ -526,120 +479,10 @@
   }
   .reveal-visible { opacity: 1; transform: none; }
 
-  /* -- Journal type & furniture ------------------------------------------ */
-  .mk-h {
-    font-family: var(--font-display);
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: -0.015em;
-    line-height: 0.94;
-    color: var(--mk-ink);
-  }
-
-  .mk-serif {
-    font-family: var(--font-serif);
-    font-style: italic;
-    font-weight: 400;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  .mk-mono {
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-  }
-
-  .mk-rule { border-color: var(--mk-line); }
-
-  /* Hard offset shadow — the journal's signature. */
-  .mk-card {
-    background: var(--mk-card);
-    border: 1.5px solid var(--mk-line);
-    box-shadow: 8px 8px 0 rgba(23, 19, 12, 0.9);
-  }
-
-  .mk-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.625rem;
-    height: 3.25rem;
-    padding-inline: 1.5rem;
-    border: 1.5px solid var(--mk-line);
-    background: var(--mk-ink);
-    color: var(--mk-paper);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    transition: background var(--d-1) var(--ease-out), color var(--d-1) var(--ease-out),
-      transform var(--d-1) var(--ease-out), box-shadow var(--d-1) var(--ease-out);
-  }
-  .mk-btn:hover {
-    background: var(--mk-accent);
-    border-color: var(--mk-line);
-    color: var(--mk-ink);
-    transform: translate(-2px, -2px);
-    box-shadow: 4px 4px 0 var(--mk-ink);
-  }
-
-  .mk-btn-accent {
-    background: var(--mk-accent);
-    color: var(--mk-ink);
-  }
-  .mk-btn-accent:hover {
-    background: var(--mk-ink);
-    color: var(--mk-paper);
-  }
-
-  .mk-btn-ghost {
-    background: transparent;
-    color: var(--mk-ink);
-    box-shadow: none;
-  }
-  .mk-btn-ghost:hover {
-    background: var(--mk-ink);
-    color: var(--mk-paper);
-  }
-
-  .mk-btn-sm { height: 2.5rem; padding-inline: 1rem; font-size: 0.6875rem; }
-  .mk-btn-lg { height: 3.5rem; padding-inline: 2rem; font-size: 0.8125rem; }
-
-  /* Film grain over the journal: ink noise, multiply blend, never moves. */
-  .mk-grain {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    pointer-events: none;
-    opacity: 0.05;
-    mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
-    background-size: 160px 160px;
-  }
-
-  .mk-marquee-track {
-    display: flex;
-    width: max-content;
-    animation: var(--animate-marquee);
-  }
-
-  .mk-ecg {
-    stroke-dasharray: 1000;
-    animation: ecg-draw 4.5s var(--ease-inout) infinite;
-  }
-
-  .mk-blink {
-    animation: ecg-dot 1.6s ease-in-out infinite;
-  }
 }
 
 /* ==========================================================================
-   5. Base — inside @layer base so component utilities always win. An
-   unlayered `h1 { color }` would override layered classes such as .mk-h.
+   5. Base — inside @layer base so component utilities always win.
    ========================================================================== */
 
 @layer base {
@@ -665,23 +508,15 @@
 
   h1, h2, h3, h4, h5, h6 { color: var(--ink-1); font-weight: 600; }
 
-  /* The Journal prints in ink — the product's theme-aware heading color
-     must never reach inside the broadsheet. Kept in the base layer so
-     Journal utilities (e.g. hover inversion) can still override it. */
-  .mk h1, .mk h2, .mk h3, .mk h4, .mk h5, .mk h6 { color: var(--mk-ink); }
-
   #root { min-height: 100vh; width: 100%; }
 
   ::selection { background: var(--accent-wash); color: var(--ink-1); }
-  .mk ::selection { background: var(--mk-accent); color: var(--mk-ink); }
 
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: 4px;
   }
-  .mk :focus-visible { outline-color: var(--mk-accent-strong); }
-
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
@@ -699,9 +534,6 @@
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; }
-  .mk-marquee-track,
-  .mk-ecg,
-  .mk-blink { animation: none !important; }
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
