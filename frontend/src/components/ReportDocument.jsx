@@ -164,7 +164,7 @@ export default function ReportDocument({ report }) {
 
       <nav
         aria-label="Jump to report section"
-        className="report-screen-only sticky top-14 z-20 -mx-1 flex flex-wrap gap-1 rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-1)] p-2 text-sm shadow-[var(--shadow-e1)] sm:top-16"
+        className="report-screen-only flex flex-wrap gap-1 rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-1)] p-2 text-sm"
       >
         {[
           ['section-health', 'Health', true],
