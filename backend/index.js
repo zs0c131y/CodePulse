@@ -7,6 +7,14 @@ import { startScanScheduler } from './src/features/repositories/services/scanSch
 import app from './src/app.js'
 
 async function start() {
+  // Open the port before the DB warm-up below (43 sequential createIndex
+  // round-trips to Atlas) so Fly's proxy sees the machine reachable right
+  // away on cold start, instead of giving up and dropping the request while
+  // index creation is still running.
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`CodePulse API listening on http://0.0.0.0:${PORT}`)
+  })
+
   try {
     await ensureIndexes()
     console.log('CodePulse database indexes are ready.')
@@ -21,10 +29,6 @@ async function start() {
     await closeDatabase().catch(() => {})
     process.exit(1)
   }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`CodePulse API listening on http://0.0.0.0:${PORT}`)
-  })
 }
 
 start().catch(error => {
