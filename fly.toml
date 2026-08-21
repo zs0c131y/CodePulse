@@ -1,17 +1,30 @@
+# fly.toml app configuration file generated for codepulse on 2026-08-21T17:47:13Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = "codepulse"
-primary_region = "iad"
+primary_region = 'iad'
 
 [build]
 dockerfile = "Dockerfile"
 
 [http_service]
 auto_start_machines = true
-auto_stop_machines = "stop"
+auto_stop_machines = true
 force_https = true
-internal_port = 3_000
+internal_port = 3000
 min_machines_running = 0
 max_machines_running = 1
+
 [[vm]]
-memory = "512mb"
-size = "shared-cpu-2x"
-    
+  memory = '512mb'
+  size = 'shared-cpu-2x'
+
+[[vm]]
+  memory = '4gb'
+  size = 'shared-cpu-4x'
+  cpu_kind = 'shared'
+  cpus = 4
+  memory_mb = 4096
+  processes = ['app']
