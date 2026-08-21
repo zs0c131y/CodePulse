@@ -9,14 +9,12 @@ wiring for CodePulse.
 
 * **Framework**: React with Vite.
 * **Build Config**: [frontend/vite.config.js](../../frontend/vite.config.js).
-* **Styling**: The 2026 **dual design system** — full specification in
-  [docs/design.md](../design.md). One token architecture in
-  [frontend/src/index.css](../../frontend/src/index.css) powers two worlds:
-  **The Product** (app + auth: neutral zinc surfaces, hairline borders,
-  inverted-contrast primary actions, one blue interactive accent) and **The
-  Journal** (marketing: an editorial broadsheet scoped under `.mk` — warm
-  paper, ink rules, one hot orange, Archivo + Instrument Serif + Geist Mono).
-  Tokens are bridged into Tailwind through `@theme inline`. Local
+* **Styling**: The 2026 product design system — full specification in
+  [docs/design.md](../design.md). One theme-aware token architecture in
+  [frontend/src/index.css](../../frontend/src/index.css) powers the landing,
+  auth, and authenticated app: neutral zinc surfaces, hairline borders,
+  restrained radii, inverted-contrast primary actions, and one blue
+  interactive accent. Tokens are bridged into Tailwind through `@theme inline`. Local
   shadcn-style primitives are in
   [frontend/src/components/ui](../../frontend/src/components/ui), with class
   merging in [frontend/src/lib/utils.js](../../frontend/src/lib/utils.js).
@@ -24,8 +22,7 @@ wiring for CodePulse.
   **Rule: product components use semantic tokens only** — `var(--surface-1)`,
   `var(--ink-2)`, `var(--sev-high)`, `var(--series-1)`. Never a Tailwind colour
   literal (`text-white`, `bg-violet-600`), because a literal cannot follow the
-  theme and cannot be re-checked for contrast. Journal markup uses the fixed
-  `--mk-*` tokens instead. Token groups:
+  theme and cannot be re-checked for contrast. Token groups:
 
   | Group | Tokens | Meaning |
   | :--- | :--- | :--- |
@@ -41,10 +38,9 @@ wiring for CodePulse.
   | Elevation | `--shadow-e1..e4` | Borders first; shadows only for floating layers |
   | Motion | `--d-1..5`, `--ease-out/in/inout` | One easing family |
 
-* **Typography**: two type systems from one stylesheet in
-  [frontend/index.html](../../frontend/index.html) — **Geist + Geist Mono**
-  for the product (UI + data) and **Archivo + Instrument Serif** for the
-  Journal (display + accent).
+* **Typography**: **Geist + Geist Mono** from
+  [frontend/index.html](../../frontend/index.html) across marketing and product
+  surfaces. Geist Mono is reserved for code paths and compact data labels.
 * **Theming**: `data-theme="light" | "dark"` on `<html>`, stamped before first
   paint by an inline script in [frontend/index.html](../../frontend/index.html)
   reading `localStorage`, then re-synced from user settings in
@@ -53,8 +49,8 @@ wiring for CodePulse.
   authentication, dashboard, profile, and settings headers; it switches
   immediately, persists the device preference, and notifies the app so
   authenticated account state stays synchronized. System theme changes are
-  followed while the preference is `system`. The Journal landing has a fixed
-  paper palette and intentionally ships no toggle. Density is exposed the same
+  followed while the preference is `system`. The landing page exposes the
+  same toggle and follows the same preference. Density is exposed the same
   way as `data-density="comfortable" | "compact" | "spacious"` and visibly
   adjusts spacing across authenticated product surfaces.
 * **Charts**: recharts, themed through
@@ -81,8 +77,8 @@ wiring for CodePulse.
 Shared responsive utilities live in
 [frontend/src/index.css](../../frontend/src/index.css):
 
-* `cp-marketing` (72rem) is used by landing and auth screens. Marketing copy is
-  capped rather than allowed to grow with the viewport — past ~72rem a line of
+* `cp-marketing` (76rem) is used by landing and auth screens. Marketing copy is
+  capped rather than allowed to grow with the viewport — past ~76rem a line of
   prose becomes hard to scan.
 * `cp-app` (90rem) is used by authenticated workspace screens.
 * `cp-wide` (120rem) is for grid-heavy surfaces, and `cp-prose` (44rem) for
@@ -128,9 +124,9 @@ frontend/
 │   │   │   ├── DriftPanel.jsx       # Knowledge drift findings queue
 │   │   │   ├── MetricStrip.jsx      # KPI strip: borderless cells, hairline dividers
 │   │   │   ├── PipelinePanel.jsx    # Analysis pipeline status list
-│   │   │   ├── RecommendationPanel.jsx # AI recommendation cards
+│   │   │   ├── RecommendationPanel.jsx # Categorized/filterable recommendation cards
 │   │   │   ├── RepositoryIntelligencePanel.jsx # Files, imports, activity, docs, manifests
-│   │   │   ├── RiskHeatmapPanel.jsx # Responsive module-risk heatmap
+│   │   │   ├── RiskHeatmapPanel.jsx # Risk-level groups with file trigger evidence
 │   │   │   ├── RiskTrendPanel.jsx   # recharts risk-trend area chart + table toggle
 │   │   │   ├── shared.jsx           # Tooltip, Sparkline, EmptyPanel components
 │   │   │   └── utils.js             # severity/status classes, clamp, formatRelativeTime
@@ -142,16 +138,16 @@ frontend/
 │   │   │   ├── floating-menu.js # Viewport positioning shared by custom menus
 │   │   │   ├── input.jsx
 │   │   │   ├── provider-marks.jsx # Shared GitHub and GitLab brand marks
-│   │   │   ├── pulse-mark.jsx   # The CodePulse mark (product + journal variants)
-│   │   │   ├── select.jsx       # Keyboard-accessible custom select menu
+│   │   │   ├── pulse-mark.jsx   # Theme-aware CodePulse ECG mark
+│   │   │   ├── select.jsx       # Keyboard-accessible custom select with optional groups
 │   │   │   └── theme-toggle.jsx # Shared light/dark mode control
 │   │   ├── AppChrome.jsx        # Shared authenticated top bar
 │   │   ├── AuthPage.jsx
 │   │   ├── AccountPage.jsx
 │   │   ├── Dashboard.jsx        # Dashboard shell + data orchestration
-│   │   ├── MarketingPage.jsx    # The Journal marketing broadsheet
+│   │   ├── MarketingPage.jsx    # Product-led marketing landing page
 │   │   ├── ReportsPage.jsx      # Print-ready persisted-evidence report
-│   │   └── Reveal.jsx           # Scroll-reveal wrapper (Journal)
+│   │   └── Reveal.jsx           # Reduced-motion-safe scroll reveal wrapper
 │   ├── demo/
 │   │   └── dashboardDemoData.js  # Demo-mode fallback data (never used in live mode)
 │   ├── lib/
@@ -172,14 +168,14 @@ frontend/
 ## 🏛️ Landing Page Flow
 
 The landing page is composed by
-[MarketingPage.jsx](../../frontend/src/components/MarketingPage.jsx) as an
-editorial broadsheet ("The Journal", spec: [docs/design.md](../design.md) §2):
-sticky ruled navigation, a giant Archivo/serif hero with an animated
-ECG-trace instrument preview clearly marked as illustrative, an ink marquee
-band, numbered ledger sections (`01 / Signals` with hover inversion,
-`02 / Workflow`, `03 / Evidence` on an inverted ink band), a final CTA, and a
-broadsheet footer. The palette is fixed paper — the Journal does not follow
-the app theme and ships no theme toggle.
+[MarketingPage.jsx](../../frontend/src/components/MarketingPage.jsx) as a
+product-led, theme-aware experience (spec: [docs/design.md](../design.md) §2).
+It has opaque responsive navigation, an outcome-led hero, an illustrative
+keyboard-accessible tabbed product preview, capability and workflow sections,
+an implementation-accurate trust section, final signup/sign-in actions, and a
+compact product footer. It uses the same semantic tokens and theme control as
+the app; no editorial palette, serif typography, grain, marquee, numbered
+ledger, fabricated statistics, or invented testimonial is included.
 
 ---
 
@@ -275,9 +271,13 @@ Five dashboard tabs:
 * **Knowledge Drift & Debt**: Drift findings queue, confirm/dismiss controls
   for semantic review leads, coverage bars, and Knowledge Debt module evidence
   from `GET /api/repositories/:id/drift` and `/knowledge-debt`.
-* **Risk & AI Recommendations**: Risk trend, pipeline state, and AI
-  recommendation cards from `GET /api/repositories/:id/recommendations`, plus
-  the same module heatmap when debt findings are available.
+* **Risk & AI Recommendations**: Risk trend, pipeline state, and categorized
+  recommendation cards from `GET /api/repositories/:id/recommendations`.
+  Recommendations can be filtered by change category. The module heatmap groups
+  files by Critical, High, Medium, and Low risk; expanding a group reveals the
+  file metrics and the stored reasons that triggered each flag. The optional AI
+  panel uses one high-risk file selector instead of rendering an unbounded set
+  of explanation cards.
 * **Repository Intelligence**: Searchable file inventory, dependency graph
   with an accessible table alternative, commit and contributor activity,
   documentation summaries, and detected manifests. Its six evidence requests
@@ -310,16 +310,21 @@ missing engines. The saved-snapshot picker requests the newest bounded page of
 up to 200 report metadata records; report evidence sections are fetched only
 after a snapshot is selected.
 
+Saved-report choices are grouped by repository. Inside a report, technical
+debt and drift evidence are grouped by severity, recommendations by category,
+and contributors by activity band. These groups are collapsed disclosures on
+screen to prevent an excessively long page; print styles reveal every group.
 The report is formatted for both screen review and A4 printing. **Print / Save
 as PDF** opens the browser print dialog; screen-only navigation and controls
 are removed by print styles. This is a frontend export surface, not a claim
 that the backend currently stores or distributes generated PDF artifacts.
 
 Authenticated screens share the [AppChrome.jsx](../../frontend/src/components/AppChrome.jsx)
-top bar (brand, workspace navigation, screen actions, theme toggle, avatar,
-sign-out). The dashboard notification action opens the Notifications section
-of Settings. The dashboard adds a keyboard-navigable sticky underline tab
-strip (repository identity + analysis status on the right) and a terminal-framed
+opaque, solid-surface top bar (brand, workspace navigation, screen actions,
+theme toggle, avatar, sign-out). Public shared reports use the same opaque
+navigation surface. The dashboard notification action opens the Notifications
+section of Settings. The dashboard adds a keyboard-navigable, opaque sticky
+underline tab strip (repository identity + analysis status on the right) and a terminal-framed
 **repository console** holding the picker, scan controls, scan output, and meta row. KPIs
 render as borderless [MetricStrip.jsx](../../frontend/src/components/dashboard/MetricStrip.jsx)
 cells separated by hairlines. Dashboard grids use single-column layouts until

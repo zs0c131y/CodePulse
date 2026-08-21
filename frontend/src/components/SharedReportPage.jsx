@@ -53,7 +53,7 @@ export default function SharedReportPage({ token }) {
   return (
     <div className="report-page min-h-screen bg-[var(--surface-canvas)] text-[var(--ink-1)]">
       <div className="report-screen-only">
-        <header className="scrim sticky top-0 z-40 border-b border-[var(--line-1)]">
+        <header className="sticky top-0 z-40 border-b border-[var(--line-1)] bg-[var(--surface-1)]">
           <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
             <Link to="/" className="flex items-center gap-2.5" aria-label="CodePulse home">
               <PulseMark size={24} />

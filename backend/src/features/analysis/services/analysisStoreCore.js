@@ -102,6 +102,7 @@ function recommendationRecord(repositoryId, recommendation, now) {
   return {
     repository_id: repositoryId,
     recommendation_key: recommendation.id,
+    category: recommendation.category,
     title: recommendation.title,
     impact: recommendation.impact,
     effort: recommendation.effort,
@@ -393,6 +394,8 @@ export function serializeRecommendations(records) {
   return (records || [])
     .map(record => ({
       id: record._id?.toString?.() || record.recommendation_key,
+      category: record.category
+        || (String(record.recommendation_key || '').startsWith('drift:') ? 'Documentation' : 'Maintainability'),
       title: record.title,
       impact: record.impact || 'Low',
       effort: record.effort || 'Unknown',

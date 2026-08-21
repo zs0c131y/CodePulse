@@ -143,9 +143,12 @@ test('buildRiskExplanationPrompt embeds module evidence and asks for structured 
   })
 
   assert.match(system, /CodePulse-Refactor-Copilot/)
+  assert.match(system, /Ground every claim/)
   assert.match(user, /src\/billing\.js/)
   assert.match(user, /CRITICAL RISK/)
   assert.match(user, /File exceeds recommended size/)
+  assert.match(user, /not measured/)
+  assert.match(user, /not enough commit history/)
   assert.match(user, /"action_plan"/)
 })
 
@@ -196,7 +199,7 @@ test('generateRiskExplanation persists a structured, traceable explanation and g
   assert.equal(generated.explanation.kind, 'risk')
   assert.equal(generated.explanation.key, 'src/billing.js')
   assert.equal(generated.explanation.output.explanation, 'The module carries high risk due to size and coupling.')
-  assert.equal(generated.explanation.promptVersion, 1)
+  assert.equal(generated.explanation.promptVersion, 2)
   assert.ok(generated.explanation.generatedAt)
 
   const cached = await service.getRiskExplanation('repo-1', 'src/billing.js')

@@ -37,7 +37,7 @@
  */
 
 function parseArgs(argv) {
-  const args = { url: 'http://localhost:3000', path: '/api/health', concurrency: 10, duration: 30, method: null, token: null, body: null }
+  const args = { url: 'https://codepulse.fly.dev', path: '/api/health', concurrency: 10000, duration: 600, method: null, token: null, body: null }
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]
     const value = argv[index + 1]

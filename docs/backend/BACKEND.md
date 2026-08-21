@@ -1212,6 +1212,7 @@ Response:
   "recommendations": [
     {
       "id": "recommendation-id",
+      "category": "Dependency health",
       "title": "Break the circular dependency around src/billing/invoice.js",
       "impact": "High",
       "effort": "Medium",
@@ -1221,6 +1222,10 @@ Response:
   ]
 }
 ```
+
+`category` is a stable, user-facing grouping such as `Dependency health`,
+`Documentation`, `Change stability`, or `Maintainability`. Older stored
+recommendations without the field are serialized into a safe fallback group.
 
 ## AI Explainability API (opt-in)
 

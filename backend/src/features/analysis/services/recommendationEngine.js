@@ -6,6 +6,7 @@ function recommendationForModule(module) {
 
   if (hasCircularDependency) {
     return {
+      category: 'Dependency health',
       title: `Break the dependency cycle around ${module.path}`,
       effort: '2–5 days',
       reason: `${module.path} is ${module.level.toLowerCase()} risk because ${evidence.join('; ')}.`,
@@ -19,7 +20,8 @@ function recommendationForModule(module) {
 
   if (hasMissingDocumentation) {
     return {
-      title: `Document the responsibilities of ${module.modulePath}`,
+      category: 'Documentation',
+      title: `Document the responsibilities of ${module.path}`,
       effort: '0.5–1 day',
       reason: `${module.path} has no matching module documentation and is ${module.level.toLowerCase()} risk.`,
       steps: [
@@ -32,6 +34,7 @@ function recommendationForModule(module) {
 
   if (hasHighChurn) {
     return {
+      category: 'Change stability',
       title: `Stabilize the high-churn module ${module.path}`,
       effort: '1–3 days',
       reason: `${module.path} changes frequently and has accumulated ${module.level.toLowerCase()} risk evidence.`,
@@ -44,6 +47,7 @@ function recommendationForModule(module) {
   }
 
   return {
+    category: 'Maintainability',
     title: `Reduce maintainability pressure in ${module.path}`,
     effort: '1–3 days',
     reason: `${module.path} is ${module.level.toLowerCase()} risk because ${evidence.join('; ') || 'its combined debt signals are elevated'}.`,
@@ -72,6 +76,7 @@ export function buildRecommendations({ risk, drift }) {
   if (driftRecommendation && moduleRecommendations.length < 6) {
     moduleRecommendations.push({
       id: `drift:${driftRecommendation.key}`,
+      category: 'Documentation',
       impact: driftRecommendation.severity,
       title: `Resolve documentation drift in ${driftRecommendation.filePath}`,
       effort: '0.5–1 day',

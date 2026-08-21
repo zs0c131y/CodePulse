@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from '../lib/router'
 import {
   AlertTriangle,
-  Bell,
   BookOpenCheck,
   CheckCircle2,
   CircleAlert,
@@ -24,6 +22,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { Combobox } from './ui/combobox'
+import { NotificationsMenu } from './ui/notifications-menu'
 import { ApiError, apiFetch } from '../api/client'
 import {
   analyzeRepository,
@@ -119,6 +118,16 @@ function publicGithubUrl(repository) {
   const fullName = String(repository?.fullName || repository?.name || '').trim()
   const inferred = `https://github.com/${fullName}`
   return GITHUB_REPO_URL_PATTERN.test(inferred) ? inferred : ''
+}
+
+function friendlyScanMessage(status) {
+  if (status === 'running') {
+    return 'This repository is already being analyzed — you can watch its progress below.'
+  }
+  if (status === 'completed') {
+    return 'This repository was already analyzed. Start a new scan from its page to refresh the results.'
+  }
+  return "Got it — we've started analyzing your repository. This can take a few minutes; progress updates automatically below."
 }
 
 function settledValue(result, fallback = null) {
@@ -324,6 +333,8 @@ function mapDebtModules(debt) {
     churn: `${Math.round(Number(module.churnPercent) || 0)}%`,
     duplication: `${Math.round(Number(module.duplicationPercent) || 0)}%`,
     risk: module.risk || 'Low',
+    debtScore: Math.round(Number(module.debtScore) || 0),
+    reasons: Array.isArray(module.reasons) ? module.reasons : [],
   }))
 }
 
@@ -343,6 +354,7 @@ function mapDriftFindings(drift) {
 function mapRecommendations(recommendations) {
   return (recommendations || []).map(item => ({
     id: item.id,
+    category: item.category || 'Maintainability',
     title: item.title || 'Recommendation',
     impact: item.impact || 'Medium',
     effort: item.effort || '—',
@@ -469,7 +481,7 @@ function MainContent({ activeTab, view, liveMode, accessToken, repositoryId, onR
             repositoryId={repositoryId}
             topRiskModules={view.debtItems
               .filter(item => ['High', 'Critical'].includes(item.risk))
-              .map(item => ({ path: item.module, risk: item.risk }))}
+              .map(item => ({ path: item.module, risk: item.risk, reasons: item.reasons }))}
           />
         )}
       </div>
@@ -793,7 +805,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
 
       setScanSummary(data.summary || null)
       setScannedRepositoryId(data.repositoryId || '')
-      setScanMessage(data.message || 'Repository analyzed.')
+      setScanMessage(friendlyScanMessage(data.status))
       setRepoUrl('')
       setDemoMode(false)
 
@@ -966,20 +978,13 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               </Button>
               <Tooltip label={demoMode ? 'Demo data — click for live' : 'Live data — click for demo'} />
             </span>
-            <span className="group relative inline-flex">
-              <Button asChild variant="ghost" size="icon" className="h-8 w-8">
-                <Link to="/settings#notifications" aria-label="Notification settings" title="Notification settings">
-                  <Bell size={15} />
-                </Link>
-              </Button>
-              <Tooltip label="Notification settings" />
-            </span>
+            <NotificationsMenu />
           </>
         )}
       />
 
       {/* -- Section tabs + repository identity ------------------------------ */}
-      <div className="scrim sticky top-14 z-30 border-b border-[var(--line-1)]">
+      <div className="isolate sticky top-14 z-30 border-b border-[var(--line-1)] bg-[var(--surface-1)]">
         <div className="flex h-12 items-center justify-between gap-3 px-4 sm:px-6 2xl:px-8">
           <nav className="flex h-full items-center gap-0.5 overflow-x-auto" role="tablist" aria-label="Dashboard sections">
             {navItems.map(item => {

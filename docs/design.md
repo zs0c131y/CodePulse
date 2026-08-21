@@ -6,63 +6,80 @@ patterns carry over.
 
 ---
 
-## 1. One product, two worlds
+## 1. One coherent product system
 
-The system is deliberately split into two visual worlds that share one token
-architecture in [frontend/src/index.css](../frontend/src/index.css):
-
-| World | Scope | Character |
-| :--- | :--- | :--- |
-| **The Product** | `/dashboard`, `/profile`, `/settings`, auth routes | A precision instrument. Neutral zinc surfaces, hairline borders, small radii, inverted-contrast primary actions, one blue accent for interactive state. Reference class: Vercel / Linear. |
-| **The Journal** | `/` (marketing landing) | An editorial broadsheet. Warm paper, ink-black rules, one hot orange, oversized grotesk cut with italic serif, mono metadata, hard offset shadows, film grain. Fixed palette — it does **not** follow the app theme. |
-
-The Journal is scoped under the `.mk` class
-([MarketingPage.jsx](../frontend/src/components/MarketingPage.jsx) root). All
-Journal tokens are `--mk-*` and are defined only inside `.mk`, so the app
-theme can never leak into the broadsheet, and vice versa.
+The marketing landing page and authenticated workspace use the same semantic
+token architecture in [frontend/src/index.css](../frontend/src/index.css).
+Both follow the saved light/dark preference, use Geist and Geist Mono, and
+share the product's neutral surfaces, blue interaction accent, hairline
+borders, restrained radii, and accessible focus states. Marketing can use
+larger spacing and type, but it must still look like the product it introduces.
 
 ---
 
-## 2. The Journal (marketing)
+## 2. Product landing (`/`)
 
-### 2.1 Palette (fixed, theme-independent)
+### 2.1 User and flow
 
-| Token | Value | Use |
+**Primary users:** engineering leads, platform teams, and maintainers evaluating
+whether CodePulse can make repository risk easier to understand and prioritize.
+
+**Goal:** communicate the product outcome quickly, show a credible product
+preview, explain the workflow and trust boundary, then lead to account creation
+or sign-in.
+
+```text
+Direct visit → Understand the outcome → Explore the product preview
+             → Review capabilities/workflow/trust → Create account or sign in
+```
+
+The route has no loading or network-dependent state. Local interaction states
+are the closed/open mobile menu and the selected product-preview tab. Anchor
+navigation must work with browser back/forward behavior and retain visible
+focus. The primary success exit is `/signup`; returning users exit through
+`/signin`.
+
+### 2.2 Component handoff
+
+| Component | Purpose | Important states and behavior |
 | :--- | :--- | :--- |
-| `--mk-paper` / `--mk-paper-2` / `--mk-card` | `#f3efe4` / `#eae5d3` / `#faf7ec` | Paper planes |
-| `--mk-ink` | `#17130c` | Headlines, rules, inverted bands |
-| `--mk-ink-2` / `--mk-ink-3` | `#55503f` / `#8b8471` | Body / metadata |
-| `--mk-line` / `--mk-line-soft` | `#17130c` / 16% alpha | 1.5px solid rules / hairlines |
-| `--mk-accent` | `#ff4d00` | The one hot signal. Buttons, ECG trace, marquee dots, serif accents |
-| `--mk-accent-strong` | `#c73e00` | Small text on paper (contrast-safe) |
+| `LandingNav` | Brand, section anchors, theme, and account actions | Opaque sticky surface; desktop links; mobile menu button exposes `aria-expanded` and collapses after navigation. |
+| `Hero` | Outcome-led positioning and primary CTA | Two-column desktop and stacked mobile layout; product preview is labelled illustrative. |
+| `ProductPreview` | Lets visitors inspect risk, drift, and recommendations without pretending to be live data | Native tab semantics, arrow-key navigation, visible selected state, one panel rendered at a time. |
+| `CapabilityGrid` | Four concise product benefits | One column on mobile, two on tablet/desktop; no hover-only information. |
+| `Workflow` | Connect, analyze, act journey | Ordered steps with plain-language security and evidence context. |
+| `TrustSection` | Explains deterministic evidence, opt-in AI, and shareable snapshots | Claims must match implemented product boundaries; no invented customer proof or usage statistics. |
+| `LandingCta` / `LandingFooter` | Final decision point and account/product links | Primary signup action, secondary sign-in action, compact responsive footer. |
 
-### 2.2 Type
+### 2.3 Tokens and visual rules
 
-Three families, loaded in [frontend/index.html](../frontend/index.html):
+- Reuse `--surface-*`, `--ink-*`, `--line-*`, `--accent-*`, `--contrast-*`,
+  severity, radius, elevation, and motion tokens. No landing-only colour system.
+- Geist is the only prose/display family and Geist Mono is reserved for compact
+  product metadata. No serif type, uppercase broadsheet headlines, or issue
+  numbering.
+- Use a 76rem marketing container, 64–112px section spacing, readable body copy
+  capped near 65 characters, and a hero heading capped near 64px.
+- Panels remain flat with hairline borders. Shadows are limited to the product
+  preview's floating shell; there are no hard offset shadows or texture overlays.
+- Motion is limited to existing scroll reveals and short interaction
+  transitions. `prefers-reduced-motion` removes decorative movement.
 
-- **Archivo** (500–900) — display headlines, always uppercase, weight 800+,
-  line-height ~0.94, via `.mk-h`.
-- **Instrument Serif** (400 italic) — the counter-voice: single accent words
-  inside headlines, pull-quotes, oversized stat numerals, via `.mk-serif`.
-- **Geist Mono** — metadata, tags, buttons, eyebrows: uppercase, ~0.69rem,
-  0.13em tracking, via `.mk-mono`.
+### 2.4 Responsive and accessibility acceptance
 
-Body copy uses Geist at 1.125rem/1.75.
-
-### 2.3 Signature moves
-
-- **Solid 1.5px ink rules** structure every section; no soft grey dividers.
-- **Hard offset shadow** (`8px 8px 0 ink`) on `.mk-card` — the only shadow.
-- **Hover inversion**: ledger rows flip to ink background / paper text.
-- **The ECG trace** (`.mk-ecg`): the product namesake, an animated
-  stroke-dashoffset draw on the hero instrument (Fig. 01).
-- **Marquee band** (`.mk-marquee-track`): ink strip with scrolling mono
-  signal names.
-- **Film grain** (`.mk-grain`): fixed feTurbulence noise at 5% multiply over
-  the whole page; `pointer-events: none`.
-- Sections are numbered `01 / Signals`, `02 / Workflow`, `03 / Evidence`,
-  `04 / Begin` — the broadsheet's table of contents.
-- Reduced motion: marquee, ECG, and reveals stop; layout is unaffected.
+- At widths below 768px, navigation becomes a labelled menu button, CTA groups
+  stack or wrap, preview content remains horizontally safe, and all sections
+  retain a logical reading order.
+- Headings follow one `h1` and sequential `h2`/`h3` structure; feature lists and
+  workflow steps use semantic list markup.
+- Product-preview tabs use `role="tablist"`, `role="tab"`, `aria-selected`,
+  `aria-controls`, roving `tabIndex`, and Left/Right/Home/End navigation.
+- All interactive targets are at least 40px tall, color is never the only state
+  indicator, and focus rings use the shared accent token.
+- Implementation target: React/Vite in
+  [MarketingPage.jsx](../frontend/src/components/MarketingPage.jsx), with no API
+  changes. Acceptance requires production build, lint, mobile/desktop layouts,
+  keyboard operation, and light/dark theme support.
 
 ---
 
@@ -101,20 +118,20 @@ Density is exposed as `data-density` via `--pad-card` / `--pad-row`.
   hover `--line-3`, focus = accent border + 3px `--accent-wash` ring.
 - **Panels**: `.panel` (surface-1, `--line-1`, `--r-lg`, flat), `.panel-2`
   (nested), `.panel-interactive` (border/background hover — no translate).
-- **Scrim**: `.scrim` is the only `backdrop-filter` surface (sticky bars,
-  dialogs).
+- **Scrim**: `.scrim` is the only `backdrop-filter` surface and is reserved
+  for floating overlays and dialogs; navigation surfaces remain opaque.
 - **The mark**: [ui/pulse-mark.jsx](../frontend/src/components/ui/pulse-mark.jsx)
-  — ECG trace in a chip; `product` variant (ink chip + blue trace) in the
-  app, `journal` variant (square ink chip + orange trace) in marketing.
+  — one theme-aware ECG trace in a rounded contrast chip across landing,
+  authentication, shared reports, and the authenticated app.
 
 ### 3.3 App shell
 
 - **Top bar** ([AppChrome.jsx](../frontend/src/components/AppChrome.jsx),
-  sticky, `.scrim`, 56px): brand + workspace navigation (Dashboard, Profile,
+  sticky, opaque `--surface-1`, 56px): brand + workspace navigation (Dashboard, Profile,
   Settings) left; screen-specific actions, theme toggle, avatar, sign-out
   right. Shared by every authenticated screen.
-- **Section tabs** (dashboard, sticky under the top bar): text tabs with a
-  2px contrast underline for the active section; repository identity +
+- **Section tabs** (dashboard, sticky under the top bar on opaque
+  `--surface-1`): text tabs with a 2px contrast underline for the active section; repository identity +
   analysis-status badge on the right.
 - **Repository console**: the dashboard's control room — a terminal-framed
   panel (overline labels, live pulse dot while a scan is queued/running)
@@ -143,10 +160,9 @@ has a table alternative.
 - Severity is always icon + text label (`SeverityBadge`); hue never carries
   meaning alone.
 - `--ink-4` never renders text.
-- Focus-visible: 2px accent outline (Journal: `--mk-accent-strong`).
+- Focus-visible: 2px accent outline across marketing and product surfaces.
 - Meaningful loops (spinners, live dots) survive `prefers-reduced-motion`;
-  decorative motion (marquee, ECG, reveal) does not.
+  decorative reveal motion does not.
 - Contrast pairs to re-verify after any token edit: `--ink-2/3` on
-  `--surface-1/canvas`, `--accent-ink` on canvas, `--mk-ink-2/3` on
-  `--mk-paper`, `--mk-accent-strong` on `--mk-paper`, severity inks on their
-  washes.
+  `--surface-1/canvas`, `--accent-ink` on canvas, `--contrast-on` on
+  `--contrast`, and severity inks on their washes.

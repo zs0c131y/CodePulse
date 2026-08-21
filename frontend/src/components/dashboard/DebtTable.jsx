@@ -1,5 +1,9 @@
-import { Code2 } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, Code2 } from 'lucide-react'
 import { EmptyPanel, SeverityBadge } from './shared'
+import { riskReasons } from './utils'
+
+const DEFAULT_VISIBLE = 8
 
 export default function DebtTable({
   items = [],
@@ -8,16 +12,23 @@ export default function DebtTable({
   emptyTitle = 'No module debt data yet',
   emptyDescription = 'Technical debt scoring runs after a repository scan completes. Module rows appear here once the debt engine has processed the repository.',
 }) {
+  const [expanded, setExpanded] = useState(false)
+
   if (items.length === 0) {
     return <EmptyPanel title={emptyTitle} description={emptyDescription} icon={Code2} />
   }
+
+  const visibleItems = expanded ? items : items.slice(0, DEFAULT_VISIBLE)
+  const remaining = items.length - visibleItems.length
 
   return (
     <section className="panel overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-1)] p-6">
         <div>
           <h2 className="text-sm font-semibold text-[var(--ink-1)]">{title}</h2>
-          <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">{description}</p>
+          <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">
+            {description} Hover or focus a risk badge to see why it was ranked that way.
+          </p>
         </div>
       </div>
 
@@ -37,7 +48,7 @@ export default function DebtTable({
             </tr>
           </thead>
           <tbody>
-            {items.map(item => (
+            {visibleItems.map(item => (
               <tr
                 key={item.module}
                 className="border-t border-[var(--line-1)] transition-colors duration-[var(--d-1)] hover:bg-[var(--surface-2)]"
@@ -68,7 +79,7 @@ export default function DebtTable({
                 <td className="tnum px-5 py-4 text-sm font-medium text-[var(--ink-2)]">{item.churn}</td>
                 <td className="tnum px-5 py-4 text-sm font-medium text-[var(--ink-2)]">{item.duplication}</td>
                 <td className="px-5 py-4">
-                  <SeverityBadge severity={item.risk} />
+                  <SeverityBadge severity={item.risk} reasons={riskReasons(item)} />
                 </td>
               </tr>
             ))}
@@ -78,7 +89,7 @@ export default function DebtTable({
 
       {/* Cards below lg, so the page never scrolls horizontally. */}
       <ul className="grid gap-3 p-4 lg:hidden">
-        {items.map(item => (
+        {visibleItems.map(item => (
           <li key={item.module}>
             <article className="panel-2 p-4">
               <div className="flex items-start justify-between gap-3">
@@ -91,7 +102,7 @@ export default function DebtTable({
                   </h3>
                   <p className="mt-1 text-xs text-[var(--ink-3)]">{item.owner}</p>
                 </div>
-                <SeverityBadge severity={item.risk} className="shrink-0" />
+                <SeverityBadge severity={item.risk} reasons={riskReasons(item)} className="shrink-0" />
               </div>
               <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                 {[
@@ -109,6 +120,19 @@ export default function DebtTable({
           </li>
         ))}
       </ul>
+
+      {items.length > DEFAULT_VISIBLE && (
+        <div className="border-t border-[var(--line-1)] p-3">
+          <button
+            type="button"
+            onClick={() => setExpanded(value => !value)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-[var(--r-md)] py-2 text-sm font-medium text-[var(--ink-2)] transition-colors duration-[var(--d-2)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]"
+          >
+            <ChevronDown size={15} className={`transition-transform duration-[var(--d-2)] ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+            {expanded ? 'Show fewer modules' : `Show all ${items.length} modules (${remaining} more)`}
+          </button>
+        </div>
+      )}
     </section>
   )
 }

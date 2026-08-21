@@ -855,6 +855,7 @@ db.createCollection("recommendations", {
             properties: {
                 repository_id: { bsonType: "objectId" },
                 recommendation_key: { bsonType: "string" },
+                category: { enum: ["Dependency health", "Documentation", "Change stability", "Maintainability"] },
                 title: { bsonType: "string" },
                 impact: { enum: ["Low", "Medium", "High", "Critical"] },
                 effort: { bsonType: "string" },

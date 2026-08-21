@@ -54,6 +54,24 @@ export function severityClass(severity) {
   return severityMeta(severity).className
 }
 
+/**
+ * Explains why a module landed at its risk level, for the SeverityBadge
+ * hover/focus tooltip. Prefers the backend's own evidence (`item.reasons`,
+ * produced by the technical-debt/risk engines) and only falls back to a
+ * generic summary of the visible metrics when none was captured.
+ */
+export function riskReasons(item) {
+  if (Array.isArray(item?.reasons) && item.reasons.length > 0) return item.reasons
+
+  const metrics = []
+  if (item?.complexity != null) metrics.push(`complexity ${item.complexity}/100`)
+  if (item?.churn != null) metrics.push(`${item.churn}% commit churn`)
+  if (item?.duplication != null) metrics.push(`${item.duplication}% duplicated code`)
+
+  if (metrics.length === 0) return []
+  return [`Combined ${metrics.join(', ')} placed this module in the ${String(item.risk || '').toLowerCase()} risk band.`]
+}
+
 /** Bucket a 0-100 score into a severity level. Higher score = higher risk. */
 export function severityForScore(score) {
   const value = Number(score) || 0

@@ -52,6 +52,13 @@ This document details the configuration, workflows, and prompts for the **AI Exp
 > (Blueprints 2 & 3), and `DriftPanel.jsx` on the Knowledge Drift tab for
 > semantic findings (Blueprint 1).
 
+Risk explanations currently use prompt contract version 2. It explicitly
+marks unavailable measurements, distinguishes metadata heuristics from measured
+signals, requires every claim to be grounded in stored flag evidence, and asks
+for bounded changes with a verification step. The Risk & AI UI selects one
+high-risk file at a time so the model request and the resulting explanation stay
+focused.
+
 ---
 
 ## 🔌 Current LLM Integration
@@ -202,33 +209,36 @@ Generates high-impact refactoring priorities for modules determined to be critic
 ```text
 [SYSTEM PROMPT]
 You are CodePulse-Refactor-Copilot, an expert software architect.
-You explain complex code issues (Technical and Knowledge Debt) in simple terms and recommend actionable refactoring plans.
-Ensure recommendations prioritize architectural soundness, decoupling, and maintainability.
+Explain technical and knowledge debt in plain language and recommend a small, actionable refactoring plan.
+Ground every claim in the supplied metrics and evidence. Distinguish measured signals from unavailable or heuristic signals, do not invent code details, and state uncertainty directly.
+Prioritize architectural soundness, decoupling, maintainability, and a concrete way to verify each change.
 
 [USER PROMPT]
 The module "{{MODULE_NAME}}" is categorized as CRITICAL RISK with a score of {{RISK_SCORE}}/100.
 Analyze the following metrics to generate an explanation and action plan.
 
 --- ANALYTICAL METRICS ---
-- Cyclomatic Complexity: {{CYCLOMATIC_COMPLEXITY}} (Threshold: 15)
-- Code Duplication: {{DUPLICATION_PERCENT}}%
-- Churn Rate: {{CHURN_RATE}} modifications in last 30 days
-- Circular References: {{CIRCULAR_DEPENDENCIES}}
-- Documentation Coverage: {{DOC_COVERAGE}}%
-- Author Concentration: {{AUTHOR_CONCENTRATION}} (Key-person risk index)
+- Complexity: {{COMPLEXITY}} (method: {{COMPLEXITY_METHOD}})
+- Code Duplication: {{DUPLICATION_PERCENT_OR_NOT_MEASURED}}
+- Churn Rate: {{CHURN_PERCENT_OR_INSUFFICIENT_HISTORY}}
+- Circular Dependency: {{IN_CIRCULAR_DEPENDENCY}}
+- Contributor Concentration: {{AUTHOR_CONCENTRATION}}% (key-person risk index)
+- Dependency Depth: {{DEPENDENCY_DEPTH}}
+- Test Coverage: {{COVERAGE_PERCENT_OR_NOT_AVAILABLE}}
+- Bug-fix Changes: {{BUG_FIX_COUNT}}
 
---- CODE STRUCTURE / OUTLINE ---
-{{CODE_STRUCTURE}}
+--- EVIDENCE ---
+{{STORED_FLAG_REASONS}}
 
 Provide your findings in JSON format:
 {
-  "explanation": "A concise explanation of why the module has accumulated high risk.",
-  "implications": ["Impact on onboarding", "Regression risks during updates", "Testing difficulty"],
+  "explanation": "In 2-4 plain-language sentences, explain the strongest flag triggers and identify unavailable evidence.",
+  "implications": ["Specific, evidence-backed user or engineering impact"],
   "action_plan": [
     {
       "step": 1,
       "title": "Refactoring task title",
-      "description": "Step-by-step technical instructions",
+      "description": "A bounded change and how the team can verify that it reduced risk",
       "priority": "High"
     }
   ]

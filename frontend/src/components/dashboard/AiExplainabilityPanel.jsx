@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { Button } from '../ui/button'
+import { Select } from '../ui/select'
 import { EmptyPanel } from './shared'
 import {
   getAiStatus,
@@ -9,6 +10,13 @@ import {
   generateExecutiveSummary,
   getExecutiveSummary,
 } from '../../api/ai'
+
+function friendlyAiError(error, fallback) {
+  if (error?.status === 502) return 'The AI service is temporarily offline. Your saved risk scores and recommendations are still available.'
+  if (error?.status === 503) return 'AI explanations are not enabled for this deployment.'
+  if (error?.status === 429) return 'The AI service is busy right now. Please try again in a moment.'
+  return error?.message || fallback
+}
 
 function ExecutiveSummaryCard({ accessToken, repositoryId }) {
   const [summary, setSummary] = useState(null)
@@ -32,7 +40,7 @@ function ExecutiveSummaryCard({ accessToken, repositoryId }) {
       const explanation = await generateExecutiveSummary(accessToken, repositoryId)
       setSummary(explanation)
     } catch (requestError) {
-      setError(requestError.message || 'Could not generate the executive summary.')
+      setError(friendlyAiError(requestError, 'The summary could not be generated. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -44,7 +52,7 @@ function ExecutiveSummaryCard({ accessToken, repositoryId }) {
         <div>
           <h3 className="font-semibold text-[var(--ink-1)]">Executive health summary</h3>
           <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">
-            A leadership-readable summary generated from the stored health, risk, and drift evidence.
+            A plain-language overview for leads, based only on the stored health, risk, and drift evidence.
           </p>
         </div>
         <Button type="button" variant="secondary" size="sm" onClick={handleGenerate} disabled={loading}>
@@ -63,7 +71,7 @@ function ExecutiveSummaryCard({ accessToken, repositoryId }) {
           <p className="text-xs text-[var(--ink-4)]">Generated {new Date(summary.generatedAt).toLocaleString()}</p>
         </div>
       ) : (
-        !loading && <p className="mt-3 text-sm text-[var(--ink-3)]">No executive summary generated yet.</p>
+        !loading && <p className="mt-3 text-sm text-[var(--ink-3)]">Generate a summary when you need a quick repository health briefing.</p>
       )}
     </article>
   )
@@ -91,7 +99,7 @@ function RiskExplanationCard({ accessToken, repositoryId, module }) {
       const result = await generateRiskExplanation(accessToken, repositoryId, module.path)
       setExplanation(result)
     } catch (requestError) {
-      setError(requestError.message || 'Could not generate an explanation for this module.')
+      setError(friendlyAiError(requestError, 'This file could not be explained right now. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -102,7 +110,10 @@ function RiskExplanationCard({ accessToken, repositoryId, module }) {
   return (
     <article className="panel-2 p-4">
       <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 truncate font-mono text-xs font-medium text-[var(--ink-1)]" title={module.path}>{module.path}</p>
+        <div className="min-w-0">
+          <p className="break-all font-mono text-xs font-medium text-[var(--ink-1)]">{module.path}</p>
+          <p className="mt-1 text-xs text-[var(--ink-3)]">{module.risk} risk · explanation uses this file’s saved flag triggers</p>
+        </div>
         <Button type="button" variant="ghost" size="sm" onClick={handleGenerate} disabled={loading}>
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
           {output ? 'Regenerate' : 'Explain with AI'}
@@ -113,22 +124,29 @@ function RiskExplanationCard({ accessToken, repositoryId, module }) {
 
       {output && (
         <div className="mt-3 space-y-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">What this means</h4>
           <p className="text-sm leading-6 text-[var(--ink-2)]">{output.explanation}</p>
           {output.implications?.length > 0 && (
-            <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--ink-2)]">
-              {output.implications.map(item => <li key={item}>{item}</li>)}
-            </ul>
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">Possible impact</h4>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--ink-2)]">
+                {output.implications.map(item => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
           )}
           {output.actionPlan?.length > 0 && (
-            <ol className="space-y-2 text-sm text-[var(--ink-2)]">
-              {output.actionPlan.map(step => (
-                <li key={step.step}>
-                  <span className="font-semibold text-[var(--ink-1)]">{step.step}. {step.title}</span>
-                  {' — '}{step.description}
-                  <span className="ml-1 text-xs text-[var(--ink-4)]">({step.priority})</span>
-                </li>
-              ))}
-            </ol>
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">Recommended plan</h4>
+              <ol className="mt-2 space-y-2 text-sm text-[var(--ink-2)]">
+                {output.actionPlan.map(step => (
+                  <li key={step.step}>
+                    <span className="font-semibold text-[var(--ink-1)]">{step.step}. {step.title}</span>
+                    {' — '}{step.description}
+                    <span className="ml-1 text-xs text-[var(--ink-3)]">({step.priority})</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
         </div>
       )}
@@ -143,15 +161,23 @@ function RiskExplanationCard({ accessToken, repositoryId, module }) {
  */
 export default function AiExplainabilityPanel({ accessToken, repositoryId, topRiskModules = [] }) {
   const [configured, setConfigured] = useState(null)
+  const [selectedModulePath, setSelectedModulePath] = useState('')
 
   useEffect(() => {
     if (!repositoryId) return
     let cancelled = false
+    setConfigured(null)
     getAiStatus(accessToken, repositoryId)
       .then(value => { if (!cancelled) setConfigured(value) })
       .catch(() => { if (!cancelled) setConfigured(false) })
     return () => { cancelled = true }
   }, [accessToken, repositoryId])
+
+  useEffect(() => {
+    setSelectedModulePath(current => (
+      topRiskModules.some(module => module.path === current) ? current : topRiskModules[0]?.path || ''
+    ))
+  }, [topRiskModules])
 
   if (!repositoryId) return null
 
@@ -159,19 +185,25 @@ export default function AiExplainabilityPanel({ accessToken, repositoryId, topRi
     return (
       <EmptyPanel
         title="AI explanations are not configured"
-        description="This deployment has not configured a Gemma model, so AI explanations are unavailable. The deterministic risk scores and recommendations above are unaffected."
+        description="AI explanations are not enabled here. You can still use the risk scores, flag evidence, and recommended changes above."
         icon={Sparkles}
       />
     )
   }
 
+  const selectedModule = topRiskModules.find(module => module.path === selectedModulePath) || null
+  const moduleOptions = topRiskModules.map(module => ({
+    value: module.path,
+    label: `${module.path} · ${module.risk} risk`,
+  }))
+
   return (
     <section className="panel p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-[var(--ink-1)]">AI Explainability</h2>
-          <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">
-            Optional, on-demand explanations generated from the stored evidence above. Nothing here runs automatically.
+          <h2 className="text-sm font-semibold text-[var(--ink-1)]">AI explanations</h2>
+          <p className="mt-1 max-w-2xl text-[0.8125rem] leading-5 text-[var(--ink-3)]">
+            Ask for a plain-language explanation when you need one. AI runs only after you select Generate or Explain with AI, and it uses saved evidence rather than repository source.
           </p>
         </div>
         <Sparkles size={18} className="text-[var(--ink-4)]" aria-hidden="true" />
@@ -179,9 +211,33 @@ export default function AiExplainabilityPanel({ accessToken, repositoryId, topRi
 
       <div className="mt-5 space-y-4">
         <ExecutiveSummaryCard accessToken={accessToken} repositoryId={repositoryId} />
-        {topRiskModules.slice(0, 3).map(module => (
-          <RiskExplanationCard key={module.path} accessToken={accessToken} repositoryId={repositoryId} module={module} />
-        ))}
+        {topRiskModules.length > 0 ? (
+          <div className="panel-2 p-4">
+            <div className="max-w-xl">
+              <span className="overline mb-1.5 block text-[var(--ink-3)]">File to explain</span>
+              <Select
+                value={selectedModulePath}
+                onChange={setSelectedModulePath}
+                options={moduleOptions}
+                ariaLabel="High-risk file to explain"
+              />
+            </div>
+            <div className="mt-3">
+              {selectedModule && (
+                <RiskExplanationCard
+                  key={selectedModule.path}
+                  accessToken={accessToken}
+                  repositoryId={repositoryId}
+                  module={selectedModule}
+                />
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-2)] p-4 text-sm text-[var(--ink-3)]">
+            No high-risk files need an AI explanation right now.
+          </p>
+        )}
       </div>
     </section>
   )
