@@ -167,6 +167,7 @@ export function analyzeKnowledgeDrift(analysis, knowledgeDebt, options = {}) {
       modulePath: route.modulePath,
       severity: 'Medium',
       evidence: `The scanned route ${route.method} ${route.path} was not found in the extracted documentation corpus.`,
+      identity: endpointKey(route),
     }))
   }
 

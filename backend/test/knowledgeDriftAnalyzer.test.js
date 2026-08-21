@@ -90,3 +90,23 @@ test('finds source API routes that are absent from documentation', () => {
   assert.equal(finding.modulePath, 'src/auth')
   assert.match(finding.evidence, /POST \/oauth\/callback/)
 })
+
+test('gives two undocumented routes in the same file distinct keys', () => {
+  const analysis = { files: [codeFile('src/auth/routes.js')], documentation: [] }
+  const knowledgeDebt = analyzeKnowledgeDebt(analysis, {
+    codeOutlines: [{
+      path: 'src/auth/routes.js',
+      modulePath: 'src/auth',
+      summary: 'Auth routes.',
+      routes: [
+        { method: 'POST', path: '/oauth/callback' },
+        { method: 'GET', path: '/oauth/status' },
+      ],
+    }],
+  })
+  const result = analyzeKnowledgeDrift(analysis, knowledgeDebt)
+  const keys = result.findings.filter(item => item.type === 'undocumented_api').map(item => item.key)
+
+  assert.equal(keys.length, 2)
+  assert.equal(new Set(keys).size, 2)
+})
