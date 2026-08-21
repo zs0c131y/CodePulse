@@ -104,6 +104,14 @@ export const ANALYSIS_STATUS_META = {
     label: 'Failed',
     badgeClass: 'border-[var(--sev-critical-line)] bg-[var(--sev-critical-wash)] text-[var(--sev-critical-ink)]',
   },
+  paused: {
+    label: 'Paused',
+    badgeClass: 'border-[var(--sev-medium-line)] bg-[var(--sev-medium-wash)] text-[var(--sev-medium-ink)]',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    badgeClass: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--ink-3)]',
+  },
 }
 
 export function analysisStatusClass(status) {

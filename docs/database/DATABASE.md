@@ -172,9 +172,14 @@ Stores high-level metadata for tracked repositories.
 * `repo_url`: Git clone URL.
 * `clone_url`: Normalized Git clone URL used by the analyzer.
 * `default_branch`: Primary scanned branch.
-* `status`: Analysis lifecycle state — `queued`, `running`, `completed`, or
-  `failed`. Set to `completed` once the current synchronous scan pipeline
-  persists a repository.
+* `status`: Analysis lifecycle state — `queued`, `running`, `paused`,
+  `cancelled`, `completed`, or `failed`.
+* `analysis_progress`: Durable phase record containing `phase`, `label`,
+  `phase_progress`, `overall_progress`, optional `processed`/`total`, a bounded
+  `message`, and `updated_at`.
+* `queued_at`, `started_at`, `completed_at`, `failed_at`, `paused_at`, and
+  `cancelled_at`: Lifecycle timestamps. `scan_id`, `worker_id`, and
+  `lease_expires_at` prevent stale workers from overwriting newer task state.
 * `total_files`: Parsed file count.
 * `total_commits`: Parsed commit count.
 * `total_dependencies`: Parsed dependency edge count.
@@ -192,7 +197,9 @@ Stores files analyzed during repository intelligence.
 * `extension`: Lowercased file extension.
 * `file_type`: Code, config, documentation, asset, etc.
 * `language`: Detected programming language.
-* `size`: File size in bytes.
+* `size`: File size in bytes when the blob was materialized for content
+  analysis; inventory-only partial-clone entries omit it and serialize as
+  `null`.
 * `depth`: Repository-relative path depth.
 
 The compound `{ repository_id: 1, file_path: 1, _id: 1 }` index supports

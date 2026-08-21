@@ -1,6 +1,7 @@
 import { readdir, stat } from 'node:fs/promises'
 import { extname, join, relative, sep } from 'node:path'
 import { REPOSITORY_MAX_FILES } from '../../../config/index.js'
+import { runGit } from './gitClient.js'
 
 export const ignoredDirectoryNames = new Set([
   '.git',
@@ -162,10 +163,26 @@ function assertWithinFileLimit(output, maxFiles) {
   throw error
 }
 
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return
+  throw signal.reason instanceof Error ? signal.reason : Object.assign(new Error('Repository analysis cancelled.'), { code: 'ABORT_ERR' })
+}
+
+function shouldReportProgress(count) {
+  return count === 1 || count % 500 === 0
+}
+
+async function reportProgress(options, processed, total = null) {
+  if (!shouldReportProgress(processed) && processed !== total) return
+  await options.onProgress?.({ processed, total })
+}
+
 async function walkDirectory(rootPath, currentPath, output, options) {
+  throwIfAborted(options.signal)
   const entries = await readdir(currentPath, { withFileTypes: true })
 
   for (const entry of entries) {
+    throwIfAborted(options.signal)
     if (entry.isDirectory() && ignoredDirectoryNames.has(entry.name)) continue
 
     const absolutePath = join(currentPath, entry.name)
@@ -196,18 +213,92 @@ async function walkDirectory(rootPath, currentPath, output, options) {
       depth: depthOf(relativePath),
     })
     assertWithinFileLimit(output, options.maxFiles)
+    await reportProgress(options, output.files.length)
   }
 }
 
-export async function parseRepositoryStructure(repositoryPath, options = {}) {
-  const output = {
-    directories: [],
-    files: [],
+function isIgnoredTrackedPath(filePath) {
+  const parts = filePath.split('/')
+  return parts.slice(0, -1).some(part => ignoredDirectoryNames.has(part))
+}
+
+function directoriesFromFilePath(filePath, output) {
+  const parts = filePath.split('/')
+  for (let index = 1; index < parts.length; index += 1) {
+    const path = parts.slice(0, index).join('/')
+    if (!output.has(path)) {
+      output.set(path, {
+        path,
+        name: parts[index - 1],
+        depth: depthOf(path),
+      })
+    }
+  }
+}
+
+async function parseTrackedTree(repositoryPath, options) {
+  const { stdout } = await (options.runGitImpl || runGit)(
+    ['ls-tree', '-rz', '--full-tree', 'HEAD'],
+    {
+      cwd: repositoryPath,
+      signal: options.signal,
+      maxBuffer: 256 * 1024 * 1024,
+    },
+  )
+  const entries = stdout.split('\0').filter(Boolean)
+  const output = { directories: [], files: [] }
+  const directories = new Map()
+  const total = entries.length
+
+  for (let index = 0; index < entries.length; index += 1) {
+    throwIfAborted(options.signal)
+    const entry = entries[index]
+    const tabIndex = entry.indexOf('\t')
+    if (tabIndex === -1) continue
+    const header = entry.slice(0, tabIndex)
+    const filePath = entry.slice(tabIndex + 1)
+    const match = header.match(/^\d+\s+blob\s+[0-9a-f]+$/i)
+    if (!match || isIgnoredTrackedPath(filePath)) continue
+
+    const fileName = filePath.split('/').at(-1) || filePath
+    output.files.push({
+      path: filePath,
+      name: fileName,
+      extension: extname(fileName).toLowerCase(),
+      file_type: classifyFile(filePath),
+      language: getLanguage(fileName),
+      // Tree objects do not contain blob sizes. Asking a partial clone for
+      // them would lazily fetch every blob and defeat the no-checkout design.
+      size: null,
+      depth: depthOf(filePath),
+    })
+    directoriesFromFilePath(filePath, directories)
+    assertWithinFileLimit(output, options.maxFiles)
+    await reportProgress(options, output.files.length, total)
+
+    if (index > 0 && index % 1000 === 0) {
+      await new Promise(resolve => setImmediate(resolve))
+    }
   }
 
-  await walkDirectory(repositoryPath, repositoryPath, output, {
-    maxFiles: options.maxFiles || REPOSITORY_MAX_FILES,
-  })
+  output.directories = [...directories.values()]
+  return output
+}
+
+export async function parseRepositoryStructure(repositoryPath, options = {}) {
+  const parserOptions = {
+    maxFiles: options.maxFiles ?? REPOSITORY_MAX_FILES,
+    signal: options.signal,
+    onProgress: options.onProgress,
+    runGitImpl: options.runGitImpl,
+  }
+  const output = options.trackedTreeOnly
+    ? await parseTrackedTree(repositoryPath, parserOptions)
+    : { directories: [], files: [] }
+
+  if (!options.trackedTreeOnly) {
+    await walkDirectory(repositoryPath, repositoryPath, output, parserOptions)
+  }
 
   output.directories.sort(comparePaths)
   output.files.sort(comparePaths)

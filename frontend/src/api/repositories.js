@@ -30,6 +30,25 @@ export async function getRepositoryStatus(accessToken, repositoryId) {
   return apiFetch(`/api/repositories/${repositoryId}/status`, { accessToken })
 }
 
+async function controlRepositoryScan(accessToken, repositoryId, action) {
+  return apiFetch(`/api/repositories/${repositoryId}/${action}`, {
+    accessToken,
+    method: 'POST',
+  })
+}
+
+export function pauseRepositoryScan(accessToken, repositoryId) {
+  return controlRepositoryScan(accessToken, repositoryId, 'pause')
+}
+
+export function resumeRepositoryScan(accessToken, repositoryId) {
+  return controlRepositoryScan(accessToken, repositoryId, 'resume')
+}
+
+export function cancelRepositoryScan(accessToken, repositoryId) {
+  return controlRepositoryScan(accessToken, repositoryId, 'cancel')
+}
+
 /** `intervalHours: null` disables the recurring schedule. */
 export async function updateRepositorySchedule(accessToken, repositoryId, intervalHours) {
   const data = await apiFetch(`/api/repositories/${repositoryId}/schedule`, {

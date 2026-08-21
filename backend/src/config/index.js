@@ -120,20 +120,22 @@ function readNonNegativeIntegerEnv(name, fallback) {
   return Number.isInteger(value) && value >= 0 ? value : fallback
 }
 
-export const REPOSITORY_CLONE_TIMEOUT_MS = readPositiveIntegerEnv('REPOSITORY_CLONE_TIMEOUT_MS', 10 * 60 * 1000)
+export const REPOSITORY_CLONE_TIMEOUT_MS = readPositiveIntegerEnv('REPOSITORY_CLONE_TIMEOUT_MS', 60 * 60 * 1000)
 // Five commits is the minimum history window used by Technical Debt churn and
 // staleness scoring. This remains a shallow clone while allowing those signals
 // to be available on a normal scan.
 export const REPOSITORY_CLONE_DEPTH = readPositiveIntegerEnv('REPOSITORY_CLONE_DEPTH', 5)
-// 0 disables the size check entirely (see assertRepositorySizeAllowed). Kept
-// high rather than 0 — an unbounded clone can OOM the machine (chromium/chromium
-// is ~66GB and did exactly that), but the old 1GB default rejected legitimately
-// large repos.
+// 0 disables the metadata-size check. Remote repositories use filtered,
+// no-checkout clones and selectively materialize analysis inputs, so the
+// provider's full repository size no longer predicts local disk or memory use.
 export const REPOSITORY_MAX_SIZE_KB = readNonNegativeIntegerEnv(
   'REPOSITORY_MAX_SIZE_KB',
-  8 * 1024 * 1024,
+  0,
 )
-export const REPOSITORY_MAX_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_FILES', 10000)
+// 0 means unlimited. Remote scans inventory tracked files from Git's tree, so
+// large repositories do not need a full working-tree checkout just to remove
+// this ceiling.
+export const REPOSITORY_MAX_FILES = readNonNegativeIntegerEnv('REPOSITORY_MAX_FILES', 0)
 export const REPOSITORY_MAX_DOCUMENTATION_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_DOCUMENTATION_FILES', 500)
 export const REPOSITORY_MAX_DOCUMENTATION_TOTAL_BYTES = readPositiveIntegerEnv(
   'REPOSITORY_MAX_DOCUMENTATION_TOTAL_BYTES',
@@ -151,7 +153,7 @@ export const REPOSITORY_MAX_DEPENDENCY_FILE_BYTES = readPositiveIntegerEnv(
 export const ANALYSIS_MAX_CONCURRENCY = readPositiveIntegerEnv('ANALYSIS_MAX_CONCURRENCY', 1)
 export const ANALYSIS_WORKER_MAX_OLD_GENERATION_MB = readPositiveIntegerEnv(
   'ANALYSIS_WORKER_MAX_OLD_GENERATION_MB',
-  256,
+  2048,
 )
 export const ANALYSIS_MAX_QUEUE_SIZE = readPositiveIntegerEnv('ANALYSIS_MAX_QUEUE_SIZE', 100)
 export const ANALYSIS_MAX_ACTIVE_PER_USER = readPositiveIntegerEnv('ANALYSIS_MAX_ACTIVE_PER_USER', 2)
@@ -174,7 +176,7 @@ export const MAX_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MAX_SCAN_INTERVAL
 // requires this shared secret when it is set. Left unset, the endpoint stays
 // open (matches typical local/dev and same-network Prometheus setups).
 export const METRICS_TOKEN = process.env.METRICS_TOKEN || null
-export const ANALYSIS_MAX_SCAN_DURATION_MS = readPositiveIntegerEnv('ANALYSIS_MAX_SCAN_DURATION_MS', 20 * 60 * 1000)
+export const ANALYSIS_MAX_SCAN_DURATION_MS = readPositiveIntegerEnv('ANALYSIS_MAX_SCAN_DURATION_MS', 2 * 60 * 60 * 1000)
 export const MANIFEST_FETCH_TIMEOUT_MS = readPositiveIntegerEnv('MANIFEST_FETCH_TIMEOUT_MS', 10 * 1000)
 
 // --- Optional semantic knowledge-drift analysis ---

@@ -26,6 +26,7 @@ import { NotificationsMenu } from './ui/notifications-menu'
 import { ApiError, apiFetch } from '../api/client'
 import {
   analyzeRepository,
+  cancelRepositoryScan,
   getRepositoryCommits,
   getRepositoryCodeAnalysis,
   getRepositoryContributors,
@@ -40,6 +41,8 @@ import {
   getRepositoryStatus,
   updateRepositorySchedule,
   listRepositories,
+  pauseRepositoryScan,
+  resumeRepositoryScan,
 } from '../api/repositories'
 import { listConnectedRepositories } from '../api/integrations'
 import {
@@ -70,7 +73,7 @@ import RiskTrendPanel from './dashboard/RiskTrendPanel'
 import { EmptyPanel, Tooltip } from './dashboard/shared'
 import { ANALYSIS_STATUS_META, analysisStatusClass, formatRelativeTime, severityClass } from './dashboard/utils'
 
-const STATUS_POLL_INTERVAL_MS = 4000
+const STATUS_POLL_INTERVAL_MS = 1000
 
 const GITHUB_REPO_URL_PATTERN = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/
 
@@ -243,51 +246,71 @@ function buildTotalKpis(repository) {
   ]
 }
 
+const ANALYSIS_PIPELINE_STAGES = [
+  { phase: 'cloning', label: 'Repository clone' },
+  { phase: 'inventory', label: 'File inventory' },
+  { phase: 'materializing', label: 'Analysis checkout' },
+  { phase: 'documentation', label: 'Documentation' },
+  { phase: 'commits', label: 'Commit history' },
+  { phase: 'dependencies', label: 'Dependency graph' },
+  { phase: 'code_analysis', label: 'Code analysis' },
+  { phase: 'persistence', label: 'Persisting analysis' },
+  { phase: 'scoring', label: 'Debt, drift, and risk scoring' },
+]
+
+function displayTaskStatus(status) {
+  return ({
+    queued: 'Queued',
+    running: 'Running',
+    paused: 'Paused',
+    cancelled: 'Cancelled',
+    completed: 'Complete',
+    failed: 'Failed',
+  })[status] || 'Queued'
+}
+
+function progressDetail(progress, fallback) {
+  const count = Number.isFinite(progress?.processed)
+    ? `${Number(progress.processed).toLocaleString()}${Number.isFinite(progress.total) ? ` / ${Number(progress.total).toLocaleString()}` : ''}`
+    : ''
+  return [progress?.message || fallback, count].filter(Boolean).join(' · ')
+}
+
 function buildStatusPipeline(repository, scanLoading) {
   if (scanLoading) {
     return [
-      { label: 'Repository clone', status: 'Running', detail: 'Cloning public GitHub repository', progress: 35 },
-      { label: 'File inventory', status: 'Queued', detail: 'Waiting for clone output', progress: 0 },
-      { label: 'Commit history', status: 'Queued', detail: 'Waiting for repository metadata', progress: 0 },
-      { label: 'Dependency graph', status: 'Queued', detail: 'Waiting for parsed files', progress: 0 },
+      { label: 'Submitting scan', status: 'Running', detail: 'Creating a durable analysis task.', progress: 0 },
     ]
   }
 
   if (!repository) return []
+  const status = repository.status || 'queued'
+  const progress = repository.progress || {}
+  const currentIndex = ANALYSIS_PIPELINE_STAGES.findIndex(stage => stage.phase === progress.phase)
+  const overallStatus = displayTaskStatus(status)
+  const items = [{
+    label: 'Overall analysis',
+    status: overallStatus,
+    detail: progressDetail(progress, status === 'completed' ? 'Repository analysis completed.' : 'Waiting for live progress.'),
+    progress: status === 'completed' ? 100 : Number(progress.overallProgress) || 0,
+  }]
 
-  if (repository.status === 'failed') {
-    return [
-      { label: 'Repository analysis', status: 'Failed', detail: 'The latest analysis run did not complete', progress: 100 },
-      { label: 'Debt scoring', status: 'Queued', detail: 'Waiting for a successful analysis run', progress: 0 },
-      { label: 'Drift detection', status: 'Queued', detail: 'Waiting for a successful analysis run', progress: 0 },
-      { label: 'Risk intelligence', status: 'Queued', detail: 'Waiting for a successful analysis run', progress: 0 },
-    ]
-  }
+  if (['failed', 'cancelled'].includes(status) && currentIndex === -1) return items
 
-  if (repository.status === 'running') {
-    return [
-      { label: 'Repository clone', status: 'Complete', detail: 'Clone workspace ready', progress: 100 },
-      { label: 'Repository analysis', status: 'Running', detail: 'Extracting files, commits, documentation, and dependencies', progress: 60 },
-      { label: 'Debt scoring', status: 'Queued', detail: 'Waiting for repository analysis', progress: 0 },
-      { label: 'Drift detection', status: 'Queued', detail: 'Waiting for repository analysis', progress: 0 },
-    ]
-  }
-
-  if (repository.status === 'queued') {
-    return [
-      { label: 'Repository clone', status: 'Queued', detail: 'Analysis run is queued', progress: 0 },
-      { label: 'File inventory', status: 'Queued', detail: 'Waiting for clone output', progress: 0 },
-      { label: 'Commit history', status: 'Queued', detail: 'Waiting for repository metadata', progress: 0 },
-      { label: 'Dependency graph', status: 'Queued', detail: 'Waiting for parsed files', progress: 0 },
-    ]
-  }
-
-  return [
-    { label: 'Repository indexed', status: 'Complete', detail: `${repository.totalFiles ?? 0} files parsed`, progress: 100 },
-    { label: 'Documentation extracted', status: 'Complete', detail: `${repository.totalDocumentation ?? 0} docs detected`, progress: 100 },
-    { label: 'Commit history', status: 'Complete', detail: `${repository.totalCommits ?? 0} commits scanned`, progress: 100 },
-    { label: 'Dependency graph', status: 'Complete', detail: `${repository.totalDependencies ?? 0} edges mapped`, progress: 100 },
-  ]
+  return items.concat(ANALYSIS_PIPELINE_STAGES.map((stage, index) => {
+    if (status === 'completed' || (currentIndex >= 0 && index < currentIndex)) {
+      return { label: stage.label, status: 'Complete', detail: 'Stage completed.', progress: 100 }
+    }
+    if (index === currentIndex) {
+      return {
+        label: stage.label,
+        status: overallStatus,
+        detail: progressDetail(progress, 'Stage in progress.'),
+        progress: Number(progress.phaseProgress) || 0,
+      }
+    }
+    return { label: stage.label, status: 'Queued', detail: 'Waiting for the previous stage.', progress: 0 }
+  }))
 }
 
 function buildDebtKpis(metrics) {
@@ -376,7 +399,7 @@ function OverviewContent({ view, liveMode, onReviewDrift, reviewingDriftId }) {
         />
       )}
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <PipelinePanel items={view.pipelineItems} />
+        <PipelinePanel items={view.pipelineItems} {...view.pipelineControls} />
         <RiskTrendPanel
           bars={view.riskTrend}
           title="Risk trend"
@@ -471,7 +494,7 @@ function MainContent({ activeTab, view, liveMode, accessToken, repositoryId, onR
             emptyTitle={view.riskEmptyTitle}
             emptyDescription={view.riskEmptyDescription}
           />
-          <PipelinePanel items={view.pipelineItems} />
+          <PipelinePanel items={view.pipelineItems} {...view.pipelineControls} />
         </div>
         <RiskHeatmapPanel items={view.debtItems} description="Prioritized module risk combining the available debt evidence." />
         <RecommendationPanel items={view.recommendations} emptyTitle={view.recommendationsEmptyTitle} emptyDescription={view.recommendationsEmptyDescription} />
@@ -518,6 +541,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
   const [reviewingDriftId, setReviewingDriftId] = useState(null)
   const [scheduleSaving, setScheduleSaving] = useState(false)
   const [scheduleError, setScheduleError] = useState('')
+  const [scanControlLoading, setScanControlLoading] = useState(null)
 
   // The repositories the dropdown can offer in live mode: the API list when it
   // is available, otherwise the repository scanned in this session (the read
@@ -749,20 +773,38 @@ export default function Dashboard({ user, accessToken, onLogout }) {
     if (demoMode || !accessToken || !selectedRepoId) return undefined
     if (selectedRepoStatus !== 'queued' && selectedRepoStatus !== 'running') return undefined
 
-    const intervalId = window.setInterval(async () => {
+    let stopped = false
+    let polling = false
+
+    async function pollStatus() {
+      if (polling) return
+      polling = true
       try {
         const data = await getRepositoryStatus(accessToken, selectedRepoId)
+        if (stopped) return
         const nextStatus = String(data.status || '')
 
         setRepoList(current =>
           current.map(item =>
-            item.id === selectedRepoId ? { ...item, status: nextStatus, updatedAt: data.updatedAt || item.updatedAt } : item,
+            item.id === selectedRepoId
+              ? {
+                  ...item,
+                  status: nextStatus,
+                  error: data.message || null,
+                  progress: data.progress || item.progress,
+                  updatedAt: data.updatedAt || item.updatedAt,
+                }
+              : item,
           ),
         )
 
-        if (nextStatus === 'completed' || nextStatus === 'failed') {
+        if (['completed', 'failed', 'paused', 'cancelled'].includes(nextStatus)) {
           if (nextStatus === 'failed') {
             setScanError(data.message || 'Repository analysis failed.')
+          } else if (nextStatus === 'paused') {
+            setScanMessage('Repository analysis paused. Resume restarts it from the beginning.')
+          } else if (nextStatus === 'cancelled') {
+            setScanMessage('Repository analysis cancelled.')
           } else {
             setScanMessage('Repository analyzed.')
           }
@@ -773,10 +815,18 @@ export default function Dashboard({ user, accessToken, onLogout }) {
           // Status endpoint not implemented yet; stop polling quietly.
           window.clearInterval(intervalId)
         }
+      } finally {
+        polling = false
       }
-    }, STATUS_POLL_INTERVAL_MS)
+    }
 
-    return () => window.clearInterval(intervalId)
+    pollStatus()
+    const intervalId = window.setInterval(pollStatus, STATUS_POLL_INTERVAL_MS)
+
+    return () => {
+      stopped = true
+      window.clearInterval(intervalId)
+    }
   }, [accessToken, demoMode, selectedRepoId, selectedRepoStatus])
 
   async function handleStartScan() {
@@ -833,6 +883,29 @@ export default function Dashboard({ user, accessToken, onLogout }) {
       setScanError(error instanceof Error ? error.message : 'Could not save the semantic drift review.')
     } finally {
       setReviewingDriftId(null)
+    }
+  }
+
+  async function handleScanControl(action) {
+    if (demoMode || !accessToken || !selectedRepoId || scanControlLoading) return
+    const request = action === 'pause'
+      ? pauseRepositoryScan
+      : action === 'resume'
+        ? resumeRepositoryScan
+        : cancelRepositoryScan
+    setScanControlLoading(action)
+    setScanError('')
+    try {
+      const data = await request(accessToken, selectedRepoId)
+      if (data.repository) {
+        setRepoList(current => current.map(item => item.id === selectedRepoId ? { ...item, ...data.repository } : item))
+      }
+      setScanMessage(data.message || `Analysis ${action} request accepted.`)
+      if (action === 'resume') setDataVersion(version => version + 1)
+    } catch (error) {
+      setScanError(error instanceof Error ? error.message : `Could not ${action} the analysis.`)
+    } finally {
+      setScanControlLoading(null)
     }
   }
 
@@ -900,6 +973,13 @@ export default function Dashboard({ user, accessToken, onLogout }) {
     return {
       kpis: scores ? buildScoreKpis(scores) : hasLiveRepository ? buildTotalKpis(selectedRepo) : [],
       pipelineItems: buildStatusPipeline(selectedRepo, scanLoading),
+      pipelineControls: {
+        taskStatus: selectedRepoStatus || null,
+        controlLoading: scanControlLoading,
+        onPause: () => handleScanControl('pause'),
+        onResume: () => handleScanControl('resume'),
+        onCancel: () => handleScanControl('cancel'),
+      },
       riskTrend: Array.isArray(scores?.risk?.trend) ? scores.risk.trend : [],
       debtItems,
       debtKpis: debt?.metrics ? buildDebtKpis(debt.metrics) : [],
@@ -942,7 +1022,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         'AI recommendations appear here after the Risk Intelligence and AI Explainability engines have processed this repository.',
       ),
     }
-  }, [analytics, analyticsErrors, analyticsLoading, demoMode, hasLiveRepository, intelligence, intelligenceError, intelligenceLoading, scanLoading, selectedRepo])
+  }, [analytics, analyticsErrors, analyticsLoading, demoMode, hasLiveRepository, intelligence, intelligenceError, intelligenceLoading, scanControlLoading, scanLoading, selectedRepo, selectedRepoStatus])
 
   const bannerMessage = demoMode
     ? 'Demo mode — sample analytics. Toggle live mode to use your analyzed repositories.'

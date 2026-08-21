@@ -11,6 +11,10 @@ import {
   markRepositoryAnalysisCompletedWithCollection,
   markRepositoryAnalysisFailedWithCollection,
   markRepositoryAnalysisRunningWithCollection,
+  updateRepositoryAnalysisProgressWithCollection,
+  pauseRepositoryAnalysisWithCollection,
+  cancelRepositoryAnalysisWithCollection,
+  resumeRepositoryAnalysisWithCollection,
   renewRepositoryAnalysisLeaseWithCollection,
   persistRepositoryAnalysisWithCollections,
   queueRepositoryAnalysisWithCollection,
@@ -111,6 +115,46 @@ export async function markRepositoryAnalysisFailed(input, options = {}) {
       repositoryId: normalizeMongoId(input.repositoryId),
       userId: normalizeMongoId(input.userId),
     },
+    repositories,
+    options,
+  )
+}
+
+export async function updateRepositoryAnalysisProgress(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+  return updateRepositoryAnalysisProgressWithCollection(
+    {
+      ...input,
+      repositoryId: normalizeMongoId(input.repositoryId),
+      userId: normalizeMongoId(input.userId),
+    },
+    repositories,
+    options,
+  )
+}
+
+export async function pauseRepositoryAnalysis(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+  return pauseRepositoryAnalysisWithCollection(
+    { ...input, repositoryId: normalizeMongoId(input.repositoryId), userId: normalizeMongoId(input.userId) },
+    repositories,
+    options,
+  )
+}
+
+export async function cancelRepositoryAnalysis(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+  return cancelRepositoryAnalysisWithCollection(
+    { ...input, repositoryId: normalizeMongoId(input.repositoryId), userId: normalizeMongoId(input.userId) },
+    repositories,
+    options,
+  )
+}
+
+export async function resumeRepositoryAnalysis(input, options = {}) {
+  const repositories = options.collections?.repositories || await getRepositoriesCollection()
+  return resumeRepositoryAnalysisWithCollection(
+    { ...input, repositoryId: normalizeMongoId(input.repositoryId), userId: normalizeMongoId(input.userId) },
     repositories,
     options,
   )

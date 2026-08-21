@@ -181,14 +181,15 @@ Implemented:
 * **Bounded concurrency and memory.** Repository scans run in isolated
   `worker_threads` (`repositoryAnalysisWorker.js`) with a configured
   old-generation memory cap and bounded concurrency
-  (`ANALYSIS_MAX_CONCURRENCY`, `ANALYSIS_MAX_ACTIVE_PER_USER`, a bounded
-  queue via `ANALYSIS_MAX_QUEUE_SIZE`); repository size, file count,
-  dependency edges, and documentation totals all have configured caps
-  (`REPOSITORY_MAX_SIZE_KB`, `REPOSITORY_MAX_FILES`,
-  `REPOSITORY_MAX_DEPENDENCY_EDGES`, etc.) — this is how disk usage per scan
-  stays bounded even without an explicit OS-level disk quota.
+  (`ANALYSIS_MAX_CONCURRENCY`, `ANALYSIS_MAX_ACTIVE_PER_USER`, and a bounded
+  queue via `ANALYSIS_MAX_QUEUE_SIZE`). Remote repositories use partial,
+  no-checkout clones: every tracked path is inventoried while only the files
+  selected for content analysis are materialized. Repository size and tracked
+  file count are unlimited by default (`REPOSITORY_MAX_SIZE_KB=0` and
+  `REPOSITORY_MAX_FILES=0`); deeper dependency and documentation analysis
+  retains its evidence caps.
 * **Wall-clock scan timeout.** `analysisQueue.js` now terminates any worker
-  that exceeds `ANALYSIS_MAX_SCAN_DURATION_MS` (default 20 minutes) and
+  that exceeds `ANALYSIS_MAX_SCAN_DURATION_MS` (default 2 hours) and
   records it as a normal failure — a stalled clone or a hung network call
   can no longer hold a worker slot indefinitely.
 * **Network timeout on outbound manifest fetches.** `manifestFetcher.js`'s

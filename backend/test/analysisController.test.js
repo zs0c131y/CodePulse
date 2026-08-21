@@ -130,6 +130,18 @@ test('status polling returns failure details and lifecycle timestamps', async ()
     startedAt: '2026-08-01T10:00:01.000Z',
     completedAt: null,
     failedAt: '2026-08-01T10:00:05.000Z',
+    pausedAt: null,
+    cancelledAt: null,
+    progress: {
+      phase: 'failed',
+      label: null,
+      phaseProgress: 0,
+      overallProgress: 0,
+      processed: null,
+      total: null,
+      message: null,
+      updatedAt: null,
+    },
     updatedAt: '2026-08-01T10:00:05.000Z',
   })
 })

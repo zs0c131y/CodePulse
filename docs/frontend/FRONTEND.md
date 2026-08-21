@@ -249,9 +249,16 @@ API"):
   returns `404` (engine not rolled out yet) empties only its own panels, which
   render honest "not available yet" empty states instead of sample data.
 * While the selected repository's analysis `status` is `queued` or `running`,
-  the dashboard polls `GET /api/repositories/:id/status` every 4 seconds and
-  refreshes data when the run reaches `completed` or `failed`. Polling resumes
-  automatically after a page refresh mid-scan.
+  the dashboard polls `GET /api/repositories/:id/status` immediately and every
+  second. The pipeline renders the persisted phase, phase/overall
+  percentages, processed/total counts, and message instead of synthetic
+  progress. Polling resumes automatically after a page refresh mid-scan.
+* The pipeline exposes Pause, Resume, and Cancel controls through the matching
+  protected scan-control endpoints. Pause and Cancel stop the active worker;
+  Resume clearly communicates that analysis restarts from the beginning.
+  Controls are native keyboard buttons, disable during requests, stack on
+  narrow screens, and progress changes are announced through a polite live
+  region.
 * The scan form validates the GitHub URL client-side before posting to
   `POST /api/repositories/analyze`. Choosing an analyzed GitHub repository in
   the picker pre-fills its scan URL for a direct re-scan; choosing a connected

@@ -14,6 +14,7 @@ import {
 } from '../../../db/index.js'
 import {
   serializeRepository,
+  serializeAnalysisProgress,
   listRepositoriesForUserWithCollections,
   findRepositoryForUserWithCollections,
   deleteRepositoryForUserWithCollections,
@@ -33,7 +34,7 @@ function normalizeMongoId(value) {
   return value
 }
 
-export { serializeRepository }
+export { serializeRepository, serializeAnalysisProgress }
 
 export async function listRepositoriesForUser(userId) {
   const collections = await getRepositoryCollections()

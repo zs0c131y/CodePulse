@@ -84,14 +84,19 @@ Knowledge Drift (V2)  Technical Debt (V3)  Repository Metrics (V4)
 * **Current Implementation Notes**:
   * GitHub URLs are validated as public `https://github.com/owner/repo`
     repository URLs.
-  * Repositories are cloned into a temporary workspace and removed after the
-    scan completes.
+  * Remote repositories use a shallow, blob-filtered, no-checkout temporary
+    workspace. Every tracked path is inventoried from the Git tree, while only
+    the bounded documentation/supported-source working set is materialized.
+    The workspace is removed after the scan settles.
   * Interactive analysis is intentionally capped for large repositories:
     public GitHub metadata is checked before cloning, shallow clones are used,
     file parsing has a maximum file count, and dependency extraction caps the
     number and size of files it reads.
-  * File parsing skips common generated or dependency directories such as
+  * File inventory has no default count ceiling and skips common generated or dependency directories such as
     `.git`, `node_modules`, `dist`, `build`, and cache folders.
+  * Durable phase/overall progress is polled by the dashboard. Queued or
+    running scans can be paused or cancelled; paused scans resume from the
+    beginning because temporary workspaces are not durable checkpoints.
   * Dependency graph generation is basic and currently targets
     JavaScript/TypeScript imports, JavaScript `require`, and Python imports.
   * The pipeline stores metadata only; it does not store a cloned repository

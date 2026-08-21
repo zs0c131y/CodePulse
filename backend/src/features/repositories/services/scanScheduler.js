@@ -5,7 +5,7 @@ import { enqueueRepositoryAnalysis } from './analysisQueue.js'
 import { SCAN_SCHEDULER_INTERVAL_MS, SCAN_SCHEDULER_BATCH_SIZE } from '../../../config/index.js'
 import { scheduledScansTotal } from '../../../observability/metrics.js'
 
-const ACTIVE_ANALYSIS_STATUSES = ['queued', 'running']
+const ACTIVE_ANALYSIS_STATUSES = ['queued', 'running', 'paused']
 
 /**
  * Repositories with a recurring schedule (`scan_interval_hours` set) whose

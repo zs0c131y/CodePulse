@@ -11,10 +11,10 @@ dockerfile = "Dockerfile"
 
 [http_service]
 auto_start_machines = true
-auto_stop_machines = true
+auto_stop_machines = false
 force_https = true
 internal_port = 3000
-min_machines_running = 0
+min_machines_running = 1
 max_machines_running = 3
 
 [http_service.concurrency]

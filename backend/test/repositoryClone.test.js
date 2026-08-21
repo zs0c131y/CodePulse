@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -9,6 +9,7 @@ import {
   assertRepositorySizeAllowed,
   cloneRepository,
   isInaccessibleCloneError,
+  materializeRepositoryFiles,
   parseGitHubRepositoryUrl,
   runGit,
   validatePublicGitHubRepositoryUrl,
@@ -33,6 +34,29 @@ test('parses and normalizes public GitHub repository URLs', () => {
     webUrl: 'https://github.com/openai/codex',
     cloneUrl: 'https://github.com/openai/codex.git',
   })
+})
+
+test('materializes selected paths from a no-checkout clone', async () => {
+  const root = join(tmpdir(), `codepulse-materialize-test-${Date.now()}`)
+  const source = join(root, 'source')
+  const clone = join(root, 'clone')
+
+  try {
+    await mkdir(source, { recursive: true })
+    await git(['init', '-b', 'main'], source)
+    await git(['config', 'user.email', 'test@example.com'], source)
+    await git(['config', 'user.name', 'CodePulse Test'], source)
+    await writeFile(join(source, 'README.md'), '# Selective checkout\n', 'utf8')
+    await git(['add', 'README.md'], source)
+    await git(['commit', '-m', 'Initial commit'], source)
+    await runGit(['clone', '--no-checkout', source, clone])
+
+    await assert.rejects(() => readFile(join(clone, 'README.md'), 'utf8'), { code: 'ENOENT' })
+    await materializeRepositoryFiles(clone, ['README.md'])
+    assert.equal((await readFile(join(clone, 'README.md'), 'utf8')).replaceAll('\r\n', '\n'), '# Selective checkout\n')
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 3 })
+  }
 })
 
 test('clones a repository into a controlled workspace', async () => {

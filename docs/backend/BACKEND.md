@@ -59,6 +59,10 @@ modules for cloning repositories, parsing files, extracting documentation,
 reading commit history, building a basic dependency graph, orchestrating scans,
 and persisting metadata.
 
+[scanControlController.js](../../backend/src/features/repositories/scanControlController.js)
+owns the protected pause/resume/cancel transitions and signals the in-process
+worker queue after each durable state change.
+
 Durable report generation and revocable sharing are implemented under
 [backend/src/features/reports](../../backend/src/features/reports). Reports
 store versioned, immutable JSON snapshots; browser rendering remains the PDF
@@ -69,6 +73,12 @@ history extraction. Local development requires Git on `PATH`; the production
 Docker image installs Git in the runtime layer. The production image uses the
 Node 24 Alpine image family and installs only backend production dependencies
 in the runtime stage.
+
+Remote scans use a shallow, blob-filtered, no-checkout clone. The complete
+tracked tree is inventoried from Git metadata with no file-count ceiling, then
+only documentation and supported source files selected by the bounded content
+analyzers are materialized. This lets very large repositories expose every
+tracked path without writing their entire working tree to Fly's ephemeral disk.
 
 [backend/src/utils/env.js](../../backend/src/utils/env.js) loads `backend/.env`
 via `dotenv`, resolving the path relative to its own file location (not
@@ -153,19 +163,23 @@ recommendation endpoints never depend on this configuration.
 
 Repository Intelligence also reads:
 
-* `REPOSITORY_CLONE_TIMEOUT_MS`: git clone timeout in milliseconds. Defaults
-  to `600000` for local analysis.
+* `REPOSITORY_CLONE_TIMEOUT_MS`: git operation timeout in milliseconds.
+  Defaults to `3600000` (60 minutes).
 * `REPOSITORY_CLONE_DEPTH`: shallow clone depth. Defaults to `5`, the minimum
   history window used before commit churn and stale-module signals are scored.
 * `REPOSITORY_MAX_SIZE_KB`: maximum GitHub repository size allowed for
-  interactive analysis. Defaults to `1048576` KB (1 GB) in local development
-  and `0` in production/cloud, where `0` means unlimited.
-* `REPOSITORY_MAX_FILES`: maximum parsed file count before analysis stops with
-  `413`. Defaults to `10000`.
+  interactive analysis. Defaults to `0`, where `0` means unlimited.
+* `REPOSITORY_MAX_FILES`: maximum inventoried file count. Defaults to `0`,
+  meaning unlimited. Set a positive value only when a deployment deliberately
+  wants a hard inventory ceiling.
 * `REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES`: maximum source files read for
   dependency extraction. Defaults to `2000`.
 * `REPOSITORY_MAX_DEPENDENCY_FILE_BYTES`: maximum individual source-file size
   read for dependency extraction. Defaults to `1048576`.
+* `ANALYSIS_MAX_SCAN_DURATION_MS`: whole-scan worker timeout. Defaults to
+  `7200000` (2 hours), leaving room after the separate 60-minute Git timeout.
+* `ANALYSIS_WORKER_MAX_OLD_GENERATION_MB`: worker-thread V8 old-generation
+  limit. Defaults to `2048` MB for complete very-large-repository inventories.
 
 If `EMAIL_KEY` or any context sender email is set, the matching sender email is
 also required. In production, auth email delivery requires SMTP2GO configuration
@@ -966,13 +980,18 @@ Implementation modules:
   exposes a `createReadController(deps)` factory so route handlers can be
   unit-tested with fake dependencies instead of a live database.
 
-Large repositories are guarded before and during analysis:
+Large repositories are bounded before and during content analysis:
 
 * GitHub repository size is checked before cloning when public metadata is
   available. Repositories above `REPOSITORY_MAX_SIZE_KB` return `413`. A value
   of `0` disables this size check, which is the production/cloud default.
-* Clones are shallow by default (`REPOSITORY_CLONE_DEPTH=5`) and skip tags.
-* File parsing stops with `413` above `REPOSITORY_MAX_FILES`.
+* Remote clones are shallow (`REPOSITORY_CLONE_DEPTH=5`), skip tags and blobs,
+  and do not check out the full working tree.
+* Every tracked path is inventoried from `git ls-tree`; the default
+  `REPOSITORY_MAX_FILES=0` does not impose a file-count ceiling.
+* Blob sizes are populated for materialized content-analysis files. Requesting
+  every missing blob's size would defeat partial-clone disk guarantees, so
+  inventory-only paths may expose `size: null`.
 * Dependency extraction skips oversized files and only scans up to
   `REPOSITORY_MAX_DEPENDENCY_SOURCE_FILES` source files.
 * Temporary clone cleanup is best-effort with retries. On Windows, locked git
@@ -1168,11 +1187,38 @@ Response:
 ```json
 {
   "repositoryId": "mongodb-object-id",
-  "status": "completed",
+  "status": "running",
   "message": null,
+  "progress": {
+    "phase": "inventory",
+    "label": "File inventory",
+    "phaseProgress": 42,
+    "overallProgress": 36,
+    "processed": 211584,
+    "total": 503772,
+    "message": "211,584 tracked files inventoried.",
+    "updatedAt": "2026-08-22T09:15:00.000Z"
+  },
   "updatedAt": "2026-07-21T09:15:00.000Z"
 }
 ```
+
+Lifecycle states are `queued`, `running`, `paused`, `cancelled`, `completed`,
+and `failed`. Progress is durable, so polling resumes accurately after a page
+refresh or backend restart.
+
+### Scan controls
+
+All scan controls require repository ownership and return `202` with the
+updated serialized repository:
+
+* `POST /api/repositories/:repositoryId/pause` moves a queued/running scan to
+  `paused` and cooperatively aborts the worker and Git child process.
+* `POST /api/repositories/:repositoryId/resume` moves a paused scan to `queued`
+  with a new scan token and restarts from the beginning. Partial workspaces are
+  intentionally not treated as durable checkpoints on ephemeral machines.
+* `POST /api/repositories/:repositoryId/cancel` moves a queued, running, or
+  paused scan to terminal state `cancelled` and stops active work.
 
 ### `GET /api/repositories/:repositoryId/drift`
 
@@ -1409,7 +1455,7 @@ small dependency-free registry — Counter/Gauge/Histogram). No
 the environment, requests must present it as `Authorization: Bearer <token>`
 or an `X-Metrics-Token` header, or the endpoint returns `401`. Reports:
 
-* `codepulse_scans_total{status="completed|failed|crashed|timeout|lease_lost"}`
+* `codepulse_scans_total{status="completed|failed|paused|cancelled|crashed|timeout|lease_lost"}`
   and `codepulse_scan_duration_seconds` — recorded in the main process from a
   `postMessage` the worker thread sends back on exit, since metrics recorded
   inside a `worker_threads` worker live in that worker's own isolated module

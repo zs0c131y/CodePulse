@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb'
-import { findRepositoryForUser } from '../repositories/services/repositoryQueries.js'
+import { findRepositoryForUser, serializeAnalysisProgress } from '../repositories/services/repositoryQueries.js'
 import {
   getRepositoryScore,
   getRepositoryTechnicalDebt,
@@ -16,6 +16,7 @@ import {
 
 const defaultReader = {
   findRepositoryForUser,
+  serializeAnalysisProgress,
   getRepositoryScore,
   getRepositoryTechnicalDebt,
   getRepositoryKnowledgeDebt,
@@ -104,10 +105,13 @@ export function createAnalysisController(deps = defaultReader) {
         message: status === 'failed'
           ? repository.error || 'Repository analysis failed.'
           : null,
+        progress: (deps.serializeAnalysisProgress || serializeAnalysisProgress)(repository.analysis_progress, status),
         queuedAt: toIso(repository.queued_at),
         startedAt: toIso(repository.started_at),
         completedAt: toIso(repository.completed_at),
         failedAt: toIso(repository.failed_at),
+        pausedAt: toIso(repository.paused_at),
+        cancelledAt: toIso(repository.cancelled_at),
         updatedAt: toIso(repository.updated_at),
       })
     } catch (error) {

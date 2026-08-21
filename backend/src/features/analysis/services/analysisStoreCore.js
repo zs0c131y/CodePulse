@@ -22,9 +22,13 @@ async function upsertByRepository(collection, repositoryId, patch, now) {
   return { _id: result.insertedId, ...record }
 }
 
-async function replaceModuleMetrics(collection, repositoryId, records) {
+async function replaceModuleMetrics(collection, repositoryId, records, serialize) {
   await collection.deleteMany({ repository_id: repositoryId })
-  if (records.length > 0) await collection.insertMany(records, { ordered: false })
+  const batchSize = 1000
+  for (let index = 0; index < records.length; index += batchSize) {
+    const batch = records.slice(index, index + batchSize).map(record => serialize(repositoryId, record))
+    if (batch.length > 0) await collection.insertMany(batch, { ordered: false })
+  }
 }
 
 function technicalMetricRecord(repositoryId, module, now) {
@@ -171,22 +175,26 @@ export async function persistAnalysisResultsWithCollections({ repositoryId, resu
   await replaceModuleMetrics(
     collections.technicalDebtMetrics,
     repositoryId,
-    technicalDebt.modules.map(module => technicalMetricRecord(repositoryId, module, analyzedAt)),
+    technicalDebt.modules,
+    (id, module) => technicalMetricRecord(id, module, analyzedAt),
   )
   await replaceModuleMetrics(
     collections.knowledgeDebtMetrics,
     repositoryId,
-    knowledgeDebt.moduleMetrics.map(module => knowledgeMetricRecord(repositoryId, module, analyzedAt)),
+    knowledgeDebt.moduleMetrics,
+    (id, module) => knowledgeMetricRecord(id, module, analyzedAt),
   )
   await replaceModuleMetrics(
     collections.driftFindings,
     repositoryId,
-    drift.findings.map(finding => driftFindingRecord(repositoryId, finding, analyzedAt)),
+    drift.findings,
+    (id, finding) => driftFindingRecord(id, finding, analyzedAt),
   )
   await replaceModuleMetrics(
     collections.recommendations,
     repositoryId,
-    recommendations.map(recommendation => recommendationRecord(repositoryId, recommendation, analyzedAt)),
+    recommendations,
+    (id, recommendation) => recommendationRecord(id, recommendation, analyzedAt),
   )
 
   return {

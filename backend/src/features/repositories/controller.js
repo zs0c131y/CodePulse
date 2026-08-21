@@ -7,6 +7,7 @@ import {
   renewRepositoryAnalysisLease,
   persistRepositoryAnalysis,
   queueRepositoryAnalysis,
+  updateRepositoryAnalysisProgress,
 } from './services/repositoryStore.js'
 import { enqueueRepositoryAnalysis } from './services/analysisQueue.js'
 import { ANALYSIS_LEASE_HEARTBEAT_MS, ANALYSIS_LEASE_TTL_MS } from '../../config/index.js'
@@ -17,11 +18,37 @@ const defaultControllerDependencies = {
   markRepositoryAnalysisFailed,
   markRepositoryAnalysisRunning,
   renewRepositoryAnalysisLease,
+  updateRepositoryAnalysisProgress,
   parseGitHubRepositoryUrl,
   persistRepositoryAnalysis,
   queueRepositoryAnalysis,
   scheduleAnalysisJob: enqueueRepositoryAnalysis,
   logError: (message, error) => console.error(message, error),
+}
+
+const controlledStopCodes = new Set(['ANALYSIS_PAUSED', 'ANALYSIS_CANCELLED'])
+
+function createProgressReporter(job, deps) {
+  let lastPersistedAt = 0
+  let lastPhase = null
+  let chain = Promise.resolve()
+
+  function report(progress = {}) {
+    const now = Date.now()
+    const phaseChanged = progress.phase && progress.phase !== lastPhase
+    const shouldPersist = phaseChanged || progress.overallProgress === 100 || now - lastPersistedAt >= 1000
+    if (!shouldPersist || typeof deps.updateRepositoryAnalysisProgress !== 'function') return chain
+
+    lastPersistedAt = now
+    lastPhase = progress.phase || lastPhase
+    chain = chain
+      .then(() => deps.updateRepositoryAnalysisProgress({ ...job, progress }))
+      .catch(error => deps.logError(`Could not persist analysis progress for repository ${job.repositoryId}.`, error))
+    return chain
+  }
+
+  report.flush = () => chain
+  return report
 }
 
 function safeAnalysisFailureMessage(error) {
@@ -32,8 +59,9 @@ function safeAnalysisFailureMessage(error) {
   return String(error?.message || 'Repository analysis failed.').slice(0, 500)
 }
 
-export async function runRepositoryAnalysisJob(job, deps = defaultControllerDependencies) {
+export async function runRepositoryAnalysisJob(job, deps = defaultControllerDependencies, options = {}) {
   let leaseHeartbeat = null
+  const reportProgress = createProgressReporter(job, deps)
   try {
     const claimed = await deps.markRepositoryAnalysisRunning(job, { leaseTtlMs: ANALYSIS_LEASE_TTL_MS })
     if (!claimed) return false
@@ -53,6 +81,8 @@ export async function runRepositoryAnalysisJob(job, deps = defaultControllerDepe
       repositoryId: job.repositoryId,
       scanId: job.scanId,
       commitLimit: job.commitLimit,
+      signal: options.signal,
+      onProgress: reportProgress,
       persistAnalysis: analysis => deps.persistRepositoryAnalysis(analysis, {
         repositoryId: job.repositoryId,
         scanId: job.scanId,
@@ -61,13 +91,19 @@ export async function runRepositoryAnalysisJob(job, deps = defaultControllerDepe
       }),
     })
 
+    await reportProgress.flush()
     const completed = await deps.markRepositoryAnalysisCompleted(job)
     return completed
   } catch (error) {
+    if (controlledStopCodes.has(error?.code)) return false
+
+    const failureMessage = error?.code === 'ANALYSIS_TIMEOUT'
+      ? 'Repository analysis exceeded the maximum scan duration.'
+      : safeAnalysisFailureMessage(error)
     try {
       await deps.markRepositoryAnalysisFailed({
         ...job,
-        error: safeAnalysisFailureMessage(error),
+        error: failureMessage,
       })
     } catch (statusError) {
       deps.logError(`Could not persist failed analysis status for repository ${job.repositoryId}.`, statusError)
@@ -148,4 +184,3 @@ export function createRepositoryController(deps = defaultControllerDependencies)
 }
 
 export const analyzeRepository = createRepositoryController()
-

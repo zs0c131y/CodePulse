@@ -76,3 +76,23 @@ test('stops parsing when a repository exceeds the configured file limit', async 
     await rm(root, { recursive: true, force: true, maxRetries: 3 })
   }
 })
+
+test('inventories every tracked Git-tree file when the file limit is unlimited', async () => {
+  const entries = [
+    '100644 blob aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\tREADME.md',
+    '100644 blob bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\tsrc/app.cc',
+    '100644 blob cccccccccccccccccccccccccccccccccccccccc\tsrc/lib/helper.h',
+  ].join('\0') + '\0'
+  const progress = []
+  const parsed = await parseRepositoryStructure('unused', {
+    trackedTreeOnly: true,
+    maxFiles: 0,
+    async runGitImpl() { return { stdout: entries, stderr: '' } },
+    onProgress(value) { progress.push(value) },
+  })
+
+  assert.equal(parsed.summary.totalFiles, 3)
+  assert.deepEqual(parsed.files.map(file => file.path), ['README.md', 'src/app.cc', 'src/lib/helper.h'])
+  assert.deepEqual(parsed.directories.map(directory => directory.path), ['src', 'src/lib'])
+  assert.equal(progress.at(-1).processed, 3)
+})

@@ -70,7 +70,12 @@ export async function extractDocumentation(repositoryPath, files, options = {}) 
   const maxTotalBytes = Math.max(maxContentBytes, Number(options.maxTotalBytes) || 16 * 1024 * 1024)
   let totalBytes = 0
 
-  for (const file of files.filter(isDocumentationCandidate).slice(0, maxFiles)) {
+  const candidates = files.filter(isDocumentationCandidate).slice(0, maxFiles)
+
+  for (const file of candidates) {
+    if (options.signal?.aborted) {
+      throw options.signal.reason instanceof Error ? options.signal.reason : Object.assign(new Error('Repository analysis cancelled.'), { code: 'ABORT_ERR' })
+    }
     if (totalBytes >= maxTotalBytes) break
     const absolutePath = absolutePathFromRepo(repositoryPath, file.path)
     const buffer = await readFile(absolutePath)
@@ -88,6 +93,11 @@ export async function extractDocumentation(repositoryPath, files, options = {}) 
       content_summary: summarizeDocumentation(content),
       size: file.size,
       truncated,
+    })
+    await options.onProgress?.({
+      processed: docs.length,
+      total: candidates.length,
+      message: `${docs.length.toLocaleString()} documentation files extracted.`,
     })
   }
 

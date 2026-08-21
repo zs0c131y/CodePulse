@@ -6,6 +6,19 @@ function toDate(value) {
 
 const ACTIVE_ANALYSIS_STATUSES = ['queued', 'running']
 
+function queuedProgress(now) {
+  return {
+    phase: 'queued',
+    label: 'Queued',
+    phase_progress: 0,
+    overall_progress: 0,
+    processed: null,
+    total: null,
+    message: 'Waiting for an analysis worker.',
+    updated_at: now,
+  }
+}
+
 function unwrapUpdatedDocument(result) {
   if (!result) return null
   return result.value === undefined ? result : result.value
@@ -34,6 +47,9 @@ export async function queueRepositoryAnalysisWithCollection(input, repositories,
     failed_at: null,
     worker_id: null,
     lease_expires_at: null,
+    paused_at: null,
+    cancelled_at: null,
+    analysis_progress: queuedProgress(now),
     updated_at: now,
   }
 
@@ -120,6 +136,18 @@ export async function markRepositoryAnalysisRunningWithCollection(input, reposit
       started_at: now,
       completed_at: null,
       failed_at: null,
+      paused_at: null,
+      cancelled_at: null,
+      analysis_progress: {
+        phase: 'cloning',
+        label: 'Repository clone',
+        phase_progress: 0,
+        overall_progress: 1,
+        processed: null,
+        total: null,
+        message: 'Starting filtered Git clone.',
+        updated_at: now,
+      },
       ...(input.workerId
         ? {
             worker_id: input.workerId,
@@ -144,6 +172,16 @@ export async function markRepositoryAnalysisCompletedWithCollection(input, repos
       failed_at: null,
       worker_id: null,
       lease_expires_at: null,
+      analysis_progress: {
+        phase: 'completed',
+        label: 'Analysis complete',
+        phase_progress: 100,
+        overall_progress: 100,
+        processed: null,
+        total: null,
+        message: 'Repository analysis completed.',
+        updated_at: now,
+      },
       updated_at: now,
     },
   )
@@ -165,9 +203,114 @@ export async function markRepositoryAnalysisFailedWithCollection(input, reposito
       failed_at: now,
       worker_id: null,
       lease_expires_at: null,
+      analysis_progress: {
+        phase: 'failed',
+        label: 'Analysis failed',
+        phase_progress: 100,
+        overall_progress: 100,
+        processed: null,
+        total: null,
+        message: String(input.error || 'Repository analysis failed.').slice(0, 500),
+        updated_at: now,
+      },
       updated_at: now,
     },
   )
+}
+
+export async function updateRepositoryAnalysisProgressWithCollection(input, repositories, options = {}) {
+  const now = options.now || new Date()
+  const progress = input.progress || {}
+  return updateRepositoryLifecycleWithCollection(
+    input,
+    repositories,
+    { status: 'running', ...(input.workerId ? { worker_id: input.workerId } : {}) },
+    {
+      analysis_progress: {
+        phase: String(progress.phase || 'running').slice(0, 80),
+        label: String(progress.label || 'Repository analysis').slice(0, 120),
+        phase_progress: Math.max(0, Math.min(100, Number(progress.phaseProgress) || 0)),
+        overall_progress: Math.max(0, Math.min(100, Number(progress.overallProgress) || 0)),
+        processed: Number.isFinite(progress.processed) ? Math.max(0, progress.processed) : null,
+        total: Number.isFinite(progress.total) ? Math.max(0, progress.total) : null,
+        message: progress.message ? String(progress.message).slice(0, 300) : null,
+        updated_at: now,
+      },
+      updated_at: now,
+    },
+  )
+}
+
+export async function pauseRepositoryAnalysisWithCollection(input, repositories, options = {}) {
+  const now = options.now || new Date()
+  return updateRepositoryLifecycleWithCollection(
+    input,
+    repositories,
+    { status: { $in: ACTIVE_ANALYSIS_STATUSES } },
+    {
+      status: 'paused',
+      paused_at: now,
+      worker_id: null,
+      lease_expires_at: null,
+      analysis_progress: {
+        ...(input.progress || {}),
+        message: 'Analysis paused. Resume restarts this scan from the beginning.',
+        updated_at: now,
+      },
+      updated_at: now,
+    },
+  )
+}
+
+export async function cancelRepositoryAnalysisWithCollection(input, repositories, options = {}) {
+  const now = options.now || new Date()
+  return updateRepositoryLifecycleWithCollection(
+    input,
+    repositories,
+    { status: { $in: [...ACTIVE_ANALYSIS_STATUSES, 'paused'] } },
+    {
+      status: 'cancelled',
+      cancelled_at: now,
+      worker_id: null,
+      lease_expires_at: null,
+      analysis_progress: {
+        ...(input.progress || {}),
+        message: 'Analysis cancelled.',
+        updated_at: now,
+      },
+      updated_at: now,
+    },
+  )
+}
+
+export async function resumeRepositoryAnalysisWithCollection(input, repositories, options = {}) {
+  const now = options.now || new Date()
+  const result = await repositories.findOneAndUpdate(
+    {
+      _id: input.repositoryId,
+      user_id: input.userId,
+      status: 'paused',
+    },
+    {
+      $set: {
+        status: 'queued',
+        scan_id: input.scanId,
+        error: null,
+        queued_at: now,
+        started_at: null,
+        completed_at: null,
+        failed_at: null,
+        paused_at: null,
+        cancelled_at: null,
+        worker_id: null,
+        lease_expires_at: null,
+        analysis_progress: queuedProgress(now),
+        updated_at: now,
+      },
+    },
+    { returnDocument: 'after' },
+  )
+  return unwrapUpdatedDocument(result)
 }
 
 export async function renewRepositoryAnalysisLeaseWithCollection(input, repositories, options = {}) {
@@ -184,11 +327,14 @@ export async function renewRepositoryAnalysisLeaseWithCollection(input, reposito
   )
 }
 
-async function replaceChildRecords(collection, repositoryId, records) {
+async function replaceChildRecords(collection, repositoryId, records, serialize, options = {}) {
   await collection.deleteMany({ repository_id: repositoryId })
 
-  if (records.length > 0) {
-    await collection.insertMany(records, { ordered: false })
+  const batchSize = options.batchSize || 1000
+  for (let index = 0; index < records.length; index += batchSize) {
+    const batch = records.slice(index, index + batchSize).map(record => serialize(record, repositoryId))
+    if (batch.length > 0) await collection.insertMany(batch, { ordered: false })
+    await options.onProgress?.({ processed: Math.min(index + batchSize, records.length), total: records.length })
   }
 }
 
@@ -261,22 +407,24 @@ export async function persistRepositoryAnalysisWithCollections(analysis, collect
   await replaceChildRecords(
     collections.repoFiles,
     repositoryId,
-    analysis.files.map(file => ({
+    analysis.files,
+    file => ({
       repository_id: repositoryId,
       file_path: file.path,
       file_name: file.name,
       extension: file.extension,
       file_type: file.file_type,
       language: file.language,
-      size: file.size,
+      ...(Number.isFinite(file.size) ? { size: file.size } : {}),
       depth: file.depth,
-    })),
+    }),
   )
 
   await replaceChildRecords(
     collections.documentation,
     repositoryId,
-    analysis.documentation.map(doc => ({
+    analysis.documentation,
+    doc => ({
       repository_id: repositoryId,
       doc_path: doc.doc_path,
       file_name: doc.file_name,
@@ -285,13 +433,14 @@ export async function persistRepositoryAnalysisWithCollections(analysis, collect
       content: doc.content,
       size: doc.size,
       truncated: doc.truncated,
-    })),
+    }),
   )
 
   await replaceChildRecords(
     collections.commits,
     repositoryId,
-    analysis.commits.map(commit => ({
+    analysis.commits,
+    commit => ({
       repository_id: repositoryId,
       commit_hash: commit.commit_hash,
       author: commit.author,
@@ -299,20 +448,21 @@ export async function persistRepositoryAnalysisWithCollections(analysis, collect
       message: commit.message,
       commit_date: toDate(commit.commit_date),
       changed_files: commit.changed_files,
-    })),
+    }),
   )
 
   await replaceChildRecords(
     collections.dependencies,
     repositoryId,
-    analysis.dependencies.map(dependency => ({
+    analysis.dependencies,
+    dependency => ({
       repository_id: repositoryId,
       source_file: dependency.source_file,
       target_file: dependency.target_file,
       dependency_type: dependency.dependency_type,
       import_path: dependency.import_path,
       resolved: dependency.resolved,
-    })),
+    }),
   )
 
   return {

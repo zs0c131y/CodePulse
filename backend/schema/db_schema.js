@@ -338,7 +338,7 @@ db.createCollection("repositories", {
                     bsonType: "string"
                 },
                 status: {
-                    enum: ["queued", "running", "completed", "failed"]
+                    enum: ["queued", "running", "paused", "cancelled", "completed", "failed"]
                 },
                 scan_id: { bsonType: "string" },
                 commit_limit: { bsonType: "int" },
@@ -349,6 +349,21 @@ db.createCollection("repositories", {
                 started_at: { bsonType: ["date", "null"] },
                 completed_at: { bsonType: ["date", "null"] },
                 failed_at: { bsonType: ["date", "null"] },
+                paused_at: { bsonType: ["date", "null"] },
+                cancelled_at: { bsonType: ["date", "null"] },
+                analysis_progress: {
+                    bsonType: "object",
+                    properties: {
+                        phase: { bsonType: ["string", "null"] },
+                        label: { bsonType: ["string", "null"] },
+                        phase_progress: { bsonType: ["int", "long", "double"] },
+                        overall_progress: { bsonType: ["int", "long", "double"] },
+                        processed: { bsonType: ["int", "long", "double", "null"] },
+                        total: { bsonType: ["int", "long", "double", "null"] },
+                        message: { bsonType: ["string", "null"] },
+                        updated_at: { bsonType: ["date", "null"] }
+                    }
+                },
                 total_files: {
                     bsonType: "int"
                 },

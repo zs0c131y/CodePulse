@@ -67,6 +67,20 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
+export function serializeAnalysisProgress(progress, status = null) {
+  const source = progress || {}
+  return {
+    phase: source.phase || status || null,
+    label: source.label || null,
+    phaseProgress: Math.max(0, Math.min(100, Number(source.phase_progress) || 0)),
+    overallProgress: Math.max(0, Math.min(100, Number(source.overall_progress) || 0)),
+    processed: Number.isFinite(source.processed) ? source.processed : null,
+    total: Number.isFinite(source.total) ? source.total : null,
+    message: source.message || null,
+    updatedAt: toIso(source.updated_at),
+  }
+}
+
 export function serializeRepository(repository) {
   return {
     id: repository._id.toString(),
@@ -75,6 +89,8 @@ export function serializeRepository(repository) {
     url: repository.repo_url,
     defaultBranch: repository.default_branch,
     status: repository.status || null,
+    error: repository.error || null,
+    progress: serializeAnalysisProgress(repository.analysis_progress, repository.status),
     totalFiles: repository.total_files ?? 0,
     totalCommits: repository.total_commits ?? 0,
     totalDependencies: repository.total_dependencies ?? 0,
@@ -82,6 +98,12 @@ export function serializeRepository(repository) {
     scanIntervalHours: repository.scan_interval_hours ?? null,
     nextScanAt: toIso(repository.next_scan_at),
     createdAt: toIso(repository.created_at),
+    queuedAt: toIso(repository.queued_at),
+    startedAt: toIso(repository.started_at),
+    completedAt: toIso(repository.completed_at),
+    failedAt: toIso(repository.failed_at),
+    pausedAt: toIso(repository.paused_at),
+    cancelledAt: toIso(repository.cancelled_at),
     updatedAt: toIso(repository.updated_at),
   }
 }
@@ -93,7 +115,7 @@ function serializeFile(file) {
     extension: file.extension,
     fileType: file.file_type,
     language: file.language,
-    size: file.size,
+    size: Number.isFinite(file.size) ? file.size : null,
     depth: file.depth,
   }
 }

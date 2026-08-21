@@ -150,7 +150,11 @@ export async function generateDependencyGraph(repositoryPath, files, options = {
   const sourcePathSet = new Set(coverage.scannedFilePaths)
   const sourceFiles = files.filter(file => sourcePathSet.has(file.path))
 
-  for (const file of sourceFiles) {
+  for (let index = 0; index < sourceFiles.length; index += 1) {
+    if (options.signal?.aborted) {
+      throw options.signal.reason instanceof Error ? options.signal.reason : Object.assign(new Error('Repository analysis cancelled.'), { code: 'ABORT_ERR' })
+    }
+    const file = sourceFiles[index]
     const content = await readFile(absolutePathFromRepo(repositoryPath, file.path), 'utf8')
 
     if (file.language.startsWith('JavaScript') || file.language.startsWith('TypeScript')) {
@@ -162,6 +166,13 @@ export async function generateDependencyGraph(repositoryPath, files, options = {
           dependency_type: importPath.startsWith('.') ? 'relative-import' : 'package-import',
           import_path: importPath,
           resolved: resolved.resolved,
+        })
+      }
+      if (index === 0 || (index + 1) % 25 === 0 || index + 1 === sourceFiles.length) {
+        await options.onProgress?.({
+          processed: index + 1,
+          total: sourceFiles.length,
+          message: `${(index + 1).toLocaleString()} source files checked for dependencies.`,
         })
       }
       continue
@@ -178,6 +189,14 @@ export async function generateDependencyGraph(repositoryPath, files, options = {
           resolved: resolved.resolved,
         })
       }
+    }
+
+    if (index === 0 || (index + 1) % 25 === 0 || index + 1 === sourceFiles.length) {
+      await options.onProgress?.({
+        processed: index + 1,
+        total: sourceFiles.length,
+        message: `${(index + 1).toLocaleString()} source files checked for dependencies.`,
+      })
     }
   }
 

@@ -4,6 +4,10 @@ import {
   markRepositoryAnalysisCompletedWithCollection,
   markRepositoryAnalysisFailedWithCollection,
   markRepositoryAnalysisRunningWithCollection,
+  pauseRepositoryAnalysisWithCollection,
+  cancelRepositoryAnalysisWithCollection,
+  resumeRepositoryAnalysisWithCollection,
+  updateRepositoryAnalysisProgressWithCollection,
   persistRepositoryAnalysisWithCollections,
   queueRepositoryAnalysisWithCollection,
 } from '../src/features/repositories/services/repositoryStoreCore.js'
@@ -291,5 +295,51 @@ test('records a safe failed state only for the active owner scan token', async (
   assert.equal(collections.repositories.records[0].status, 'failed')
   assert.equal(collections.repositories.records[0].error, 'Repository was not found.')
   assert.equal(collections.repositories.records[0].failed_at, failedAt)
+})
+
+test('persists progress and supports pause, resume, and cancel lifecycle transitions', async () => {
+  const collections = createCollections()
+  const repository = {
+    name: 'demo',
+    fullName: 'owner/demo',
+    webUrl: 'https://github.com/owner/demo',
+    cloneUrl: 'https://github.com/owner/demo.git',
+  }
+  const queued = await queueRepositoryAnalysisWithCollection(
+    { userId: 'user-1', scanId: 'scan-1', commitLimit: 100, repository },
+    collections.repositories,
+  )
+  await markRepositoryAnalysisRunningWithCollection(
+    { repositoryId: queued.repositoryId, userId: 'user-1', scanId: 'scan-1', workerId: 'worker-1' },
+    collections.repositories,
+  )
+  const progress = {
+    phase: 'inventory', label: 'File inventory', phaseProgress: 25, overallProgress: 35,
+    processed: 250, total: 1000, message: '250 files inventoried.',
+  }
+  assert.equal(await updateRepositoryAnalysisProgressWithCollection(
+    { repositoryId: queued.repositoryId, userId: 'user-1', scanId: 'scan-1', workerId: 'worker-1', progress },
+    collections.repositories,
+  ), true)
+  assert.equal(collections.repositories.records[0].analysis_progress.overall_progress, 35)
+
+  assert.equal(await pauseRepositoryAnalysisWithCollection(
+    { repositoryId: queued.repositoryId, userId: 'user-1', scanId: 'scan-1', progress: collections.repositories.records[0].analysis_progress },
+    collections.repositories,
+  ), true)
+  assert.equal(collections.repositories.records[0].status, 'paused')
+
+  const resumed = await resumeRepositoryAnalysisWithCollection(
+    { repositoryId: queued.repositoryId, userId: 'user-1', scanId: 'scan-2' },
+    collections.repositories,
+  )
+  assert.equal(resumed.status, 'queued')
+  assert.equal(resumed.scan_id, 'scan-2')
+
+  assert.equal(await cancelRepositoryAnalysisWithCollection(
+    { repositoryId: queued.repositoryId, userId: 'user-1', scanId: 'scan-2', progress: resumed.analysis_progress },
+    collections.repositories,
+  ), true)
+  assert.equal(collections.repositories.records[0].status, 'cancelled')
 })
 

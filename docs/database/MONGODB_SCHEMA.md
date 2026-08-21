@@ -219,6 +219,13 @@ Optional fields:
 * `repo_full_name` (`string`): Owner/name identifier when available from GitHub.
 * `clone_url` (`string`): Normalized Git clone URL used by the analyzer.
 * `default_branch` (`string`): Primary branch.
+* `status` (`enum`): `queued`, `running`, `paused`, `cancelled`, `completed`,
+  or `failed`.
+* `analysis_progress` (`object`): Durable phase label, phase/overall
+  percentages, optional processed/total counts, current message, and update
+  timestamp used by live dashboard polling.
+* `queued_at`, `started_at`, `completed_at`, `failed_at`, `paused_at`,
+  `cancelled_at` (`date|null`): Analysis lifecycle timestamps.
 * `total_files` (`int`): Parsed file count.
 * `total_commits` (`int`): Parsed commit count.
 * `total_dependencies` (`int`): Parsed dependency edge count.
@@ -244,7 +251,8 @@ Optional fields:
 * `extension` (`string`): Lowercased file extension.
 * `file_type` (`string`): Code, config, text, asset, etc.
 * `language` (`string`): Detected programming language.
-* `size` (`int`): File size.
+* `size` (`int`, optional): File size for blobs materialized during content
+  analysis. Inventory-only partial-clone entries omit this field.
 * `depth` (`int`): Repository-relative path depth.
 
 Indexes:

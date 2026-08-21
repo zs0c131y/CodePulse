@@ -1,5 +1,6 @@
-import { AlertTriangle, CheckCircle2, Clock3, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock3, Pause, PauseCircle, Play, RefreshCw, X, XCircle } from 'lucide-react'
 import { EmptyPanel } from './shared'
+import { Button } from '../ui/button'
 
 /**
  * Analysis pipeline. The stage list mirrors the seven verticals in
@@ -29,6 +30,20 @@ function pipelineStatusMeta(status) {
       fill: 'var(--sev-critical)',
     }
   }
+  if (status === 'Paused') {
+    return {
+      icon: PauseCircle,
+      badgeClass: 'border-[var(--sev-medium-line)] bg-[var(--sev-medium-wash)] text-[var(--sev-medium-ink)]',
+      fill: 'var(--sev-medium)',
+    }
+  }
+  if (status === 'Cancelled') {
+    return {
+      icon: XCircle,
+      badgeClass: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--ink-3)]',
+      fill: 'var(--ink-4)',
+    }
+  }
   return {
     icon: Clock3,
     badgeClass: 'border-[var(--line-2)] bg-[var(--surface-3)] text-[var(--ink-3)]',
@@ -40,6 +55,11 @@ export default function PipelinePanel({
   items = [],
   title = 'Analysis pipeline',
   description = 'Current processing state for the selected repository.',
+  taskStatus = null,
+  controlLoading = null,
+  onPause,
+  onResume,
+  onCancel,
 }) {
   if (items.length === 0) {
     return (
@@ -53,13 +73,39 @@ export default function PipelinePanel({
 
   return (
     <section className="panel p-5 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-sm font-semibold text-[var(--ink-1)]">{title}</h2>
           <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">{description}</p>
         </div>
-        <RefreshCw size={16} className="text-[var(--ink-4)]" aria-hidden="true" />
+        <div className="flex flex-wrap items-center gap-2">
+          {['queued', 'running'].includes(taskStatus) && onPause && (
+            <Button type="button" variant="outline" size="sm" onClick={onPause} disabled={Boolean(controlLoading)}>
+              {controlLoading === 'pause' ? <RefreshCw size={14} className="motion-safe-loop animate-spin" /> : <Pause size={14} />}
+              Pause
+            </Button>
+          )}
+          {taskStatus === 'paused' && onResume && (
+            <Button type="button" variant="outline" size="sm" onClick={onResume} disabled={Boolean(controlLoading)}>
+              {controlLoading === 'resume' ? <RefreshCw size={14} className="motion-safe-loop animate-spin" /> : <Play size={14} />}
+              Resume
+            </Button>
+          )}
+          {['queued', 'running', 'paused'].includes(taskStatus) && onCancel && (
+            <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={Boolean(controlLoading)}>
+              {controlLoading === 'cancel' ? <RefreshCw size={14} className="motion-safe-loop animate-spin" /> : <X size={14} />}
+              Cancel
+            </Button>
+          )}
+          {!['queued', 'running', 'paused'].includes(taskStatus) && (
+            <RefreshCw size={16} className="text-[var(--ink-4)]" aria-hidden="true" />
+          )}
+        </div>
       </div>
+
+      <p className="sr-only" aria-live="polite">
+        {items.find(item => ['Running', 'Paused', 'Failed', 'Cancelled'].includes(item.status))?.detail || ''}
+      </p>
 
       <ol className="mt-5 space-y-4">
         {items.map(item => {

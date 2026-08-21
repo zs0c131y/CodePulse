@@ -1185,7 +1185,11 @@ export async function analyzeCodeStructure(repositoryPath, files, options = {}) 
   const codeFacts = []
   const sourceContents = new Map()
 
-  for (const file of selected) {
+  for (let index = 0; index < selected.length; index += 1) {
+    if (options.signal?.aborted) {
+      throw options.signal.reason instanceof Error ? options.signal.reason : Object.assign(new Error('Repository analysis cancelled.'), { code: 'ABORT_ERR' })
+    }
+    const file = selected[index]
     try {
       const content = await readFile(absolutePathFromRepo(repositoryPath, file.path), 'utf8')
       const facts = analyzeSourceFile({
@@ -1201,6 +1205,14 @@ export async function analyzeCodeStructure(repositoryPath, files, options = {}) 
         filePath: normalizePath(file.path),
         reason: 'read_error',
         errorCode: error?.code || null,
+      })
+    }
+
+    if (index === 0 || (index + 1) % 25 === 0 || index + 1 === selected.length) {
+      await options.onProgress?.({
+        processed: index + 1,
+        total: selected.length,
+        message: `${(index + 1).toLocaleString()} supported source files analyzed.`,
       })
     }
   }
