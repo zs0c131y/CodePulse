@@ -12,6 +12,15 @@ import {
 
 const execFileAsync = promisify(execFile)
 const githubRepoPattern = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/
+const inaccessibleCloneErrorPattern = /could not read username|terminal prompts disabled|authentication failed|repository not found/i
+
+// A private, renamed, or deleted GitHub repository fails clone with a raw git
+// auth-prompt error rather than a clean 404 — the pre-flight metadata check
+// (assertRepositorySizeAllowed) is best-effort and can silently pass through
+// on network hiccups, so this is the reliable place to catch it.
+export function isInaccessibleCloneError(message) {
+  return inaccessibleCloneErrorPattern.test(String(message || ''))
+}
 
 export const defaultRepositoryWorkspace = join(tmpdir(), 'codepulse', 'repositories')
 const cleanupRetryDelayMs = 500
@@ -171,9 +180,16 @@ export async function cloneRepository(sourceUrl, options = {}) {
   try {
     await runGit(['clone', '--no-tags', '--single-branch', '--depth', String(cloneDepth), repositoryInfo.cloneUrl, targetPath], {
       timeoutMs: options.timeoutMs || REPOSITORY_CLONE_TIMEOUT_MS,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
     })
   } catch (error) {
     await removeRepositoryWorkspace(targetPath)
+    if (!options.allowLocalPath && isInaccessibleCloneError(error.message)) {
+      const wrapped = new Error('Repository was not found or is not public.')
+      wrapped.statusCode = 404
+      wrapped.cause = error
+      throw wrapped
+    }
     throw error
   }
 

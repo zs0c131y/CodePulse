@@ -8,6 +8,7 @@ import { promisify } from 'node:util'
 import {
   assertRepositorySizeAllowed,
   cloneRepository,
+  isInaccessibleCloneError,
   parseGitHubRepositoryUrl,
   runGit,
   validatePublicGitHubRepositoryUrl,
@@ -104,6 +105,16 @@ test('allows unlimited repository size when the size limit is zero', async () =>
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('recognizes the raw git errors a private or missing repository produces', () => {
+  assert.equal(
+    isInaccessibleCloneError("fatal: could not read Username for 'https://github.com': No such device or address"),
+    true,
+  )
+  assert.equal(isInaccessibleCloneError("fatal: could not read Username for 'https://github.com': terminal prompts disabled"), true)
+  assert.equal(isInaccessibleCloneError('remote: Repository not found.\nfatal: repository not found'), true)
+  assert.equal(isInaccessibleCloneError('fatal: unable to access: Could not resolve host'), false)
 })
 
 test('returns a service error when git is unavailable', async () => {
