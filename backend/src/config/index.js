@@ -125,10 +125,13 @@ export const REPOSITORY_CLONE_TIMEOUT_MS = readPositiveIntegerEnv('REPOSITORY_CL
 // staleness scoring. This remains a shallow clone while allowing those signals
 // to be available on a normal scan.
 export const REPOSITORY_CLONE_DEPTH = readPositiveIntegerEnv('REPOSITORY_CLONE_DEPTH', 5)
-// 0 disables the size check entirely (see assertRepositorySizeAllowed).
+// 0 disables the size check entirely (see assertRepositorySizeAllowed). Kept
+// high rather than 0 — an unbounded clone can OOM the machine (chromium/chromium
+// is ~66GB and did exactly that), but the old 1GB default rejected legitimately
+// large repos.
 export const REPOSITORY_MAX_SIZE_KB = readNonNegativeIntegerEnv(
   'REPOSITORY_MAX_SIZE_KB',
-  0,
+  8 * 1024 * 1024,
 )
 export const REPOSITORY_MAX_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_FILES', 10000)
 export const REPOSITORY_MAX_DOCUMENTATION_FILES = readPositiveIntegerEnv('REPOSITORY_MAX_DOCUMENTATION_FILES', 500)
