@@ -15,11 +15,12 @@ auto_stop_machines = true
 force_https = true
 internal_port = 3000
 min_machines_running = 0
-max_machines_running = 1
+max_machines_running = 3
 
-[[vm]]
-  memory = '512mb'
-  size = 'shared-cpu-2x'
+[http_service.concurrency]
+type = "requests"
+soft_limit = 10
+hard_limit = 15
 
 [[vm]]
   memory = '4gb'
