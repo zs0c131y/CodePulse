@@ -30,9 +30,9 @@ function sectionDescription(section, singular, plural = `${singular}s`) {
   return `${total} ${noun} captured in this snapshot.`
 }
 
-function ReportSection({ icon: Icon, eyebrow, title, description, children, available = true }) {
+function ReportSection({ id, icon: Icon, eyebrow, title, description, children, available = true }) {
   return (
-    <section className="report-section panel overflow-hidden">
+    <section id={id} className="report-section panel scroll-mt-20 overflow-hidden">
       <div className="flex items-start gap-3 border-b border-[var(--line-1)] px-5 py-4 sm:px-6">
         <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[var(--r-md)] bg-[var(--surface-2)] text-[var(--ink-3)]">
           <Icon size={16} aria-hidden="true" />
@@ -162,7 +162,34 @@ export default function ReportDocument({ report }) {
         </div>
       </section>
 
+      <nav
+        aria-label="Jump to report section"
+        className="report-screen-only sticky top-14 z-20 -mx-1 flex flex-wrap gap-1 rounded-[var(--r-md)] border border-[var(--line-1)] bg-[var(--surface-1)] p-2 text-sm shadow-[var(--shadow-e1)] sm:top-16"
+      >
+        {[
+          ['section-health', 'Health', true],
+          ['section-debt', 'Debt', technicalDebtAvailable],
+          ['section-drift', 'Drift', knowledgeDriftAvailable],
+          ['section-actions', 'Actions', recommendationsAvailable],
+          ['section-ownership', 'Ownership', contributorsAvailable],
+          ['section-ledger', 'Ledger', true],
+        ].map(([id, label, available]) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            className={`rounded-[var(--r-xs)] px-2.5 py-1 transition-colors duration-[var(--d-2)] ${
+              available
+                ? 'text-[var(--ink-2)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]'
+                : 'text-[var(--ink-4)]'
+            }`}
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+
       <ReportSection
+        id="section-health"
         icon={ShieldCheck}
         eyebrow="01 / Health"
         title="Repository health summary"
@@ -184,6 +211,7 @@ export default function ReportDocument({ report }) {
       </ReportSection>
 
       <ReportSection
+        id="section-debt"
         icon={GitBranch}
         eyebrow="02 / Debt"
         title="Highest-risk modules"
@@ -223,6 +251,7 @@ export default function ReportDocument({ report }) {
       </ReportSection>
 
       <ReportSection
+        id="section-drift"
         icon={BookOpenCheck}
         eyebrow="03 / Drift"
         title="Knowledge drift findings"
@@ -254,6 +283,7 @@ export default function ReportDocument({ report }) {
       </ReportSection>
 
       <ReportSection
+        id="section-actions"
         icon={Sparkles}
         eyebrow="04 / Actions"
         title="AI recommendations"
@@ -284,6 +314,7 @@ export default function ReportDocument({ report }) {
       </ReportSection>
 
       <ReportSection
+        id="section-ownership"
         icon={Users}
         eyebrow="05 / Ownership"
         title="Contributor distribution"
@@ -311,7 +342,7 @@ export default function ReportDocument({ report }) {
         ) : <p className="text-sm text-[var(--ink-3)]">No contributor records were captured in this snapshot.</p>}
       </ReportSection>
 
-      <section className="report-section panel p-5 sm:p-6">
+      <section id="section-ledger" className="report-section panel scroll-mt-20 p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-[var(--ink-1)]">Availability ledger</h2>
         <p className="mt-1 text-[0.8125rem] text-[var(--ink-3)]">
           This immutable snapshot never substitutes sample data for unavailable evidence.

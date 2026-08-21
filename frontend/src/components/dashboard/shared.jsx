@@ -13,17 +13,42 @@ export function Tooltip({ label }) {
  * Severity badge — icon + label + colour, never colour alone.
  * The only sanctioned way to render a severity: Medium and High sit below
  * 3:1 as marks on the light surface by design, and the icon is the mitigation.
+ *
+ * Pass `reasons` (an array of evidence strings) to make the badge hoverable/
+ * focusable so the ranking is explained on demand instead of only in a
+ * separate detail view.
  */
-export function SeverityBadge({ severity, className = '' }) {
+export function SeverityBadge({ severity, className = '', reasons }) {
   const meta = severityMeta(severity)
   const Icon = meta.icon
-
-  return (
+  const badge = (
     <span
       className={`inline-flex items-center gap-1.5 rounded-[var(--r-xs)] border px-2 py-0.5 text-xs font-semibold ${meta.className} ${className}`}
     >
       <Icon size={13} className="shrink-0" aria-hidden="true" />
       {severity}
+    </span>
+  )
+
+  if (!reasons || reasons.length === 0) return badge
+
+  return (
+    <span className="group relative inline-flex">
+      <button type="button" className="cursor-help outline-none">{badge}</button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden w-64 rounded-[var(--r-sm)] bg-[var(--contrast)] p-3 text-left text-xs leading-5 text-[var(--contrast-on)] shadow-[var(--shadow-e2)] group-hover:block group-focus-within:block"
+      >
+        <span className="mb-1 block font-semibold">Why {severity.toLowerCase()}?</span>
+        <span className="block space-y-1">
+          {reasons.map(reason => (
+            <span key={reason} className="flex gap-1.5">
+              <span aria-hidden="true">•</span>
+              <span>{reason}</span>
+            </span>
+          ))}
+        </span>
+      </span>
     </span>
   )
 }

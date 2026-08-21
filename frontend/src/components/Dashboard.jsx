@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from '../lib/router'
 import {
   AlertTriangle,
-  Bell,
   BookOpenCheck,
   CheckCircle2,
   CircleAlert,
@@ -24,6 +22,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { Combobox } from './ui/combobox'
+import { NotificationsMenu } from './ui/notifications-menu'
 import { ApiError, apiFetch } from '../api/client'
 import {
   analyzeRepository,
@@ -979,20 +978,13 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               </Button>
               <Tooltip label={demoMode ? 'Demo data — click for live' : 'Live data — click for demo'} />
             </span>
-            <span className="group relative inline-flex">
-              <Button asChild variant="ghost" size="icon" className="h-8 w-8">
-                <Link to="/settings#notifications" aria-label="Notification settings" title="Notification settings">
-                  <Bell size={15} />
-                </Link>
-              </Button>
-              <Tooltip label="Notification settings" />
-            </span>
+            <NotificationsMenu />
           </>
         )}
       />
 
       {/* -- Section tabs + repository identity ------------------------------ */}
-      <div className="sticky top-14 z-30 border-b border-[var(--line-1)] bg-[var(--surface-1)]">
+      <div className="isolate sticky top-14 z-30 border-b border-[var(--line-1)] bg-[var(--surface-1)]">
         <div className="flex h-12 items-center justify-between gap-3 px-4 sm:px-6 2xl:px-8">
           <nav className="flex h-full items-center gap-0.5 overflow-x-auto" role="tablist" aria-label="Dashboard sections">
             {navItems.map(item => {

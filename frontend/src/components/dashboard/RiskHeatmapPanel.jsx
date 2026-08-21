@@ -1,5 +1,9 @@
+import { useState } from 'react'
 import { ChevronDown, Flag, Grid3X3 } from 'lucide-react'
 import { EmptyPanel, SeverityBadge } from './shared'
+import { riskReasons } from './utils'
+
+const DEFAULT_VISIBLE_PER_GROUP = 9
 
 const heatByRisk = {
   low: 'bg-(--sev-low-wash) border-(--sev-low-line)',
@@ -21,8 +25,8 @@ function groupByRisk(items) {
 
 function RiskFile({ item, risk }) {
   const heatClass = heatByRisk[risk.toLowerCase()] || heatByRisk.low
-  const reasons = item.reasons?.length > 0
-    ? item.reasons
+  const reasons = riskReasons(item).length > 0
+    ? riskReasons(item)
     : ['The combined complexity, churn, dependency, and ownership signals placed this file in this risk level.']
 
   return (
@@ -33,7 +37,7 @@ function RiskFile({ item, risk }) {
             <p className="break-all font-mono text-xs font-medium text-ink-1">{item.module}</p>
             <p className="tnum mt-1 text-xs text-ink-3">Risk score {item.debtScore ?? 0}/100</p>
           </div>
-          <SeverityBadge severity={risk} className="shrink-0" />
+          <SeverityBadge severity={risk} reasons={reasons} className="shrink-0" />
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
@@ -60,6 +64,40 @@ function RiskFile({ item, risk }) {
   )
 }
 
+function RiskGroup({ group }) {
+  const [expanded, setExpanded] = useState(false)
+  const visibleItems = expanded ? group.items : group.items.slice(0, DEFAULT_VISIBLE_PER_GROUP)
+  const remaining = group.items.length - visibleItems.length
+
+  return (
+    <details className="group rounded-(--r-md) border border-line-1 bg-surface-2">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--accent) [&::-webkit-details-marker]:hidden">
+        <SeverityBadge severity={group.risk} />
+        <span className="min-w-0 flex-1 text-sm text-ink-2">
+          {group.items.length} {group.items.length === 1 ? 'file' : 'files'} at this level
+        </span>
+        <span className="hidden text-xs text-ink-3 sm:inline">View files and triggers</span>
+        <ChevronDown size={16} className="shrink-0 text-ink-4 transition-transform duration-(--d-2) group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <ul className="grid gap-3 border-t border-line-1 p-3 sm:grid-cols-2 xl:grid-cols-3">
+        {visibleItems.map(item => <RiskFile key={item.module} item={item} risk={group.risk} />)}
+      </ul>
+      {group.items.length > DEFAULT_VISIBLE_PER_GROUP && (
+        <div className="border-t border-line-1 p-3">
+          <button
+            type="button"
+            onClick={() => setExpanded(value => !value)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-(--r-md) py-2 text-sm font-medium text-ink-2 transition-colors duration-(--d-2) hover:bg-surface-3 hover:text-ink-1"
+          >
+            <ChevronDown size={15} className={`transition-transform duration-(--d-2) ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+            {expanded ? 'Show fewer files' : `Show all ${group.items.length} ${group.risk.toLowerCase()}-risk files (${remaining} more)`}
+          </button>
+        </div>
+      )}
+    </details>
+  )
+}
+
 export default function RiskHeatmapPanel({ items = [], description = 'Module risk from the Technical Debt engine.' }) {
   if (items.length === 0) {
     return (
@@ -83,21 +121,7 @@ export default function RiskHeatmapPanel({ items = [], description = 'Module ris
       </div>
 
       <div className="mt-5 space-y-2">
-        {groups.map(group => (
-          <details key={group.risk} className="group rounded-(--r-md) border border-line-1 bg-surface-2">
-            <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--accent) [&::-webkit-details-marker]:hidden">
-              <SeverityBadge severity={group.risk} />
-              <span className="min-w-0 flex-1 text-sm text-ink-2">
-                {group.items.length} {group.items.length === 1 ? 'file' : 'files'} at this level
-              </span>
-              <span className="hidden text-xs text-ink-3 sm:inline">View files and triggers</span>
-              <ChevronDown size={16} className="shrink-0 text-ink-4 transition-transform duration-(--d-2) group-open:rotate-180" aria-hidden="true" />
-            </summary>
-            <ul className="grid gap-3 border-t border-line-1 p-3 sm:grid-cols-2 xl:grid-cols-3">
-              {group.items.map(item => <RiskFile key={item.module} item={item} risk={group.risk} />)}
-            </ul>
-          </details>
-        ))}
+        {groups.map(group => <RiskGroup key={group.risk} group={group} />)}
       </div>
     </section>
   )

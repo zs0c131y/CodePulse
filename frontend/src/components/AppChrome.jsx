@@ -28,7 +28,7 @@ function initials(name, email) {
 
 export function AppTopBar({ user, onLogout, active, endContent = null }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--line-1)] bg-[var(--surface-1)]">
+    <header className="isolate sticky top-0 z-40 border-b border-[var(--line-1)] bg-[var(--surface-1)]">
       <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6 2xl:px-8">
         <div className="flex min-w-0 items-center gap-7">
           <Link to="/dashboard" className="flex shrink-0 items-center gap-2.5" aria-label="CodePulse dashboard">
