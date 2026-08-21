@@ -121,6 +121,16 @@ function publicGithubUrl(repository) {
   return GITHUB_REPO_URL_PATTERN.test(inferred) ? inferred : ''
 }
 
+function friendlyScanMessage(status) {
+  if (status === 'running') {
+    return 'This repository is already being analyzed — you can watch its progress below.'
+  }
+  if (status === 'completed') {
+    return 'This repository was already analyzed. Start a new scan from its page to refresh the results.'
+  }
+  return "Got it — we've started analyzing your repository. This can take a few minutes; progress updates automatically below."
+}
+
 function settledValue(result, fallback = null) {
   return result.status === 'fulfilled' ? result.value : fallback
 }
@@ -796,7 +806,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
 
       setScanSummary(data.summary || null)
       setScannedRepositoryId(data.repositoryId || '')
-      setScanMessage(data.message || 'Repository analyzed.')
+      setScanMessage(friendlyScanMessage(data.status))
       setRepoUrl('')
       setDemoMode(false)
 
