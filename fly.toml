@@ -22,10 +22,13 @@ type = "requests"
 soft_limit = 10
 hard_limit = 15
 
+[env]
+  ANALYSIS_MAX_CONCURRENCY = "2"
+
 [[vm]]
-  memory = '4gb'
-  size = 'shared-cpu-4x'
+  memory = '8gb'
+  size = 'shared-cpu-8x'
   cpu_kind = 'shared'
-  cpus = 4
-  memory_mb = 4096
+  cpus = 8
+  memory_mb = 8192
   processes = ['app']
