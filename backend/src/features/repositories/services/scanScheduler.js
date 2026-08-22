@@ -2,6 +2,7 @@ import { getRepositoriesCollection } from '../../../db/index.js'
 import { parseGitHubRepositoryUrl } from './gitClient.js'
 import { queueRepositoryAnalysis } from './repositoryStore.js'
 import { enqueueRepositoryAnalysis } from './analysisQueue.js'
+import { getGitHubAccessToken } from '../../integrations/services/accessTokenLookup.js'
 import { SCAN_SCHEDULER_INTERVAL_MS, SCAN_SCHEDULER_BATCH_SIZE } from '../../../config/index.js'
 import { scheduledScansTotal } from '../../../observability/metrics.js'
 
@@ -38,6 +39,7 @@ export async function runScheduledScans(options = {}) {
   const parseUrl = options.parseGitHubRepositoryUrl || parseGitHubRepositoryUrl
   const queue = options.queueRepositoryAnalysis || queueRepositoryAnalysis
   const enqueue = options.enqueueRepositoryAnalysis || enqueueRepositoryAnalysis
+  const getAccessToken = options.getGitHubAccessToken || getGitHubAccessToken
   const logError = options.logError || ((message, error) => console.error(message, error))
 
   const due = await findDueScheduledRepositories(now, { repositories, batchSize: options.batchSize })
@@ -63,12 +65,14 @@ export async function runScheduledScans(options = {}) {
       )
 
       if (queued.shouldStart) {
+        const accessToken = await getAccessToken(record.user_id).catch(() => null)
         enqueue({
           userId: record.user_id,
           repositoryId: queued.repositoryId,
           scanId: queued.scanId,
           repoUrl: repository.webUrl,
           commitLimit: record.commit_limit || 100,
+          accessToken,
         })
         started += 1
         scheduledScansTotal.inc({ outcome: 'started' })
