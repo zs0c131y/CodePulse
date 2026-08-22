@@ -8,7 +8,6 @@ import {
 } from '../../../config/index.js'
 import { getRepositoriesCollection } from '../../../db/index.js'
 import { markRepositoryAnalysisFailed } from './repositoryStore.js'
-import { getGitHubAccessToken } from '../../integrations/services/accessTokenLookup.js'
 import { scansTotal, scanDurationSeconds } from '../../../observability/metrics.js'
 
 const pending = []
@@ -30,7 +29,6 @@ function serializableJob(job) {
     workerId: String(job.workerId || randomUUID()),
     repoUrl: String(job.repoUrl),
     commitLimit: Number(job.commitLimit) || 100,
-    accessToken: job.accessToken || null,
   }
 }
 
@@ -161,7 +159,6 @@ export function getAnalysisQueueSnapshot() {
 export async function recoverRepositoryAnalysisJobs(options = {}) {
   const repositories = options.repositories || await getRepositoriesCollection()
   const enqueue = options.enqueue || enqueueRepositoryAnalysis
-  const getAccessToken = options.getGitHubAccessToken || getGitHubAccessToken
   const now = options.now || new Date()
   const records = await repositories.find({
     $or: [
@@ -196,15 +193,12 @@ export async function recoverRepositoryAnalysisJobs(options = {}) {
       if ((reset?.matchedCount ?? reset?.modifiedCount ?? 0) === 0) continue
     }
 
-    const accessToken = await getAccessToken(record.user_id).catch(() => null)
-
     if (enqueue({
       userId: record.user_id,
       repositoryId: record._id,
       scanId: record.scan_id,
       repoUrl: record.repo_url,
       commitLimit: record.commit_limit || 100,
-      accessToken,
     })) recovered += 1
   }
 

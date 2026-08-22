@@ -72,7 +72,6 @@ test('runScheduledScans enqueues a scan for each due repository and advances nex
       assert.equal(input.commitLimit, 100)
       return { repositoryId: 'repo-1', scanId: 'scan-123', status: 'queued', shouldStart: true }
     },
-    getGitHubAccessToken: async () => null,
     enqueueRepositoryAnalysis(job) {
       enqueued.push(job)
       return true
@@ -139,7 +138,6 @@ test('runScheduledScans advances next_scan_at even when queueing throws, so one 
       if (callCount === 1) throw new Error('GitHub API unavailable')
       return { repositoryId: 'repo-ok', scanId: 'scan-ok', status: 'queued', shouldStart: true }
     },
-    getGitHubAccessToken: async () => null,
     enqueueRepositoryAnalysis(job) { started.push(job) },
     logError: () => {},
   })

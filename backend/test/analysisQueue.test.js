@@ -37,7 +37,6 @@ test('startup recovery requeues interrupted scans and schedules durable queued w
   const recovered = await recoverRepositoryAnalysisJobs({
     repositories,
     now: new Date('2026-08-13T10:00:00.000Z'),
-    getGitHubAccessToken: async () => null,
     enqueue(job) {
       enqueued.push(job)
       return true
