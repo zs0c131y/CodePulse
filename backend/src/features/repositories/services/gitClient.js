@@ -72,6 +72,15 @@ export function validatePublicGitHubRepositoryUrl(input) {
   return Boolean(parseGitHubRepositoryUrl(input))
 }
 
+// GitHub's git-over-HTTPS auth accepts any non-empty username paired with a
+// token as the password; "x-access-token" mirrors what GitHub Actions/Apps
+// use so the header carries no meaningful username of its own.
+function githubAuthHeaderArgs(accessToken) {
+  if (!accessToken) return []
+  const basicAuth = Buffer.from(`x-access-token:${accessToken}`, 'utf8').toString('base64')
+  return ['-c', `http.extraheader=AUTHORIZATION: basic ${basicAuth}`]
+}
+
 function appendBounded(chunks, chunk, state, maxBuffer) {
   const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
   state.bytes += buffer.length
@@ -193,11 +202,12 @@ function gitProgressFromChunk(chunk) {
   }
 }
 
-async function fetchGitHubRepositoryMetadata(repositoryInfo) {
+async function fetchGitHubRepositoryMetadata(repositoryInfo, accessToken) {
   const response = await fetch(`https://api.github.com/repos/${repositoryInfo.owner}/${repositoryInfo.name}`, {
     headers: {
       Accept: 'application/vnd.github+json',
       'User-Agent': 'CodePulse repository analyzer',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
     signal: AbortSignal.timeout(10000),
   })
@@ -220,7 +230,7 @@ export async function assertRepositorySizeAllowed(repositoryInfo, options = {}) 
   let metadata
 
   try {
-    metadata = await fetchGitHubRepositoryMetadata(repositoryInfo)
+    metadata = await fetchGitHubRepositoryMetadata(repositoryInfo, options.accessToken)
   } catch (error) {
     if (error.statusCode) throw error
     return
@@ -265,11 +275,14 @@ export async function cloneRepository(sourceUrl, options = {}) {
   await mkdir(workspaceRoot, { recursive: true })
 
   if (!options.allowLocalPath) {
-    await assertRepositorySizeAllowed(repositoryInfo, { maxSizeKb: options.maxSizeKb })
+    await assertRepositorySizeAllowed(repositoryInfo, { maxSizeKb: options.maxSizeKb, accessToken: options.accessToken })
   }
 
   try {
-    const cloneArgs = ['clone', '--no-tags', '--single-branch', '--depth', String(cloneDepth)]
+    const cloneArgs = [
+      ...(options.allowLocalPath ? [] : githubAuthHeaderArgs(options.accessToken)),
+      'clone', '--no-tags', '--single-branch', '--depth', String(cloneDepth),
+    ]
     if (filteredNoCheckout) cloneArgs.push('--filter=blob:none', '--no-checkout')
     cloneArgs.push(repositoryInfo.cloneUrl, targetPath)
 
@@ -285,7 +298,11 @@ export async function cloneRepository(sourceUrl, options = {}) {
   } catch (error) {
     await removeRepositoryWorkspace(targetPath)
     if (!options.allowLocalPath && isInaccessibleCloneError(error.message)) {
-      const wrapped = new Error('Repository was not found or is not public.')
+      const wrapped = new Error(
+        options.accessToken
+          ? 'Repository was not found or your connected account does not have access to it.'
+          : 'Repository was not found or is not public.',
+      )
       wrapped.statusCode = 404
       wrapped.cause = error
       throw wrapped
