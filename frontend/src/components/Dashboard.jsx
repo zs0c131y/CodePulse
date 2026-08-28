@@ -39,6 +39,7 @@ import {
   reviewRepositoryDriftFinding,
   getRepositoryScores,
   getRepositoryStatus,
+  enableGitHubPushScan,
   updateRepositorySchedule,
   listRepositories,
   pauseRepositoryScan,
@@ -911,11 +912,15 @@ export default function Dashboard({ user, accessToken, onLogout }) {
 
   async function handleScheduleChange(value) {
     if (demoMode || !accessToken || !selectedRepoId) return
-    const intervalHours = value ? Number(value) : null
     setScheduleSaving(true)
     setScheduleError('')
     try {
-      await updateRepositorySchedule(accessToken, selectedRepoId, intervalHours)
+      if (value === 'github_push') {
+        await enableGitHubPushScan(accessToken, selectedRepoId)
+      } else {
+        const intervalHours = value ? Number(value) : null
+        await updateRepositorySchedule(accessToken, selectedRepoId, intervalHours)
+      }
       setDataVersion(version => version + 1)
     } catch (error) {
       setScheduleError(error instanceof Error ? error.message : 'Could not update the scan schedule.')
@@ -1246,20 +1251,23 @@ export default function Dashboard({ user, accessToken, onLogout }) {
                 <label className="inline-flex items-center gap-1.5">
                   Auto re-scan
                   <select
-                    value={selectedRepo?.scanIntervalHours || ''}
+                    value={selectedRepo?.scanTrigger === 'github_push' ? 'github_push' : selectedRepo?.scanIntervalHours || ''}
                     onChange={event => handleScheduleChange(event.target.value)}
                     disabled={scheduleSaving}
                     aria-label="Recurring scan interval"
                     className="rounded-[var(--r-xs)] border border-[var(--line-2)] bg-[var(--surface-1)] px-1.5 py-0.5 text-[0.8125rem] text-[var(--ink-2)] disabled:opacity-50"
                   >
                     <option value="">Off</option>
+                    <option value="github_push">On GitHub push</option>
                     <option value="6">Every 6 hours</option>
                     <option value="24">Every day</option>
                     <option value="168">Every week</option>
                     <option value="720">Every 30 days</option>
                   </select>
                 </label>
-                {selectedRepo?.nextScanAt && (
+                {selectedRepo?.scanTrigger === 'github_push' ? (
+                  <span className="tnum font-mono text-xs text-[var(--ink-4)]">default-branch pushes</span>
+                ) : selectedRepo?.nextScanAt && (
                   <span className="tnum font-mono text-xs text-[var(--ink-4)]">
                     next {new Date(selectedRepo.nextScanAt).toLocaleString()}
                   </span>

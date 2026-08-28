@@ -161,6 +161,37 @@ test('updateRepositorySchedule sets a schedule and treats null as disabling it',
   assert.equal(capturedIntervalHours, null)
 })
 
+test('updateRepositorySchedule enables a GitHub push trigger for an owned repository', async () => {
+  let activationInput
+  let scheduleInput
+  const deps = {
+    async findRepositoryForUser() {
+      return { _id: 'repo-1', repo_full_name: 'owner/demo' }
+    },
+    async enableGitHubPushScan(input) {
+      activationInput = input
+      return 123
+    },
+    async setRepositoryScanSchedule(...args) {
+      scheduleInput = args
+      return { id: 'repo-1', scanTrigger: 'github_push', scanIntervalHours: null, nextScanAt: null }
+    },
+  }
+  const { updateRepositorySchedule } = createReadController(deps)
+  const response = createResponse()
+
+  await updateRepositorySchedule(
+    { user: { _id: 'user-1' }, params: { repositoryId: '507f1f77bcf86cd799439011' }, body: { trigger: 'github_push' } },
+    response,
+    () => assert.fail('next should not be called'),
+  )
+
+  assert.equal(activationInput.userId, 'user-1')
+  assert.equal(activationInput.repository.repo_full_name, 'owner/demo')
+  assert.deepEqual(scheduleInput.slice(2), [null, { trigger: 'github_push', githubWebhookId: 123 }])
+  assert.equal(response.body.repository.scanTrigger, 'github_push')
+})
+
 test('getRepositoryFiles passes ownership check and pagination through to the reader', async () => {
   let receivedArgs
   const deps = {

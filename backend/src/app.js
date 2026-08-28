@@ -9,6 +9,7 @@ import { httpRequestsTotal } from './observability/metrics.js'
 import healthRouter from './features/health/router.js'
 import authRouter from './features/auth/router.js'
 import repositoriesRouter from './features/repositories/router.js'
+import githubWebhookRouter from './features/repositories/githubWebhookRouter.js'
 import integrationsRouter from './features/integrations/router.js'
 import analysisRouter from './features/analysis/router.js'
 import reportsRouter from './features/reports/router.js'
@@ -39,7 +40,7 @@ const app = express()
 app.set('trust proxy', IS_PRODUCTION ? 1 : 0)
 app.use(securityHeaders)
 app.use(cors)
-app.use(express.json({ limit: '1mb' }))
+app.use(express.json({ limit: '1mb', verify: (request, _response, buffer) => { request.rawBody = Buffer.from(buffer) } }))
 app.use(createRateLimiter({ windowMs: 15 * 60 * 1000, max: 300 }))
 app.use((request, response, next) => {
   response.on('finish', () => {
@@ -52,6 +53,7 @@ app.use(healthRouter)
 app.use(authRouter)
 app.use(analysisRouter)
 app.use(repositoriesRouter)
+app.use(githubWebhookRouter)
 app.use(integrationsRouter)
 app.use(reportsRouter)
 app.use(observabilityRouter)

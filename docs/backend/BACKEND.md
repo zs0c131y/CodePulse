@@ -122,6 +122,9 @@ Authentication also reads:
   (`http://localhost:3000` local fallback). See
   [backend/src/utils/urls.js](../../backend/src/utils/urls.js) for the derived
   callback/link builders.
+* `GITHUB_WEBHOOK_SECRET`: long random secret used to sign and verify GitHub
+  push webhook deliveries. GitHub push scan mode also requires `BACKEND_URL`
+  to be a public HTTPS URL.
 * `EMAIL_KEY`: SMTP2GO API key used to send verification and password reset
   emails through `POST https://api.smtp2go.com/v3/email/send`.
 * `VERIFICATION_EMAIL`: verified SMTP2GO sender address used for email
@@ -804,6 +807,7 @@ Lists the signed-in user's repositories, most recently updated first.
       "totalDependencies": 43,
       "totalDocumentation": 5,
       "scanIntervalHours": 24,
+      "scanTrigger": "interval",
       "nextScanAt": "2026-07-22T09:15:00.000Z",
       "createdAt": "2026-07-01T07:30:00.000Z",
       "updatedAt": "2026-07-21T09:15:00.000Z"
@@ -813,7 +817,7 @@ Lists the signed-in user's repositories, most recently updated first.
 ```
 
 `scanIntervalHours`/`nextScanAt` are `null` when the repository has no
-recurring schedule.
+time-based schedule. `scanTrigger` is `interval`, `github_push`, or `null`.
 
 ### `GET /api/repositories/:repositoryId`
 
@@ -833,13 +837,18 @@ Returns `404` when the repository does not exist or belongs to another user.
 
 ### `PATCH /api/repositories/:repositoryId/schedule`
 
-Sets or clears a repository's recurring scan schedule. Body:
+Sets or clears a repository's auto-scan schedule. Time-based bodies use
 `{ "intervalHours": 24 }` — an integer between `MIN_SCAN_INTERVAL_HOURS`
 (default `1`) and `MAX_SCAN_INTERVAL_HOURS` (default `720`, 30 days) — or
-`{ "intervalHours": null }` to disable it. Returns `200` with
+`{ "intervalHours": null }` to disable it. `{ "trigger": "github_push" }`
+enables a signed GitHub `push` webhook instead: it requires a connected GitHub
+account with webhook-management permission, `GITHUB_WEBHOOK_SECRET`, and a
+public HTTPS `BACKEND_URL`. Push deliveries queue a scan only when they target
+the repository's default branch. Returns `200` with
 `{ "repository": { ... } }` (the same shape as `GET /api/repositories/:repositoryId`).
-`400` for an out-of-range or non-integer `intervalHours`; `404` when the
-repository does not exist or belongs to another user.
+`400` for an invalid body, `403` when GitHub denies webhook management, `503`
+when GitHub push delivery is not configured, and `404` when the repository does
+not exist or belongs to another user.
 
 A background scheduler (`backend/src/features/repositories/services/scanScheduler.js`,
 started from `backend/index.js` when `SCAN_SCHEDULER_ENABLED` is not `false`)
@@ -850,6 +859,14 @@ worker-thread `analysisQueue.js` a manual `POST /api/repositories/analyze`
 uses — scheduled scans never block HTTP requests and share the same
 concurrency caps. `nextScanAt` advances on every tick regardless of outcome,
 so a failing scheduled scan retries at its normal interval, not immediately.
+
+### `POST /api/webhooks/github`
+
+Unauthenticated GitHub webhook receiver. GitHub must provide a valid
+`X-Hub-Signature-256` HMAC using `GITHUB_WEBHOOK_SECRET`; invalid deliveries
+receive `401`. `ping` events verify the hook and `push` events return `202`
+after enqueuing any matching default-branch scans through the standard analysis
+queue. Other GitHub event types are acknowledged but ignored.
 
 ### `GET /api/repositories/:repositoryId/files`
 
@@ -1442,8 +1459,9 @@ including during concurrent callbacks. Provider access tokens are AES-256-GCM en
   connected GitHub/GitLab accounts for the dashboard source picker.
 
 OAuth requests include repository-read scopes (`repo` on GitHub and
-`read_api` on GitLab). The provider calls never send access tokens to the
-frontend.
+`read_api` on GitLab); GitHub's `repo` scope includes repository webhook
+management for users with sufficient repository access. The provider calls
+never send access tokens to the frontend.
 
 ## 📈 Observability API
 

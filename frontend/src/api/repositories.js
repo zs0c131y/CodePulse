@@ -59,6 +59,16 @@ export async function updateRepositorySchedule(accessToken, repositoryId, interv
   return data.repository || null
 }
 
+/** Enables a signed GitHub push webhook instead of a time-based schedule. */
+export async function enableGitHubPushScan(accessToken, repositoryId) {
+  const data = await apiFetch(`/api/repositories/${repositoryId}/schedule`, {
+    accessToken,
+    method: 'PATCH',
+    body: { trigger: 'github_push' },
+  })
+  return data.repository || null
+}
+
 export async function getRepositoryScores(accessToken, repositoryId) {
   const data = await apiFetch(`/api/repositories/${repositoryId}/scores`, { accessToken })
   return data.scores || null

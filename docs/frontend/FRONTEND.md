@@ -265,6 +265,11 @@ API"):
   repository does the same when its provider URL is supported. A successful
   scan switches the dashboard to live mode, selects the new repository, and
   reloads list + analytics.
+* The repository console's **Auto re-scan** control supports fixed intervals
+  and **On GitHub push**. Push mode creates a signed GitHub webhook for the
+  connected GitHub account and only queues a re-scan for pushes to the tracked
+  repository's default branch. The control shows that scope instead of a
+  next-run timestamp.
 Five dashboard tabs:
 
 * **Overview**: Score KPIs (health, critical risks, drift findings, AI

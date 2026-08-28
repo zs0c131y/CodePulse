@@ -179,6 +179,10 @@ export async function ensureIndexes() {
     { next_scan_at: 1 },
     { partialFilterExpression: { scan_interval_hours: { $gt: 0 } } },
   )
+  await repositories.createIndex(
+    { repo_full_name: 1, scan_trigger: 1 },
+    { partialFilterExpression: { scan_trigger: 'github_push' } },
+  )
 
   const repoFiles = await getRepoFilesCollection()
   await repoFiles.createIndex({ repository_id: 1, file_path: 1, _id: 1 })

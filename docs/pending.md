@@ -128,7 +128,11 @@ GitHub API error, clone failure) is retried at its next normal interval
 rather than immediately, so one bad repository can never spin the queue.
 Clearing the schedule (`intervalHours: null`) is how a not-yet-started
 scheduled scan is cancelled; an in-flight worker cannot be cancelled
-mid-scan, matching the existing manual-scan limitation.
+mid-scan, matching the existing manual-scan limitation. The same Auto re-scan
+control also supports `{ "trigger": "github_push" }`: it creates/refreshes a
+signed GitHub `push` webhook for a connected GitHub account and queues scans
+only when the default branch receives a push. This needs a public HTTPS
+`BACKEND_URL`, `GITHUB_WEBHOOK_SECRET`, and GitHub repository webhook access.
 
 **Acceptance criteria:** a repository can be scanned repeatedly on a schedule
 without a manual trigger (done), and safely runs scheduled/background scans

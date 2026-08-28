@@ -169,6 +169,10 @@ export const SCAN_SCHEDULER_BATCH_SIZE = readPositiveIntegerEnv('SCAN_SCHEDULER_
 export const MIN_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MIN_SCAN_INTERVAL_HOURS', 1)
 export const MAX_SCAN_INTERVAL_HOURS = readPositiveIntegerEnv('MAX_SCAN_INTERVAL_HOURS', 24 * 30)
 
+// GitHub signs each push delivery with this value. It must be set to a long,
+// random secret before GitHub-push scan triggers can be enabled.
+export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || null
+
 // --- Observability & hardening ---
 //
 // METRICS_TOKEN is optional but recommended in production: scan volume and

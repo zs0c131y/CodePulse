@@ -180,6 +180,11 @@ Stores high-level metadata for tracked repositories.
 * `queued_at`, `started_at`, `completed_at`, `failed_at`, `paused_at`, and
   `cancelled_at`: Lifecycle timestamps. `scan_id`, `worker_id`, and
   `lease_expires_at` prevent stale workers from overwriting newer task state.
+* `scan_trigger`: Optional auto-scan mode — `interval` for a time-based
+  schedule or `github_push` for a signed GitHub push webhook. Push mode keeps
+  `scan_interval_hours` and `next_scan_at` `null`.
+* `github_webhook_id`: GitHub webhook ID retained so enabling push mode again
+  refreshes the existing hook instead of creating another.
 * `total_files`: Parsed file count.
 * `total_commits`: Parsed commit count.
 * `total_dependencies`: Parsed dependency edge count.

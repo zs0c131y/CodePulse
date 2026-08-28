@@ -96,6 +96,7 @@ export function serializeRepository(repository) {
     totalDependencies: repository.total_dependencies ?? 0,
     totalDocumentation: repository.total_documentation ?? 0,
     scanIntervalHours: repository.scan_interval_hours ?? null,
+    scanTrigger: repository.scan_trigger || null,
     nextScanAt: toIso(repository.next_scan_at),
     createdAt: toIso(repository.created_at),
     queuedAt: toIso(repository.queued_at),
@@ -196,11 +197,27 @@ export async function setRepositoryScanScheduleWithCollections(userId, repositor
   if (!repository) return null
 
   const now = options.now || new Date()
-  const patch = intervalHours === null
-    ? { scan_interval_hours: null, next_scan_at: null, updated_at: now }
+  const patch = options.trigger === 'github_push'
+    ? {
+        scan_trigger: 'github_push',
+        scan_interval_hours: null,
+        next_scan_at: null,
+        github_webhook_id: options.githubWebhookId ?? repository.github_webhook_id ?? null,
+        updated_at: now,
+      }
+    : intervalHours === null
+    ? {
+        scan_trigger: null,
+        scan_interval_hours: null,
+        next_scan_at: null,
+        github_webhook_id: repository.github_webhook_id ?? null,
+        updated_at: now,
+      }
     : {
+        scan_trigger: 'interval',
         scan_interval_hours: intervalHours,
         next_scan_at: new Date(now.getTime() + intervalHours * 60 * 60 * 1000),
+        github_webhook_id: repository.github_webhook_id ?? null,
         updated_at: now,
       }
 

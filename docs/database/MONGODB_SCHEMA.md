@@ -230,6 +230,13 @@ Optional fields:
 * `total_commits` (`int`): Parsed commit count.
 * `total_dependencies` (`int`): Parsed dependency edge count.
 * `total_documentation` (`int`): Parsed documentation file count.
+* `scan_trigger` (`string|null`): `interval` for a time-based schedule or
+  `github_push` for GitHub default-branch push delivery.
+* `scan_interval_hours` (`int|null`): Recurring interval when
+  `scan_trigger` is `interval`.
+* `next_scan_at` (`date|null`): Next due timestamp for interval scheduling.
+* `github_webhook_id` (`int|null`): Hook ID used to refresh the GitHub push
+  subscription.
 * `created_at` (`date`): Repository registration timestamp.
 * `updated_at` (`date`): Most recent scan timestamp.
 
@@ -237,6 +244,9 @@ Indexes:
 
 * `{ user_id: 1, updated_at: -1, _id: -1 }`.
 * `{ user_id: 1, repo_url: 1 }`, unique.
+* `{ next_scan_at: 1 }`, partial where `scan_interval_hours > 0`.
+* `{ repo_full_name: 1, scan_trigger: 1 }`, partial where
+  `scan_trigger = "github_push"`.
 
 ### `repo_files`
 

@@ -3,8 +3,9 @@ import * as repositoryQueries from './services/repositoryQueries.js'
 import { aggregateContributors } from './services/contributorAggregator.js'
 import { fetchRepositoryManifests } from './services/manifestFetcher.js'
 import { MIN_SCAN_INTERVAL_HOURS, MAX_SCAN_INTERVAL_HOURS } from '../../config/index.js'
+import { enableGitHubPushScan } from './services/githubPushWebhookService.js'
 
-const defaultReader = { ...repositoryQueries, fetchRepositoryManifests }
+const defaultReader = { ...repositoryQueries, fetchRepositoryManifests, enableGitHubPushScan }
 
 function parseRepositoryId(value) {
   return typeof value === 'string' && ObjectId.isValid(value) ? new ObjectId(value) : null
@@ -170,6 +171,38 @@ export function createReadController(deps = defaultReader) {
         return
       }
 
+      const trigger = request.body?.trigger
+      if (trigger !== undefined && trigger !== 'github_push') {
+        response.status(400).json({ message: 'trigger must be "github_push" when provided.' })
+        return
+      }
+
+      if (trigger === 'github_push') {
+        if (request.body?.intervalHours !== undefined && request.body.intervalHours !== null) {
+          response.status(400).json({ message: 'intervalHours cannot be combined with the GitHub push trigger.' })
+          return
+        }
+
+        const ownedRepository = await deps.findRepositoryForUser(request.user._id, repositoryId)
+        if (!ownedRepository) {
+          response.status(404).json({ message: 'Repository not found.' })
+          return
+        }
+
+        const githubWebhookId = await deps.enableGitHubPushScan({
+          userId: request.user._id,
+          repository: ownedRepository,
+        })
+        const repository = await deps.setRepositoryScanSchedule(
+          request.user._id,
+          repositoryId,
+          null,
+          { trigger: 'github_push', githubWebhookId },
+        )
+        response.json({ repository })
+        return
+      }
+
       const raw = request.body?.intervalHours
       let intervalHours = null
       if (raw !== null && raw !== undefined) {
@@ -191,6 +224,10 @@ export function createReadController(deps = defaultReader) {
 
       response.json({ repository })
     } catch (error) {
+      if (Number.isInteger(error?.statusCode)) {
+        response.status(error.statusCode).json({ message: error.message })
+        return
+      }
       next(error)
     }
   }

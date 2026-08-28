@@ -196,6 +196,26 @@ test('setRepositoryScanScheduleWithCollections sets and clears a recurring sched
   assert.equal(stored.next_scan_at, null)
 })
 
+test('setRepositoryScanScheduleWithCollections stores GitHub push mode without a next scan time', async () => {
+  const collections = createCollections()
+  const now = new Date('2026-08-19T12:00:00.000Z')
+
+  const scheduled = await setRepositoryScanScheduleWithCollections(
+    'user-1',
+    'repo-1',
+    null,
+    collections,
+    { now, trigger: 'github_push', githubWebhookId: 12345 },
+  )
+
+  assert.equal(scheduled.scanTrigger, 'github_push')
+  assert.equal(scheduled.scanIntervalHours, null)
+  assert.equal(scheduled.nextScanAt, null)
+  const stored = collections.repositories.records.find(record => record._id === 'repo-1')
+  assert.equal(stored.scan_trigger, 'github_push')
+  assert.equal(stored.github_webhook_id, 12345)
+})
+
 test('deleteRepositoryForUserWithCollections cascades child records and reports not-found', async () => {
   const collections = createCollections()
   collections.repoFiles.records.push({ repository_id: 'repo-1', file_path: 'a.js' })

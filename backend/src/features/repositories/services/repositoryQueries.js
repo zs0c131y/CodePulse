@@ -91,9 +91,9 @@ export async function deleteRepositoryForUser(userId, repositoryId) {
   )
 }
 
-export async function setRepositoryScanSchedule(userId, repositoryId, intervalHours) {
+export async function setRepositoryScanSchedule(userId, repositoryId, intervalHours, options) {
   const collections = await getRepositoryCollections()
-  return setRepositoryScanScheduleWithCollections(normalizeMongoId(userId), normalizeMongoId(repositoryId), intervalHours, collections)
+  return setRepositoryScanScheduleWithCollections(normalizeMongoId(userId), normalizeMongoId(repositoryId), intervalHours, collections, options)
 }
 
 export async function listRepoFilesForRepository(repositoryId, options) {
