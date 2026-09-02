@@ -877,6 +877,31 @@ source file, and documentation by path. Sorting, offsetting, limiting, and the
 total count are executed by MongoDB so these endpoints do not materialize the
 repository's entire evidence collection in application memory.
 
+### `GET /api/repositories/:repositoryId/tree`
+
+Returns one lazy-loaded level of the owned repository's persisted file tree.
+Call it without `path` for the repository root, then call it again with an
+expanded directory's normalized relative `path` (for example,
+`?path=frontend/src`). Each response contains directories before files:
+
+```json
+{
+  "path": "frontend",
+  "entries": [
+    { "path": "frontend/src", "name": "src", "type": "directory" },
+    { "path": "frontend/package.json", "name": "package.json", "type": "file", "language": "JSON", "size": 612 }
+  ],
+  "limit": 500,
+  "truncated": false
+}
+```
+
+The endpoint is ownership-protected and rejects empty path segments and `.` or
+`..` segments with `400`. It returns no more than 500 direct children per
+directory. This keeps the dashboard responsive while still allowing a user to
+navigate a large repository without fetching the complete inventory in one
+response.
+
 ### `GET /api/repositories/:repositoryId/code-analysis`
 
 Returns the structured raw code evidence from the latest scan in one response:

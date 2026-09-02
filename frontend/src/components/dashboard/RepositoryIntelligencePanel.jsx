@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Input } from '../ui/input'
 import DependencyGraphPanel from './DependencyGraphPanel'
+import RepositoryTreeExplorer from './RepositoryTreeExplorer'
 import { EmptyPanel, PanelSkeleton } from './shared'
 
 const views = ['Inventory', 'Dependencies', 'Activity', 'Documentation']
@@ -39,7 +40,7 @@ function Stat({ value, label }) {
   )
 }
 
-export default function RepositoryIntelligencePanel({ data, loading = false, error = '' }) {
+export default function RepositoryIntelligencePanel({ data, loading = false, error = '', repositoryName, onLoadTree }) {
   const [activeView, setActiveView] = useState('Inventory')
   const [query, setQuery] = useState('')
   const files = data?.files?.items || EMPTY_ITEMS
@@ -147,7 +148,14 @@ export default function RepositoryIntelligencePanel({ data, loading = false, err
       </nav>
 
       {activeView === 'Inventory' && (
-        <div className="grid gap-5 xl:grid-cols-[0.72fr_1.28fr]">
+        <div className="space-y-5">
+          <RepositoryTreeExplorer
+            repositoryName={repositoryName || 'Repository'}
+            root={data.tree}
+            fallbackFiles={files}
+            onLoadChildren={onLoadTree}
+          />
+          <div className="grid gap-5 xl:grid-cols-[0.72fr_1.28fr]">
           <section className="panel p-5 sm:p-6">
             <div className="flex items-center gap-2">
               <FileCode2 size={17} className="text-[var(--ink-4)]" />
@@ -184,6 +192,7 @@ export default function RepositoryIntelligencePanel({ data, loading = false, err
               {filteredFiles.length === 0 && <p className="py-10 text-center text-sm text-[var(--ink-3)]">No files match this filter.</p>}
             </div>
           </section>
+          </div>
         </div>
       )}
 
