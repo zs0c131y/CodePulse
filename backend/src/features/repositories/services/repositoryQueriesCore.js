@@ -1,5 +1,6 @@
 export const DEFAULT_PAGE_LIMIT = 50
 export const MAX_PAGE_LIMIT = 200
+export const REPOSITORY_TREE_CHILD_LIMIT = 500
 
 function normalizeLimit(value) {
   const parsed = Number(value)
@@ -117,6 +118,107 @@ function serializeFile(file) {
     language: file.language,
     size: Number.isFinite(file.size) ? file.size : null,
     depth: file.depth,
+  }
+}
+
+/**
+ * Tree paths are database lookup keys, not filesystem paths. Keeping the
+ * normalized form strict still prevents ambiguous paths and makes every tree
+ * response use the same stable cache key in the client.
+ */
+export function normalizeRepositoryTreePath(value) {
+  if (value === undefined || value === null || value === '' || value === '.') return ''
+  if (typeof value !== 'string') return null
+
+  const segments = value.replaceAll('\\', '/').split('/')
+  if (segments.some(segment => !segment || segment === '.' || segment === '..')) return null
+  return segments.join('/')
+}
+
+/**
+ * Returns one directory level at a time. The aggregation groups all matching
+ * descendants by their first remaining path segment, so the UI can lazily
+ * expand a large repository without fetching its entire inventory at once.
+ */
+export async function getRepositoryTreeWithCollections(repositoryId, collections, parentPath = '') {
+  const prefix = parentPath ? `${parentPath}/` : ''
+  const filePathMatch = prefix
+    ? { file_path: { $gte: prefix, $lt: `${prefix}\uffff` } }
+    : {}
+  const limit = REPOSITORY_TREE_CHILD_LIMIT + 1
+  const records = await collections.repoFiles.aggregate([
+    { $match: { repository_id: repositoryId, ...filePathMatch } },
+    {
+      $project: {
+        file_name: 1,
+        extension: 1,
+        file_type: 1,
+        language: 1,
+        size: 1,
+        depth: 1,
+        relative_path: {
+          $substrCP: ['$file_path', prefix.length, { $strLenCP: '$file_path' }],
+        },
+      },
+    },
+    {
+      $project: {
+        file_name: 1,
+        extension: 1,
+        file_type: 1,
+        language: 1,
+        size: 1,
+        depth: 1,
+        segments: { $split: ['$relative_path', '/'] },
+      },
+    },
+    {
+      $project: {
+        file_name: 1,
+        extension: 1,
+        file_type: 1,
+        language: 1,
+        size: 1,
+        depth: 1,
+        name: { $arrayElemAt: ['$segments', 0] },
+        is_directory: { $gt: [{ $size: '$segments' }, 1] },
+      },
+    },
+    {
+      $group: {
+        _id: '$name',
+        is_directory: { $max: '$is_directory' },
+        file_name: { $first: '$file_name' },
+        extension: { $first: '$extension' },
+        file_type: { $first: '$file_type' },
+        language: { $first: '$language' },
+        size: { $first: '$size' },
+        depth: { $first: '$depth' },
+      },
+    },
+    { $sort: { is_directory: -1, _id: 1 } },
+    { $limit: limit },
+  ]).toArray()
+
+  const truncated = records.length > REPOSITORY_TREE_CHILD_LIMIT
+  return {
+    path: parentPath,
+    entries: records.slice(0, REPOSITORY_TREE_CHILD_LIMIT).map(record => ({
+      path: parentPath ? `${parentPath}/${record._id}` : record._id,
+      name: record._id,
+      type: record.is_directory ? 'directory' : 'file',
+      ...(record.is_directory ? {} : serializeFile({
+        file_path: parentPath ? `${parentPath}/${record._id}` : record._id,
+        file_name: record.file_name,
+        extension: record.extension,
+        file_type: record.file_type,
+        language: record.language,
+        size: record.size,
+        depth: record.depth,
+      })),
+    })),
+    limit: REPOSITORY_TREE_CHILD_LIMIT,
+    truncated,
   }
 }
 

@@ -36,6 +36,7 @@ import {
   getRepositoryKnowledgeDebt,
   getRepositoryManifest,
   getRepositoryRecommendations,
+  getRepositoryTree,
   reviewRepositoryDriftFinding,
   getRepositoryScores,
   getRepositoryStatus,
@@ -422,13 +423,15 @@ function OverviewContent({ view, liveMode, onReviewDrift, reviewingDriftId }) {
   )
 }
 
-function MainContent({ activeTab, view, liveMode, accessToken, repositoryId, onReviewDrift, reviewingDriftId }) {
+function MainContent({ activeTab, view, liveMode, accessToken, repositoryId, repositoryName, onReviewDrift, reviewingDriftId }) {
   if (activeTab === 'Repository Intelligence') {
     return (
       <RepositoryIntelligencePanel
         data={view.intelligence}
         loading={view.intelligenceLoading}
         error={view.intelligenceError}
+        repositoryName={repositoryName}
+        onLoadTree={repositoryId ? path => getRepositoryTree(accessToken, repositoryId, path) : undefined}
       />
     )
   }
@@ -744,10 +747,11 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         getRepositoryDocumentationAnalysis(accessToken, selectedRepoId),
         getRepositoryContributors(accessToken, selectedRepoId),
         getRepositoryManifest(accessToken, selectedRepoId),
+        getRepositoryTree(accessToken, selectedRepoId),
       ])
       if (cancelled) return
 
-      const [codeAnalysis, commits, documentationAnalysis, contributors, manifests] = results
+      const [codeAnalysis, commits, documentationAnalysis, contributors, manifests, tree] = results
       const failures = results.filter(result => result.status === 'rejected')
       setIntelligence({
         files: settledValue(codeAnalysis, { files: EMPTY_PAGE }).files || EMPTY_PAGE,
@@ -756,6 +760,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
         documentation: settledValue(documentationAnalysis, { documents: EMPTY_PAGE }).documents || EMPTY_PAGE,
         contributors: settledValue(contributors, []),
         manifests: settledValue(manifests, []),
+        tree: settledValue(tree, { path: '', entries: [], limit: 500, truncated: false }),
       })
       setIntelligenceError(failures.length === results.length
         ? (failures[0].reason instanceof Error ? failures[0].reason.message : 'Repository evidence could not be loaded.')
@@ -1308,6 +1313,7 @@ export default function Dashboard({ user, accessToken, onLogout }) {
               liveMode={liveMode}
               accessToken={accessToken}
               repositoryId={selectedRepo?.id || ''}
+              repositoryName={displayedRepository?.name || 'Repository'}
               onReviewDrift={handleDriftReview}
               reviewingDriftId={reviewingDriftId}
             />

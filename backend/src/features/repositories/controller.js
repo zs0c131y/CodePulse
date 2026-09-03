@@ -10,6 +10,7 @@ import {
   updateRepositoryAnalysisProgress,
 } from './services/repositoryStore.js'
 import { enqueueRepositoryAnalysis } from './services/analysisQueue.js'
+import { getGitHubAccessToken } from '../integrations/services/accessTokenLookup.js'
 import { ANALYSIS_LEASE_HEARTBEAT_MS, ANALYSIS_LEASE_TTL_MS } from '../../config/index.js'
 
 const defaultControllerDependencies = {
@@ -23,6 +24,7 @@ const defaultControllerDependencies = {
   persistRepositoryAnalysis,
   queueRepositoryAnalysis,
   scheduleAnalysisJob: enqueueRepositoryAnalysis,
+  getGitHubAccessToken,
   logError: (message, error) => console.error(message, error),
 }
 
@@ -81,6 +83,7 @@ export async function runRepositoryAnalysisJob(job, deps = defaultControllerDepe
       repositoryId: job.repositoryId,
       scanId: job.scanId,
       commitLimit: job.commitLimit,
+      cloneOptions: job.accessToken ? { accessToken: job.accessToken } : undefined,
       signal: options.signal,
       onProgress: reportProgress,
       persistAnalysis: analysis => deps.persistRepositoryAnalysis(analysis, {
@@ -147,12 +150,18 @@ export function createRepositoryController(deps = defaultControllerDependencies)
       const repositoryId = queued.repositoryId.toString()
 
       if (queued.shouldStart) {
+        // Fetched fresh rather than persisted with the queued scan, so a
+        // connected account's token is never written to the repository record.
+        const accessToken = typeof deps.getGitHubAccessToken === 'function'
+          ? await deps.getGitHubAccessToken(request.user._id)
+          : null
         const job = {
           userId: request.user._id,
           repositoryId: queued.repositoryId,
           scanId: queued.scanId,
           repoUrl: repository.webUrl,
           commitLimit,
+          accessToken,
         }
 
         if (typeof deps.scheduleAnalysisJob === 'function') {
