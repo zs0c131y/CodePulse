@@ -11,24 +11,18 @@ dockerfile = "Dockerfile"
 
 [http_service]
 auto_start_machines = true
-auto_stop_machines = false
+auto_stop_machines = true
 force_https = true
 internal_port = 3000
-min_machines_running = 1
-max_machines_running = 3
+min_machines_running = 0
 
-[http_service.concurrency]
-type = "requests"
-soft_limit = 10
-hard_limit = 15
-
-[env]
-  ANALYSIS_MAX_CONCURRENCY = "2"
+  [[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  path = "/"
+  timeout = "5s"
 
 [[vm]]
-  memory = '8gb'
-  size = 'shared-cpu-8x'
-  cpu_kind = 'shared'
-  cpus = 8
-  memory_mb = 8192
-  processes = ['app']
+  memory = '256mb'
+  size = 'shared-cpu-1x'
