@@ -228,10 +228,9 @@ ${risksText}
 Top 3 Documentation Drift Issues:
 ${driftText}
 
-Write a concise 3-paragraph executive summary detailing:
-1. The current health status of the repository and its main maintainability bottleneck.
-2. A summary of the key-person and documentation coverage risks.
-3. The top two immediate recommendations to improve developer velocity and sustainability.`
+Write an executive summary in AT MOST 120 words, as 2 short paragraphs:
+1. Current health status and the single biggest maintainability bottleneck.
+2. The top risk (key-person or documentation) and the one most urgent recommendation.`
 
   return { system, user }
 }

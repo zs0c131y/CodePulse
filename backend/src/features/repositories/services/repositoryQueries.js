@@ -24,6 +24,7 @@ import {
   listAllCommitsForRepositoryWithCollections,
   listDependenciesForRepositoryWithCollections,
   listDocumentationForRepositoryWithCollections,
+  getRepositoryTreeWithCollections,
   getCodeAnalysisWithCollections,
   getDocumentationAnalysisWithCollections,
 } from './repositoryQueriesCore.js'
@@ -119,6 +120,11 @@ export async function listDependenciesForRepository(repositoryId, options) {
 export async function listDocumentationForRepository(repositoryId, options) {
   const collections = await getRepositoryCollections()
   return listDocumentationForRepositoryWithCollections(normalizeMongoId(repositoryId), collections, options)
+}
+
+export async function getRepositoryTreeForRepository(repositoryId, parentPath) {
+  const collections = await getRepositoryCollections()
+  return getRepositoryTreeWithCollections(normalizeMongoId(repositoryId), collections, parentPath)
 }
 
 export async function getCodeAnalysisForRepository(repositoryId, options) {

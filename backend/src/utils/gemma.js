@@ -26,7 +26,7 @@ export async function generateWithGemma(prompt, { model = GEMMA_MODEL, signal } 
     response = await fetch(`${GEMMA_API_URL}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...accessHeaders() },
-      body: JSON.stringify({ model, prompt, stream: false }),
+      body: JSON.stringify({ model, prompt, stream: false, keep_alive: '30m', think: false }),
       signal: controller.signal,
     })
   } catch (error) {

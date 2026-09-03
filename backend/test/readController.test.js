@@ -227,6 +227,33 @@ test('getRepositoryFiles returns 404 for a repository the user does not own', as
   assert.equal(response.statusCode, 404)
 })
 
+test('getRepositoryTree validates the path and returns one owned directory level', async () => {
+  let received
+  const deps = {
+    async findRepositoryForUser() { return { _id: 'repo-1' } },
+    async getRepositoryTreeForRepository(repositoryId, path) {
+      received = { repositoryId, path }
+      return { path, entries: [{ path: 'src', name: 'src', type: 'directory' }], limit: 500, truncated: false }
+    },
+  }
+  const { getRepositoryTree } = createReadController(deps)
+  const request = {
+    user: { _id: 'user-1' },
+    params: { repositoryId: '507f1f77bcf86cd799439011' },
+    query: { path: 'src\\components' },
+  }
+  const response = createResponse()
+
+  await getRepositoryTree(request, response, () => assert.fail('next should not be called'))
+
+  assert.deepEqual(received, { repositoryId: 'repo-1', path: 'src/components' })
+  assert.equal(response.body.entries[0].type, 'directory')
+
+  const invalidResponse = createResponse()
+  await getRepositoryTree({ ...request, query: { path: '../secrets' } }, invalidResponse, () => assert.fail('next should not be called'))
+  assert.equal(invalidResponse.statusCode, 400)
+})
+
 test('getRepositoryCommits, getRepositoryDependencies, and getRepositoryDocumentation delegate to the matching reader function', async () => {
   const deps = {
     async findRepositoryForUser() { return { _id: 'repo-1' } },

@@ -114,6 +114,11 @@ export function getRepositoryFiles(accessToken, repositoryId, limit = 200) {
   return getRepositoryPage(accessToken, repositoryId, 'files', limit)
 }
 
+export function getRepositoryTree(accessToken, repositoryId, path = '') {
+  const query = path ? `?path=${encodeURIComponent(path)}` : ''
+  return apiFetch(`/api/repositories/${repositoryId}/tree${query}`, { accessToken })
+}
+
 export function getRepositoryCommits(accessToken, repositoryId, limit = 100) {
   return getRepositoryPage(accessToken, repositoryId, 'commits', limit)
 }

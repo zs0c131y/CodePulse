@@ -15,6 +15,14 @@ function parsePagination(query = {}) {
   return { limit: query.limit, skip: query.skip }
 }
 
+function parseTreePath(value) {
+  if (value === undefined || value === null || value === '' || value === '.') return ''
+  if (typeof value !== 'string') return null
+  const segments = value.replaceAll('\\', '/').split('/')
+  if (segments.some(segment => !segment || segment === '.' || segment === '..')) return null
+  return segments.join('/')
+}
+
 export function createReadController(deps = defaultReader) {
   async function requireOwnedRepository(request, response) {
     const repositoryId = parseRepositoryId(request.params.repositoryId)
@@ -88,6 +96,23 @@ export function createReadController(deps = defaultReader) {
 
       const result = await deps.listRepoFilesForRepository(repository._id, parsePagination(request.query))
       response.json(result)
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  async function getRepositoryTree(request, response, next) {
+    try {
+      const parentPath = parseTreePath(request.query?.path)
+      if (parentPath === null) {
+        response.status(400).json({ message: 'path must be a normalized relative repository path.' })
+        return
+      }
+
+      const repository = await requireOwnedRepository(request, response)
+      if (!repository) return
+
+      response.json(await deps.getRepositoryTreeForRepository(repository._id, parentPath))
     } catch (error) {
       next(error)
     }
@@ -254,6 +279,7 @@ export function createReadController(deps = defaultReader) {
     deleteRepository,
     updateRepositorySchedule,
     getRepositoryFiles,
+    getRepositoryTree,
     getRepositoryCommits,
     getRepositoryDependencies,
     getRepositoryDocumentation,
@@ -270,6 +296,7 @@ export const {
   deleteRepository,
   updateRepositorySchedule,
   getRepositoryFiles,
+  getRepositoryTree,
   getRepositoryCommits,
   getRepositoryDependencies,
   getRepositoryDocumentation,

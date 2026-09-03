@@ -290,14 +290,19 @@ Five dashboard tabs:
   file metrics and the stored reasons that triggered each flag. The optional AI
   panel uses one high-risk file selector instead of rendering an unbounded set
   of explanation cards.
-* **Repository Intelligence**: Searchable file inventory, dependency graph
-  with an accessible table alternative, commit and contributor activity,
-  documentation summaries, and detected manifests. Its six evidence requests
+* **Repository Intelligence**: A lazy-loaded, accessible Repository Tree
+  Explorer, searchable file inventory, dependency graph with an accessible
+  table alternative, commit and contributor activity, documentation summaries,
+  and detected manifests. Its seven evidence requests
   settle independently so a missing optional source does not suppress the
-  evidence that did load. The inventory and dependency graph are supplied by
-  `GET /api/repositories/:id/code-analysis`; the documentation corpus is
-  supplied by `GET /api/repositories/:id/documentation-analysis`, so raw
-  structured analysis is directly visible rather than only feeding scores.
+  evidence that did load. The tree starts from
+  `GET /api/repositories/:id/tree` and fetches a directory only when the user
+  expands it; each directory response is capped at 500 entries and the UI
+  renders at most 1,000 expanded nodes for responsiveness. The inventory and
+  dependency graph are supplied by `GET /api/repositories/:id/code-analysis`;
+  the documentation corpus is supplied by
+  `GET /api/repositories/:id/documentation-analysis`, so raw structured
+  analysis is directly visible rather than only feeding scores.
 
 Repositories with no completed analysis render a dedicated empty state
 prompting the user to start a scan.

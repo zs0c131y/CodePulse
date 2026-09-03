@@ -10,6 +10,8 @@ import {
   listAllCommitsForRepositoryWithCollections,
   listDependenciesForRepositoryWithCollections,
   listDocumentationForRepositoryWithCollections,
+  normalizeRepositoryTreePath,
+  getRepositoryTreeWithCollections,
   getCodeAnalysisWithCollections,
   getDocumentationAnalysisWithCollections,
 } from '../src/features/repositories/services/repositoryQueriesCore.js'
@@ -277,6 +279,42 @@ test('listRepoFilesWithCollections sorts by path and paginates', async () => {
   assert.equal(page.skip, 1)
   assert.deepEqual(page.items.map(file => file.path), ['src/a.js'])
   assert.equal(page.items[0].fileType, 'code')
+})
+
+test('normalizeRepositoryTreePath accepts stable relative paths only', () => {
+  assert.equal(normalizeRepositoryTreePath(), '')
+  assert.equal(normalizeRepositoryTreePath('.'), '')
+  assert.equal(normalizeRepositoryTreePath('src\\components'), 'src/components')
+  assert.equal(normalizeRepositoryTreePath('src//components'), null)
+  assert.equal(normalizeRepositoryTreePath('../private'), null)
+})
+
+test('getRepositoryTreeWithCollections returns one normalized directory level', async () => {
+  let pipeline
+  const collections = {
+    repoFiles: {
+      aggregate(value) {
+        pipeline = value
+        return {
+          async toArray() {
+            return [
+              { _id: 'components', is_directory: true },
+              { _id: 'App.jsx', is_directory: false, file_name: 'App.jsx', extension: '.jsx', file_type: 'code', language: 'JavaScript', size: 1400, depth: 2 },
+            ]
+          },
+        }
+      },
+    },
+  }
+
+  const tree = await getRepositoryTreeWithCollections('repo-1', collections, 'src')
+
+  assert.deepEqual(tree.entries, [
+    { path: 'src/components', name: 'components', type: 'directory' },
+    { path: 'src/App.jsx', name: 'App.jsx', type: 'file', extension: '.jsx', fileType: 'code', language: 'JavaScript', size: 1400, depth: 2 },
+  ])
+  assert.equal(tree.truncated, false)
+  assert.equal(pipeline[0].$match.file_path.$gte, 'src/')
 })
 
 test('listCommitsForRepositoryWithCollections sorts newest first and paginates', async () => {
